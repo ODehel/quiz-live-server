@@ -70,3 +70,26 @@ describe('CA-3 - La console affiche l`adresse IP et le port', () => {
 		await server.stop()
 	})
 })
+
+describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
+	let server : QuizServer
+	let spy : any
+	beforeEach(() => {
+		spy = vi.spyOn(console, 'log')
+		const mockNetworkNoIP: INetwork = {
+			networkInterfaces: () => ({})
+		}
+		const configWithNoIP: IQuizServerConfiguration = {
+			...mockQuizServerConfiguration,
+			network: mockNetworkNoIP
+		}
+		server = new QuizServer(configWithNoIP)
+	})
+	it('should display a fallback message if no IP address is found', async () => {
+		await server.start()
+		expect(spy).toHaveBeenCalledWith('⚠️ No network interface found, listening on http://localhost:3000')
+	})
+	afterEach(async () => {
+		await server.stop()
+	})
+})

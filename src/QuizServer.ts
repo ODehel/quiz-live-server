@@ -13,7 +13,7 @@ export class QuizServer {
 	async start() : Promise<void> {
         this.registerRoutes()
         console.log("🚀 Server started at " + this.formatDateNow())
-        console.log("📡 Listening on " + this.formatIpAndPort())
+        console.log(this.formatMessageWithIpAndPort())
 	}
 
 	async inject(endpoint : string) : Promise<LightMyRequestResponse> {
@@ -39,11 +39,11 @@ export class QuizServer {
         return time
     }
 
-    private formatIpAndPort() {
+    private formatMessageWithIpAndPort() {
         const allInterfaces = Object.values(this.configuration.network.networkInterfaces()).flat()
         const firstInterface = allInterfaces.find(iface => iface?.family === 'IPv4' && !iface.internal)
-        if (!firstInterface) throw new Error('No IPv4 network interface found')
+        if (!firstInterface) return `⚠️ No network interface found, listening on http://localhost:${this.configuration.port}`
         
-        return `http://${firstInterface.address}:${this.configuration.port}`
+        return `📡 Listening on http://${firstInterface.address}:${this.configuration.port}`
     }
 }
