@@ -12,6 +12,7 @@ export class QuizServer {
 
 	async start() : Promise<void> {
         this.registerRoutes()
+        await this.app.listen({ port: this.configuration.port, host: '0.0.0.0' })
         console.log("🚀 Server started at " + this.formatDateNow())
         console.log(this.formatMessageWithIpAndPort())
 	}
