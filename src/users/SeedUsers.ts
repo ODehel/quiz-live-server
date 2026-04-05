@@ -1,3 +1,4 @@
+import { uuidv7 } from "uuidv7";
 import { IEnvironment } from "../common/IEnvironment"
 import { IHasher } from "../common/IHasher";
 import { IPasswordValidator } from "./IPasswordValidator";
@@ -22,6 +23,7 @@ export class SeedUsers {
         if (userCount === 0) {
             const buzzers = await Promise.all(
                 Array.from({ length: 10 }, async (_, i) => ({
+                    id: uuidv7(),
                     username: `quiz_buzzer_${String(i + 1).padStart(2, '0')}`,
                     password: await this.hasher.hash(environment.playerPassword),
                     role: UserRole.PLAYER
@@ -29,7 +31,7 @@ export class SeedUsers {
             );
             const defaultUsers = [
                 ...buzzers,
-                { username: 'admin', password: await this.hasher.hash(environment.adminPassword), role: UserRole.ADMIN }
+                { id: uuidv7(), username: 'admin', password: await this.hasher.hash(environment.adminPassword), role: UserRole.ADMIN }
             ]
             for (const user of defaultUsers) {
                 await this.repository.insert(user)
