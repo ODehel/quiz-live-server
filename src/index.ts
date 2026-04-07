@@ -19,5 +19,5 @@ const hasher = new BcryptHasher();
 const authenticationService = new AuthenticationService(userRepository, hasher);
 const tokenGenerator = new JwtTokenGenerator(process.env.JWT_SECRET_KEY || 'MySecretKey', process.env.JWT_EXPIRATION_TIME ? parseInt(process.env.JWT_EXPIRATION_TIME) : 3600);
 
-const server : QuizServer = new QuizServer(quizServerConfiguration, authenticationService, tokenGenerator);
+const server : QuizServer = new QuizServer(quizServerConfiguration, authenticationService, tokenGenerator, process.env.MAX_REQUESTS_PER_MINUTE ? parseInt(process.env.MAX_REQUESTS_PER_MINUTE) : 100);
 server.start();

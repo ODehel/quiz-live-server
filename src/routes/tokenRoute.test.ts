@@ -20,7 +20,7 @@ beforeEach(async () => {
         }
     };
     app = Fastify();
-    await app.register(tokenRoute, { authService: mockAuthenticationService, tokenGenerator: mockTokenGenerator });
+    await app.register(tokenRoute, { authService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, maxRequestsPerMinute: 5 });
 });
 
 describe('US-003/CA-05: Without token', () => {
@@ -104,5 +104,25 @@ describe('US-003/CA-11: Without body', () => {
             headers: { 'Content-Type': 'application/json' }
         })
         expect(response.statusCode).toBe(400)
+    });
+});
+
+describe('US-003/CA-13: When rate limit is exceeded', () => {
+    it('should return 429', async () => {
+        for (let i = 0; i < 5; i++) {   
+            await app.inject({
+                method: 'POST',
+                url: '/api/v1/token',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: 'User Name', password: 'user-password' })
+            })
+        }
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'User Name', password: 'user-password' })
+        });
+        expect(response.statusCode).toBe(429);
     });
 });
