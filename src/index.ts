@@ -5,10 +5,10 @@ import { BcryptHasher } from "./infrastructure/BcryptHasher";
 import { Clock } from "./infrastructure/Clock";
 import { Network } from "./infrastructure/Network";
 import { SqliteUserRepository } from "./infrastructure/SqliteUserRepository";
-import { IQuizServerConfiguration } from "./IQuizServerConfiguration";
+import { QuizServerConfiguration } from "./quiz-server-configuration.interface";
 import { QuizServer } from "./QuizServer";
 
-const quizServerConfiguration : IQuizServerConfiguration = {
+const quizServerConfiguration : QuizServerConfiguration = {
     clock: new Clock(),
     network: new Network(),
     port: process.env.PORT ? parseInt(process.env.PORT) : 3000

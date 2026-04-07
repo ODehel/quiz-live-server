@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { QuizServer } from './QuizServer'
 import { IClock } from './common/IClock'
 import { INetwork } from './common/INetwork'
-import { IQuizServerConfiguration } from './IQuizServerConfiguration'
+import { QuizServerConfiguration } from './quiz-server-configuration.interface'
 import { IToken } from './authentication/IToken'
 import { IUser } from './users/IUser'
 
@@ -20,7 +20,7 @@ const mockNetwork: INetwork = {
 
 const port: number = 3000
 
-const mockQuizServerConfiguration: IQuizServerConfiguration = {
+const mockQuizServerConfiguration: QuizServerConfiguration = {
 	clock: mockClock,
 	network: mockNetwork,
 	port: port
@@ -91,7 +91,7 @@ describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 		const mockNetworkNoIP: INetwork = {
 			networkInterfaces: () => ({})
 		}
-		const configWithNoIP: IQuizServerConfiguration = {
+		const configWithNoIP: QuizServerConfiguration = {
 			...mockQuizServerConfiguration,
 			network: mockNetworkNoIP
 		}
