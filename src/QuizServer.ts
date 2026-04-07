@@ -1,13 +1,21 @@
 import Fastify, { FastifyInstance, LightMyRequestResponse } from 'fastify'
 import { IQuizServerConfiguration } from './IQuizServerConfiguration'
+import healthRoute from './routes/healthRoute'
+import tokenRoute from './routes/tokenRoute'
+import { IAuthenticationService } from './authentication/IAuthenticationService'
+import { ITokenGenerator } from './authentication/ITokenGenerator'
 
 export class QuizServer {
     private app: FastifyInstance
     private configuration : IQuizServerConfiguration
+    private authenticationService: IAuthenticationService
+    private tokenGenerator: ITokenGenerator
 
-    constructor(configuration : IQuizServerConfiguration) {
+    constructor(configuration : IQuizServerConfiguration, authenticationService: IAuthenticationService, tokenGenerator: ITokenGenerator) {
         this.app = Fastify()
         this.configuration = configuration
+        this.authenticationService = authenticationService
+        this.tokenGenerator = tokenGenerator
     }
 
 	async start() : Promise<void> {
@@ -26,9 +34,8 @@ export class QuizServer {
 	}
 
     private registerRoutes() {
-        this.app.get('/health', async () => {
-            return { status: 'ok' }
-        })
+        this.app.register(healthRoute);
+        this.app.register(tokenRoute, { authService: this.authenticationService, tokenGenerator: this.tokenGenerator });
     }
 
     private formatDateNow() {

@@ -18,10 +18,12 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
     beforeEach(() => {
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
-            insert: vi.fn().mockResolvedValue(undefined)
+            insert: vi.fn().mockResolvedValue(undefined),
+            retrieveByLogin: vi.fn().mockResolvedValue(undefined)
         };
         mockHasher = {
-            hash: vi.fn().mockResolvedValue(undefined)
+            hash: vi.fn().mockResolvedValue(undefined),
+            compare: vi.fn().mockResolvedValue(true)
         };
         mockPasswordValidator = {
             validate: vi.fn().mockReturnValue(true)
@@ -49,10 +51,12 @@ describe("CA-2 - Les mots de passe sont lus depuis les variables d'environnement
     beforeEach(() => {
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
-            insert: vi.fn().mockResolvedValue(undefined)
+            insert: vi.fn().mockResolvedValue(undefined),
+            retrieveByLogin: vi.fn().mockResolvedValue(undefined)
         };
         mockHasher = {
-            hash: vi.fn().mockImplementation((password: string) => Promise.resolve(`hashed_${password}`))
+            hash: vi.fn().mockImplementation((password: string) => Promise.resolve(`hashed_${password}`)),
+            compare: vi.fn().mockResolvedValue(true)
         };
         mockPasswordValidator = {
             validate: vi.fn().mockReturnValue(true)
@@ -74,10 +78,12 @@ describe("CA-4 - Les mots de passe respectent les règles de validation", () => 
     beforeEach(() => {
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
-            insert: vi.fn().mockResolvedValue(undefined)
+            insert: vi.fn().mockResolvedValue(undefined),
+            retrieveByLogin: vi.fn().mockResolvedValue(undefined)
         };
         mockHasher = {
-            hash: vi.fn().mockImplementation((password: string) => Promise.resolve(`hashed_${password}`))
+            hash: vi.fn().mockImplementation((password: string) => Promise.resolve(`hashed_${password}`)),
+            compare: vi.fn().mockResolvedValue(true)
         };
         mockPasswordValidator = {
             validate: vi.fn().mockReturnValue(true)

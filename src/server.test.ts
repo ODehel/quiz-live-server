@@ -3,6 +3,8 @@ import { QuizServer } from './QuizServer'
 import { IClock } from './common/IClock'
 import { INetwork } from './common/INetwork'
 import { IQuizServerConfiguration } from './IQuizServerConfiguration'
+import { IToken } from './authentication/IToken'
+import { IUser } from './users/IUser'
 
 const mockClock: IClock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -24,10 +26,20 @@ const mockQuizServerConfiguration: IQuizServerConfiguration = {
 	port: port
 }
 
+const mockAuthenticationService = {
+	authenticate: vi.fn().mockResolvedValue({ id: 'user-id', username: 'User Name', password: 'user-password', role: 'PLAYER' })
+};
+
+const mockTokenGenerator = {
+	generateToken: (user: IUser) => {
+		return { token: 'generated-token' } as IToken;
+	}
+};
+
 describe('CA-1 - Le serveur démarre sans erreur', () => {
 	let server: QuizServer
 	beforeEach(() => {
-		server = new QuizServer(mockQuizServerConfiguration)
+		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator)
 	})
 	it('should start and remain listening without error', async () => {
 		await server.start()
@@ -44,7 +56,7 @@ describe('CA-2 - La console affiche l`heure de lancement', () => {
 	let spy: any
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		server = new QuizServer(mockQuizServerConfiguration)
+		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator)
 	})
 	it('should display a message with current hour within console', async () => {
 		await server.start()
@@ -60,7 +72,7 @@ describe('CA-3 - La console affiche l`adresse IP et le port', () => {
 	let spy: any
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		server = new QuizServer(mockQuizServerConfiguration)
+		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator)
 	})
 	it('should display a message with current hour within console', async () => {
 		await server.start()
@@ -83,7 +95,7 @@ describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 			...mockQuizServerConfiguration,
 			network: mockNetworkNoIP
 		}
-		server = new QuizServer(configWithNoIP)
+		server = new QuizServer(configWithNoIP, mockAuthenticationService, mockTokenGenerator)
 	})
 	it('should display a fallback message if no IP address is found', async () => {
 		await server.start()
