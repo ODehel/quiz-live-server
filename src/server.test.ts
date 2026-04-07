@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { QuizServer } from './QuizServer'
+import { QuizServer } from './quiz-server'
 import { IClock } from './common/IClock'
 import { INetwork } from './common/INetwork'
 import { QuizServerConfiguration } from './quiz-server-configuration.interface'
@@ -39,7 +39,7 @@ const mockTokenGenerator = {
 describe('CA-1 - Le serveur démarre sans erreur', () => {
 	let server: QuizServer
 	beforeEach(() => {
-		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator)
+		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator, 100)
 	})
 	it('should start and remain listening without error', async () => {
 		await server.start()
@@ -56,7 +56,7 @@ describe('CA-2 - La console affiche l`heure de lancement', () => {
 	let spy: any
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator)
+		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator, 100)
 	})
 	it('should display a message with current hour within console', async () => {
 		await server.start()
@@ -72,7 +72,7 @@ describe('CA-3 - La console affiche l`adresse IP et le port', () => {
 	let spy: any
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator)
+		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator, 100)
 	})
 	it('should display a message with current hour within console', async () => {
 		await server.start()
@@ -95,7 +95,7 @@ describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 			...mockQuizServerConfiguration,
 			network: mockNetworkNoIP
 		}
-		server = new QuizServer(configWithNoIP, mockAuthenticationService, mockTokenGenerator)
+		server = new QuizServer(configWithNoIP, mockAuthenticationService, mockTokenGenerator, 100)
 	})
 	it('should display a fallback message if no IP address is found', async () => {
 		await server.start()

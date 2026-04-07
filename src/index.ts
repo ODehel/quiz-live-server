@@ -6,7 +6,7 @@ import { Clock } from "./infrastructure/Clock";
 import { Network } from "./infrastructure/Network";
 import { SqliteUserRepository } from "./infrastructure/SqliteUserRepository";
 import { QuizServerConfiguration } from "./quiz-server-configuration.interface";
-import { QuizServer } from "./QuizServer";
+import { QuizServer } from "./quiz-server";
 
 const quizServerConfiguration : QuizServerConfiguration = {
     clock: new Clock(),
