@@ -1,9 +1,9 @@
 import { IUser } from "../users/IUser";
-import { IToken } from "./IToken";
-import { ITokenGenerator } from "./ITokenGenerator";
+import { Token } from "./token.interface";
+import { TokenGenerator } from "./token-generator.interface";
 import jwt from "jsonwebtoken";
 
-export class JwtTokenGenerator implements ITokenGenerator {
+export class JwtTokenGenerator implements TokenGenerator {
     private secretKey: string;
     private duration: number;
 
@@ -12,7 +12,7 @@ export class JwtTokenGenerator implements ITokenGenerator {
         this.duration = duration;
     }
 
-    generateToken(user: IUser): IToken {
+    generateToken(user: IUser): Token {
         const payload = {
                 sub: user.id,
                 role: user.role

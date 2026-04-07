@@ -2,17 +2,17 @@ import Fastify, { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { QuizServerConfiguration } from './quiz-server-configuration.interface';
 import healthRoute from './routes/healthRoute';
 import tokenRoute from './routes/tokenRoute';
-import { IAuthenticationService } from './authentication/IAuthenticationService';
-import { ITokenGenerator } from './authentication/ITokenGenerator';
+import { AuthenticationService } from './authentication/authentication-service.interface';
+import { TokenGenerator } from './authentication/token-generator.interface';
 
 export class QuizServer {
     private app: FastifyInstance;
     private configuration : QuizServerConfiguration;
-    private authenticationService: IAuthenticationService;
-    private tokenGenerator: ITokenGenerator;
+    private authenticationService: AuthenticationService;
+    private tokenGenerator: TokenGenerator;
     private maxRequestsPerMinute: number;
 
-    constructor(configuration : QuizServerConfiguration, authenticationService: IAuthenticationService, tokenGenerator: ITokenGenerator, maxRequestsPerMinute: number) {
+    constructor(configuration : QuizServerConfiguration, authenticationService: AuthenticationService, tokenGenerator: TokenGenerator, maxRequestsPerMinute: number) {
         this.app = Fastify({ logger: true });
         this.configuration = configuration;
         this.authenticationService = authenticationService;

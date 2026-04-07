@@ -3,7 +3,7 @@ import { QuizServer } from './quiz-server'
 import { IClock } from './common/IClock'
 import { INetwork } from './common/INetwork'
 import { QuizServerConfiguration } from './quiz-server-configuration.interface'
-import { IToken } from './authentication/IToken'
+import { Token } from './authentication/token.interface'
 import { IUser } from './users/IUser'
 
 const mockClock: IClock = {
@@ -32,7 +32,7 @@ const mockAuthenticationService = {
 
 const mockTokenGenerator = {
 	generateToken: (user: IUser) => {
-		return { token: 'generated-token' } as IToken;
+		return { token: 'generated-token' } as Token;
 	}
 };
 

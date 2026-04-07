@@ -1,22 +1,22 @@
 import Fastify, { FastifyInstance } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { IAuthenticationService } from "../authentication/IAuthenticationService";
-import { ITokenGenerator } from "../authentication/ITokenGenerator";
+import { AuthenticationService } from "../authentication/authentication-service.interface";
+import { TokenGenerator } from "../authentication/token-generator.interface";
 import { IUser } from "../users/IUser";
 import { UserRole } from "../users/UserRole";
-import { IToken } from "../authentication/IToken";
+import { Token } from "../authentication/token.interface";
 import tokenRoute from "./tokenRoute";
 
 let app: FastifyInstance;
-let mockAuthenticationService: IAuthenticationService;
-let mockTokenGenerator: ITokenGenerator;
+let mockAuthenticationService: AuthenticationService;
+let mockTokenGenerator: TokenGenerator;
 beforeEach(async () => {
     mockAuthenticationService = {
         authenticate: vi.fn().mockResolvedValue({ id: 'user-id', username: 'User Name', password: 'user-password', role: UserRole.PLAYER } as IUser)
     };
     mockTokenGenerator = {
         generateToken: (user) => {
-            return { token: 'generated-token' } as IToken;
+            return { token: 'generated-token' } as Token;
         }
     };
     app = Fastify();

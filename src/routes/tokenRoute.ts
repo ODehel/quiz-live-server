@@ -1,9 +1,9 @@
 import { FastifyInstance } from "fastify";
 import rateLimit from "@fastify/rate-limit"
-import { IAuthenticationService } from "../authentication/IAuthenticationService";
-import { ITokenGenerator } from "../authentication/ITokenGenerator";
+import { AuthenticationService } from "../authentication/authentication-service.interface";
+import { TokenGenerator } from "../authentication/token-generator.interface";
 
-export default async function tokenRoute(app: FastifyInstance, options: { authService: IAuthenticationService; tokenGenerator: ITokenGenerator, maxRequestsPerMinute: number }) {
+export default async function tokenRoute(app: FastifyInstance, options: { authService: AuthenticationService; tokenGenerator: TokenGenerator, maxRequestsPerMinute: number }) {
     const { authService, tokenGenerator, maxRequestsPerMinute } = options;
     const schema = {
         body: {

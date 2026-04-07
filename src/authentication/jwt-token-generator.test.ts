@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { IUser } from "../users/IUser";
 import { UserRole } from "../users/UserRole";
-import { JwtTokenGenerator } from "./JwtTokenGenerator";
+import { JwtTokenGenerator } from "./jwt-token-generator";
 import jwt from "jsonwebtoken";
 
 const secretKey = "mysecretkey";

@@ -1,9 +1,9 @@
 import { IHasher } from "../common/IHasher";
 import { IUser } from "../users/IUser";
 import { IUserRepository } from "../users/IUserRepository";
-import { IAuthenticationService } from "./IAuthenticationService";
+import { AuthenticationService } from "./authentication-service.interface";
 
-export class AuthenticationService implements IAuthenticationService {
+export class JwtAuthenticationService implements AuthenticationService {
     private userRepository: IUserRepository;
     private hasher: IHasher;
     constructor(userRepository: IUserRepository, hasher: IHasher) {
