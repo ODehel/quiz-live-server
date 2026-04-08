@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { IUser } from "../users/IUser";
-import { UserRole } from "../users/UserRole";
+import { User } from "../users/user.interface";
+import { UserRole } from "../users/user-role";
 import { JwtTokenGenerator } from "./jwt-token-generator";
 import jwt from "jsonwebtoken";
 
 const secretKey = "mysecretkey";
 const duration = 3600;
-let userMock: IUser;
+let userMock: User;
 
 describe("US-003/CA-001 - Token generation", () => {
     beforeEach(() => {

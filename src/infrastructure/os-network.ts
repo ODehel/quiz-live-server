@@ -1,8 +1,8 @@
 import * as os from 'os'
-import { INetwork } from '../common/INetwork'
+import { Network } from '../common/network.interface'
 import { NetworkInterfaceInfo } from 'os'
 
-export class Network implements INetwork {
+export class OsNetwork implements Network {
     networkInterfaces(): NodeJS.Dict<NetworkInterfaceInfo[]> {
         return os.networkInterfaces()
     }

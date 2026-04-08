@@ -1,5 +1,5 @@
 import { NetworkInterfaceInfo } from 'os'
 
-export interface INetwork {
+export interface Network {
     networkInterfaces(): NodeJS.Dict<NetworkInterfaceInfo[]>
 }

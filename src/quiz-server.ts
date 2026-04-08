@@ -1,7 +1,7 @@
 import Fastify, { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { QuizServerConfiguration } from './quiz-server-configuration.interface';
-import healthRoute from './routes/healthRoute';
-import tokenRoute from './routes/tokenRoute';
+import healthRoute from './routes/health-route';
+import tokenRoute from './routes/token-route';
 import { AuthenticationService } from './authentication/authentication-service.interface';
 import { TokenGenerator } from './authentication/token-generator.interface';
 

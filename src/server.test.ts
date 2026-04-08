@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { QuizServer } from './quiz-server'
-import { IClock } from './common/IClock'
-import { INetwork } from './common/INetwork'
+import { Clock } from './common/clock.interface'
+import { Network } from './common/network.interface'
 import { QuizServerConfiguration } from './quiz-server-configuration.interface'
 import { Token } from './authentication/token.interface'
-import { IUser } from './users/IUser'
+import { User } from './users/user.interface'
 
-const mockClock: IClock = {
+const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
 }
 
-const mockNetwork: INetwork = {
+const mockNetwork: Network = {
 	networkInterfaces: () => ({
 		'eth0': [
 			{ address: '192.168.1.42', netmask: '255.255.255.0', family: 'IPv4', mac: '00:00:00:00:00:00', internal: false, cidr: '192.168.1.42/24' }
@@ -31,7 +31,7 @@ const mockAuthenticationService = {
 };
 
 const mockTokenGenerator = {
-	generateToken: (user: IUser) => {
+	generateToken: (user: User) => {
 		return { token: 'generated-token' } as Token;
 	}
 };
@@ -88,7 +88,7 @@ describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 	let spy: any
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		const mockNetworkNoIP: INetwork = {
+		const mockNetworkNoIP: Network = {
 			networkInterfaces: () => ({})
 		}
 		const configWithNoIP: QuizServerConfiguration = {

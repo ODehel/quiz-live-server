@@ -1,17 +1,17 @@
-import { IHasher } from "../common/IHasher";
-import { IUser } from "../users/IUser";
-import { IUserRepository } from "../users/IUserRepository";
+import { Hasher } from "../common/hasher.interface";
+import { User } from "../users/user.interface";
+import { UserRepository } from "../users/user-repository.interface";
 import { AuthenticationService } from "./authentication-service.interface";
 
 export class JwtAuthenticationService implements AuthenticationService {
-    private userRepository: IUserRepository;
-    private hasher: IHasher;
-    constructor(userRepository: IUserRepository, hasher: IHasher) {
+    private userRepository: UserRepository;
+    private hasher: Hasher;
+    constructor(userRepository: UserRepository, hasher: Hasher) {
         this.userRepository = userRepository;
         this.hasher = hasher;
     }
 
-    async authenticate(login: string, password: string): Promise<IUser | undefined> {
+    async authenticate(login: string, password: string): Promise<User | undefined> {
         const user = await this.userRepository.retrieveByLogin(login);
         if (!user) {
             return undefined;

@@ -1,3 +1,3 @@
-export interface IPasswordValidator {
+export interface PasswordValidator {
     validate(password: string): boolean;
 }

@@ -1,8 +1,8 @@
-import { IUserRepository } from "../users/IUserRepository";
-import { IUser } from "../users/IUser";
+import { UserRepository } from "./user-repository.interface";
+import { User } from "./user.interface";
 import Database, { Database as DatabaseType } from 'better-sqlite3'
 
-export class SqliteUserRepository implements IUserRepository {
+export class SqliteUserRepository implements UserRepository {
     private db: DatabaseType;
     constructor(databaseFilePath: string) {
         this.db = new Database(databaseFilePath);
@@ -12,13 +12,13 @@ export class SqliteUserRepository implements IUserRepository {
         const row = this.db.prepare("SELECT COUNT(USR_LOGIN) as count FROM T_USER_USR").get() as { count: number };
         return Promise.resolve(row.count);
     }
-    insert(user: IUser): Promise<void> {
+    insert(user: User): Promise<void> {
         const stmt = this.db.prepare("INSERT INTO T_USER_USR (USR_ID, USR_LOGIN, USR_HASH_PASSWORD, USR_ROLE) VALUES (?, ?, ?, ?)");
         stmt.run(user.id, user.username, user.password, user.role);
         return Promise.resolve();
     }
-    retrieveByLogin(login: string): Promise<IUser | undefined> {
-        const user = this.db.prepare("SELECT USR_ID as id, USR_LOGIN as username, USR_HASH_PASSWORD as password, USR_ROLE as role FROM T_USER_USR WHERE USR_LOGIN = ?").get(login) as IUser | undefined;
+    retrieveByLogin(login: string): Promise<User | undefined> {
+        const user = this.db.prepare("SELECT USR_ID as id, USR_LOGIN as username, USR_HASH_PASSWORD as password, USR_ROLE as role FROM T_USER_USR WHERE USR_LOGIN = ?").get(login) as User | undefined;
         return Promise.resolve(user);
     }
 

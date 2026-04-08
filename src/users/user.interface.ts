@@ -1,6 +1,6 @@
-import { UserRole } from "./UserRole";
+import { UserRole } from "./user-role";
 
-export interface IUser {
+export interface User {
     id: string;
     username: string;
     password: string;

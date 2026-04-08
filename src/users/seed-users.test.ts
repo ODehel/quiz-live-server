@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { IUserRepository } from "./IUserRepository";
-import { SeedUsers } from './SeedUsers';
-import { UserRole } from './UserRole';
-import { IHasher } from '../common/IHasher';
-import { IPasswordValidator } from './IPasswordValidator';
+import { UserRepository } from "./user-repository.interface";
+import { SeedUsers } from './seed-users';
+import { UserRole } from './user-role';
+import { Hasher } from '../common/hasher.interface';
+import { PasswordValidator } from './password-validator.interface';
 
 const mockEnvironment = {
     adminPassword: 'admin123',
@@ -12,9 +12,9 @@ const mockEnvironment = {
 
 describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore", () => {
     let userSeed: SeedUsers;
-    let mockRepository: IUserRepository;
-    let mockHasher: IHasher;
-    let mockPasswordValidator: IPasswordValidator;
+    let mockRepository: UserRepository;
+    let mockHasher: Hasher;
+    let mockPasswordValidator: PasswordValidator;
     beforeEach(() => {
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
@@ -45,9 +45,9 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
 
 describe("CA-2 - Les mots de passe sont lus depuis les variables d'environnement", () => {
     let userSeed: SeedUsers;
-    let mockRepository: IUserRepository;
-    let mockHasher: IHasher;
-    let mockPasswordValidator: IPasswordValidator;
+    let mockRepository: UserRepository;
+    let mockHasher: Hasher;
+    let mockPasswordValidator: PasswordValidator;
     beforeEach(() => {
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
@@ -72,9 +72,9 @@ describe("CA-2 - Les mots de passe sont lus depuis les variables d'environnement
 
 describe("CA-4 - Les mots de passe respectent les règles de validation", () => {
     let userSeed: SeedUsers;
-    let mockRepository: IUserRepository;
-    let mockHasher: IHasher;
-    let mockPasswordValidator: IPasswordValidator;
+    let mockRepository: UserRepository;
+    let mockHasher: Hasher;
+    let mockPasswordValidator: PasswordValidator;
     beforeEach(() => {
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),

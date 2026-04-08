@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { PasswordValidator } from "./PasswordValidator";
+import { OwaspPasswordValidator } from "./owasp-password-validator";
 
 describe("PasswordValidator", () => {
-    let passwordValidator: PasswordValidator;
+    let passwordValidator: OwaspPasswordValidator;
     beforeEach(() => {
-            passwordValidator = new PasswordValidator();
+            passwordValidator = new OwaspPasswordValidator();
     });
     it("should not validate passwords that are too short", () => {
         expect(passwordValidator.validate("abcdefghijk")).toBe(false);

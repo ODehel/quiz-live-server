@@ -1,8 +1,8 @@
-import { IClock } from './common/IClock'
-import { INetwork } from './common/INetwork'
+import { Clock } from './common/clock.interface'
+import { Network } from './common/network.interface'
 
 export interface QuizServerConfiguration {
-    clock : IClock
-    network : INetwork
+    clock : Clock
+    network : Network
     port : number
 }

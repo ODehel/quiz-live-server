@@ -1,4 +1,4 @@
-import { IUser } from "../users/IUser";
+import { User } from "../users/user.interface";
 import { Token } from "./token.interface";
 import { TokenGenerator } from "./token-generator.interface";
 import jwt from "jsonwebtoken";
@@ -12,7 +12,7 @@ export class JwtTokenGenerator implements TokenGenerator {
         this.duration = duration;
     }
 
-    generateToken(user: IUser): Token {
+    generateToken(user: User): Token {
         const payload = {
                 sub: user.id,
                 role: user.role

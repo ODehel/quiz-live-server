@@ -1,21 +1,21 @@
 import { uuidv7 } from "uuidv7";
-import { IEnvironment } from "../common/IEnvironment"
-import { IHasher } from "../common/IHasher";
-import { IPasswordValidator } from "./IPasswordValidator";
-import { IUserRepository } from "./IUserRepository"
-import { UserRole } from "./UserRole"
+import { Environment } from "../common/environment.interface"
+import { Hasher } from "../common/hasher.interface";
+import { PasswordValidator } from "./password-validator.interface";
+import { UserRepository } from "./user-repository.interface"
+import { UserRole } from "./user-role"
 
 export class SeedUsers {
-    private repository: IUserRepository;
-    private hasher: IHasher;
-    private passwordValidator: IPasswordValidator;
-    constructor(repository: IUserRepository, hasher: IHasher, passwordValidator: IPasswordValidator) {
+    private repository: UserRepository;
+    private hasher: Hasher;
+    private passwordValidator: PasswordValidator;
+    constructor(repository: UserRepository, hasher: Hasher, passwordValidator: PasswordValidator) {
         this.repository = repository;
         this.hasher = hasher;
         this.passwordValidator = passwordValidator;
     }
 
-    public async seed(environment: IEnvironment) {
+    public async seed(environment: Environment) {
         if (this.passwordsCantValidate(environment)) {
             throw new Error("Invalid password");
         }
@@ -39,7 +39,7 @@ export class SeedUsers {
         }
     }
 
-    private passwordsCantValidate(environment: IEnvironment) {
+    private passwordsCantValidate(environment: Environment) {
         return !this.passwordValidator.validate(environment.adminPassword) || !this.passwordValidator.validate(environment.playerPassword);
     }
 }

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { IUserRepository } from "../users/IUserRepository";
-import { IHasher } from "../common/IHasher";
-import { UserRole } from "../users/UserRole";
+import { UserRepository } from "../users/user-repository.interface";
+import { Hasher } from "../common/hasher.interface";
+import { UserRole } from "../users/user-role";
 import { JwtAuthenticationService } from "./jwt-authentication-service";
 
 describe("Login inexistant en base de données", () => {
-    let mockUserRepository: IUserRepository;
+    let mockUserRepository: UserRepository;
     beforeEach(() => {
         // Arrange : Faire un mock de IUserRepository pour qu'il retourne undefined
         mockUserRepository = {
@@ -15,7 +15,7 @@ describe("Login inexistant en base de données", () => {
         };
     });
     it("should return an error", async () => {
-        const authenticateService = new JwtAuthenticationService(mockUserRepository, {} as IHasher);
+        const authenticateService = new JwtAuthenticationService(mockUserRepository, {} as Hasher);
         // Act : Appeler la méthode d'authentification avec un login qui n'existe pas
         const result = await authenticateService.authenticate("nonexistent", "password");
         // Assert : Vérifier que le résultat est undefined
@@ -24,8 +24,8 @@ describe("Login inexistant en base de données", () => {
 });
 
 describe("Login with wrong password", () => {
-    let mockUserRepository: IUserRepository;
-    let hasher: IHasher;
+    let mockUserRepository: UserRepository;
+    let hasher: Hasher;
     beforeEach(() => {
         // Arrange : Faire un mock de IUserRepository pour qu'il retourne un utilisateur avec un mot de passe hashé
         mockUserRepository = {
@@ -51,8 +51,8 @@ describe("Login with wrong password", () => {
 });
 
 describe("Login with correct credentials", () => {
-    let mockUserRepository: IUserRepository;
-    let hasher: IHasher;
+    let mockUserRepository: UserRepository;
+    let hasher: Hasher;
     beforeEach(() => {
         // Arrange : Faire un mock de IUserRepository pour qu'il retourne un utilisateur avec un mot de passe hashé
         mockUserRepository = {
