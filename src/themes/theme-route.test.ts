@@ -3,12 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Theme } from './theme.interface';
 import { ThemeService } from './theme-service.interface';
 import themeRoute from './theme-route';
+import { ValidationError } from './validation-error';
 
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
 beforeEach(() => {
     mockThemeService = {
-        createTheme: vi.fn().mockResolvedValue({ id: '1', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme)
+        createTheme: vi.fn().mockReturnValue({ id: '1', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme)
     };
     app = Fastify();
     app.register(themeRoute, { themeService: mockThemeService });
@@ -25,5 +26,20 @@ describe('US-004/CA-01 - Create Theme', () => {
         expect(response.statusCode).toBe(201);
         expect(response.json()).toEqual({ id: '1', name: 'Culture générale', created_at: expect.any(String), last_updated_at: null });
         expect(mockThemeService.createTheme).toHaveBeenCalledWith('Culture générale');
+    });
+});
+
+describe('US-004/CA-02 - Create Theme with invalid name', () => {
+    it('should return a validation error for invalid theme name', async () => {
+        mockThemeService.createTheme = vi.fn().mockImplementation(() => { throw new ValidationError(); });
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/themes',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'Invalid@Name!' })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'VALIDATION_ERROR' });
+        expect(mockThemeService.createTheme).toHaveBeenCalledWith('Invalid@Name!');
     });
 });

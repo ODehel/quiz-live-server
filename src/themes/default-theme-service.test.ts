@@ -4,6 +4,7 @@ import { UuidGenerator } from "../common/uuid-generator.interface";
 import { DefaultThemeService } from "./default-theme-service";
 import { Theme } from "./theme.interface";
 import { ThemeRepository } from "./theme-repository.interface";
+import { ValidationError } from "./validation-error";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
@@ -50,5 +51,11 @@ describe("US-004/CA-002 - When the service is called to create a theme with blan
         assert.equal(theme.created_at, clock.now().toISOString());
 
         assert.isNull(theme.last_updated_at);
+    });
+});
+
+describe("US-004/CA-003 - When the service is called to create a theme with a name that doesn't respect the regex", () => {
+    it("should throw a validation error", () => {
+        expect(() => defaultThemeService.createTheme("Invalid@Name!")).toThrow(ValidationError);
     });
 });
