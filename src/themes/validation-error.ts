@@ -3,3 +3,4 @@ export class ValidationError extends Error {
         super('VALIDATION_ERROR');
     }
 }
+

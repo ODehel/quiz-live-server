@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { ThemeService } from "./theme-service.interface";
 import { ValidationError } from "./validation-error";
+import { ConflictError } from "./conflict-error";
 
 export default async function themeRoute(app: FastifyInstance, options: { themeService: ThemeService }) {
     const { themeService } = options;
@@ -13,6 +14,8 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
         } catch (error) {
             if (error instanceof ValidationError) {
                 reply.status(400).send({ error: 'VALIDATION_ERROR' });
+            } else if (error instanceof ConflictError) {
+                reply.status(409).send({ error: 'THEME_ALREADY_EXISTS' });
             } else {
                 reply.status(500).send({ error: 'Failed to create theme' });
             }

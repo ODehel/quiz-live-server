@@ -10,20 +10,24 @@ export class SqliteThemeRepository implements ThemeRepository {
         this.createTableIfNotExists();
     }
 
-    getById(id: string): Promise<Theme | undefined> {
+    getById(id: string): Theme | undefined {
         const theme = this.db.prepare("SELECT THM_ID as id, THM_NAME as name, THM_CREATED_AT as created_at, THM_LAST_UPDATED_AT as last_updated_at FROM T_THEME_THM WHERE THM_ID = ?").get(id) as Theme | undefined;
-        return Promise.resolve(theme);
+        return theme;
     }
 
-    count(): Promise<number> {
+    count(): number {
         const row = this.db.prepare("SELECT COUNT(THM_ID) as count FROM T_THEME_THM").get() as { count: number };
-        return Promise.resolve(row.count);
+        return row.count;
     }
 
-    insert(theme: Theme): Promise<void> {
+    insert(theme: Theme): void {
         const stmt = this.db.prepare("INSERT INTO T_THEME_THM (THM_ID, THM_NAME, THM_CREATED_AT, THM_LAST_UPDATED_AT) VALUES (?, ?, ?, ?)");
         stmt.run(theme.id, theme.name, theme.created_at, theme.last_updated_at);
-        return Promise.resolve();
+    }
+    
+    getByName(name: string): Theme | undefined {
+        const theme = this.db.prepare("SELECT THM_ID as id, THM_NAME as name, THM_CREATED_AT as created_at, THM_LAST_UPDATED_AT as last_updated_at FROM T_THEME_THM WHERE THM_NAME = ? COLLATE NOCASE").get(name) as Theme | undefined;
+        return theme;
     }
 
     private createTableIfNotExists() {

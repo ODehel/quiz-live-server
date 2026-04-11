@@ -4,6 +4,7 @@ import { Theme } from './theme.interface';
 import { ThemeService } from './theme-service.interface';
 import themeRoute from './theme-route';
 import { ValidationError } from './validation-error';
+import { ConflictError } from './conflict-error';
 
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
@@ -43,3 +44,18 @@ describe('US-004/CA-02 - Create Theme with invalid name', () => {
         expect(mockThemeService.createTheme).toHaveBeenCalledWith('Invalid@Name!');
     });
 });
+
+describe('US-004/CA-04 - Create Theme with existing name', () => {
+    it('should return a conflict error for existing theme name', async () => {
+        mockThemeService.createTheme = vi.fn().mockImplementation(() => { throw new ConflictError(); });
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/themes',
+            headers: { 'content-type': 'application/json'},
+            body: JSON.stringify({ name: 'Culture générale' })
+        });
+        expect(response.statusCode).toBe(409);
+        expect(response.json()).toEqual({ error: 'THEME_ALREADY_EXISTS' });
+        expect(mockThemeService.createTheme).toHaveBeenCalledWith('Culture générale');
+    });
+}); 

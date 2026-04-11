@@ -17,9 +17,9 @@ beforeEach(() => {
 describe("US-004/CA-001 - SqliteThemeRepository.getById(theme)", () => {
     it("should return the theme with the specified ID", async () => {
         // Arrange
-        await repository.insert(theme);
+        repository.insert(theme);
         // Act  
-        const searchedTheme = await repository.getById(theme.id);
+        const searchedTheme = repository.getById(theme.id);
         // Assert
         expect(searchedTheme?.id).toBe(theme.id);
         expect(searchedTheme?.name).toBe(theme.name);
@@ -30,15 +30,24 @@ describe("US-004/CA-001 - SqliteThemeRepository.getById(theme)", () => {
 
 describe("US-004/CA-001 - SqliteThemeRepository.insert(theme)", () => {
     it("should create the themes table if it does not exist", async () => {
-        const count = await repository.count();
+        const count = repository.count();
         // Assert
         expect(count).toBe(0);
     });
     it("should insert a theme into the database", async () => {
         // Act
-        await repository.insert(theme);
+        repository.insert(theme);
         // Assert
-        const count = await repository.count();
+        const count = repository.count();
         expect(count).toBe(1);
+    });
+});
+
+describe("US-004/CA-04 - Case insensitive for getById", () => {
+    it("should return the theme even if the case is different", async () => {
+        repository.insert(theme);
+        const existingTheme = repository.getByName("ThEmE tEsT");
+        // Assert
+        expect(existingTheme).not.toBeUndefined();
     });
 });

@@ -5,6 +5,7 @@ import { DefaultThemeService } from "./default-theme-service";
 import { Theme } from "./theme.interface";
 import { ThemeRepository } from "./theme-repository.interface";
 import { ValidationError } from "./validation-error";
+import { ConflictError } from "./conflict-error";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
@@ -18,6 +19,7 @@ beforeEach(() => {
         count: vi.fn(),
         insert: vi.fn(),
         getById: vi.fn(),
+        getByName: vi.fn()
     };
     defaultThemeService = new DefaultThemeService(clock, uuidGenerator, themeRepository);
 });
@@ -57,5 +59,14 @@ describe("US-004/CA-002 - When the service is called to create a theme with blan
 describe("US-004/CA-003 - When the service is called to create a theme with a name that doesn't respect the regex", () => {
     it("should throw a validation error", () => {
         expect(() => defaultThemeService.createTheme("Invalid@Name!")).toThrow(ValidationError);
+    });
+});
+
+describe("US-004/CA-004 - When the service is called to create a theme with a name that already exists", () => {
+    beforeEach(() => {
+        themeRepository.getByName = vi.fn().mockReturnValue({ id: "existing-id", name: "Existing Theme", created_at: "2026-04-08T13:32:00Z", last_updated_at: null });
+    });
+    it("should throw a validation error", () => {
+        expect(() => defaultThemeService.createTheme("Existing Theme")).toThrow(ConflictError);
     });
 });
