@@ -58,4 +58,29 @@ describe('US-004/CA-04 - Create Theme with existing name', () => {
         expect(response.json()).toEqual({ error: 'THEME_ALREADY_EXISTS' });
         expect(mockThemeService.createTheme).toHaveBeenCalledWith('Culture générale');
     });
-}); 
+});
+
+describe("US-004/CA-07 - Unknown fields", () => {
+    it("should return an error 400 with a mispelled property", async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/themes',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ nem: 'Histoire' })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'UNKNOWN_FIELDS' });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+    it("should return an error 400 with an unknown property", async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/themes',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ name: 'Histoire', color: 'Red' })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'UNKNOWN_FIELDS' });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+});
