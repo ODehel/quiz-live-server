@@ -84,3 +84,17 @@ describe("US-004/CA-07 - Unknown fields", () => {
         expect(mockThemeService.createTheme).not.toHaveBeenCalled();
     });
 });
+
+describe("US-004/CA-08 - Wrong content-type", () => {
+    it("should return a 415 error code", async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/themes',
+            headers: { 'content-type': 'application/xml' },
+            body: JSON.stringify({ name: 'Histoire' })
+        });
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual({ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled(); 
+    });
+});
