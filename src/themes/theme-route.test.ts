@@ -5,15 +5,21 @@ import { ThemeService } from './theme-service.interface';
 import themeRoute from './theme-route';
 import { ValidationError } from './validation-error';
 import { ConflictError } from './conflict-error';
+import { UuidValidator } from '../common/uuid-validator.interface';
 
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
+let mockUuidValidator: UuidValidator;
 beforeEach(() => {
     mockThemeService = {
-        createTheme: vi.fn().mockReturnValue({ id: '1', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme)
+        createTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme),
+        getById: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme)
+    };
+    mockUuidValidator = {
+        validate: vi.fn().mockReturnValue(true)
     };
     app = Fastify();
-    app.register(themeRoute, { themeService: mockThemeService });
+    app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator });
 });
 
 describe('US-004/CA-01 - Create Theme', () => {
@@ -25,7 +31,7 @@ describe('US-004/CA-01 - Create Theme', () => {
             body: JSON.stringify({ name: 'Culture générale' })
         });
         expect(response.statusCode).toBe(201);
-        expect(response.json()).toEqual({ id: '1', name: 'Culture générale', created_at: expect.any(String), last_updated_at: null });
+        expect(response.json()).toEqual({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: expect.any(String), last_updated_at: null });
         expect(mockThemeService.createTheme).toHaveBeenCalledWith('Culture générale');
     });
 });
@@ -96,5 +102,41 @@ describe("US-004/CA-08 - Wrong content-type", () => {
         expect(response.statusCode).toBe(415);
         expect(response.json()).toEqual({ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 });
         expect(mockThemeService.createTheme).not.toHaveBeenCalled(); 
+    });
+});
+
+describe("US-004/CA-09 - Retrieve a theme by its ID", () => {
+    it("should return a 200 HTML code", async() => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(200);
+    });
+});
+
+describe("US-004/CA-10 - Inexisting theme", () => {
+    it("should return a 404 HTML code", async() => {
+        mockThemeService.getById = vi.fn().mockImplementation(() => { return undefined });
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(404);
+    });
+});
+
+describe("US-004/CA-11 - Wrong format for UUID", () => {
+    it("should return a 400 HTML code", async () => {
+        mockThemeService.getById = vi.fn().mockImplementation(() => { return { id: '1', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme });
+        mockUuidValidator.validate = vi.fn().mockReturnValue(false);
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes/1',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(400);
     });
 });

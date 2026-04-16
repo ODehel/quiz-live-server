@@ -8,6 +8,10 @@ import { ValidationError } from "./validation-error";
 
 export class DefaultThemeService implements ThemeService {
     constructor(private clock: Clock, private uuidGenerator: UuidGenerator, private themeRepository: ThemeRepository) { }
+    
+    getById(id: string): Theme | undefined {
+        return this.themeRepository.getById(id);
+    }
 
     createTheme(name: string): Theme {
         const trimmedName = this.trimBlanks(name);

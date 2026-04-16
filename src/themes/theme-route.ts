@@ -2,10 +2,25 @@ import { FastifyInstance } from "fastify";
 import { ThemeService } from "./theme-service.interface";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
-import { THEME_ALREADY_EXISTS, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
+import { INVALID_UUID, THEME_ALREADY_EXISTS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
+import { UuidValidator } from "../common/uuid-validator.interface";
 
-export default async function themeRoute(app: FastifyInstance, options: { themeService: ThemeService }) {
-    const { themeService } = options;
+export default async function themeRoute(app: FastifyInstance, options: { themeService: ThemeService, uuidValidator: UuidValidator }) {
+    const { themeService, uuidValidator } = options;
+
+    app.get('/api/v1/themes/:id', async (request, reply) => {
+        const { id } = request.params as { id: string };
+        if (!uuidValidator.validate(id)) {
+            reply.status(400).send({ error: INVALID_UUID });
+            return;
+        }
+        const existingTheme = themeService.getById(id);
+        if (existingTheme === undefined) {
+            reply.status(404).send({ error: THEME_NOT_FOUND });
+        } else {
+            reply.status(200).send(existingTheme);
+        }
+    });
 
     app.post('/api/v1/themes', async (request, reply) => {
         if (bodyHasUnknownFields(request.body as object)) {

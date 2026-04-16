@@ -70,3 +70,19 @@ describe("US-004/CA-004 - When the service is called to create a theme with a na
         expect(() => defaultThemeService.createTheme("Existing Theme")).toThrow(ConflictError);
     });
 });
+
+describe("US-004/CA-09 - When the service is called to find a theme by its id", () => {
+    it("should return the searched theme", () => {
+        themeRepository.getById = vi.fn().mockReturnValue({ id: "existing-id", name: "Existing Theme", created_at: "2026-04-08T13:32:00Z", last_updated_at: null });
+        const existingTheme = defaultThemeService.getById("existing-id");
+        expect(existingTheme?.id).toBe("existing-id");
+        expect(existingTheme?.name).toBe("Existing Theme");
+        expect(existingTheme?.created_at).toBe("2026-04-08T13:32:00Z");
+        expect(existingTheme?.last_updated_at).toBeNull();
+    });
+    it("should return undefined", () => {
+        themeRepository.getById = vi.fn().mockReturnValue(undefined);
+        const notexistingTheme = defaultThemeService.getById("not-existing-id");
+        expect(notexistingTheme).toBeUndefined();
+    });
+});
