@@ -19,6 +19,7 @@ beforeEach(() => {
     themeRepository = {
         count: vi.fn(),
         insert: vi.fn(),
+        update: vi.fn(),
         getById: vi.fn(),
         getByName: vi.fn(),
         getAll: vi.fn()
@@ -114,5 +115,18 @@ describe("US-004/CA-13 - When the service is called to find all themes with pagi
         expect(themes.page).toBe(0);
         expect(themes.total).toBe(10);
         expect(themes.total_pages).toBe(5);
+    });
+});
+
+describe("US-004/CA-20 - Update a theme name", () => {
+    it("should update the date", () => {
+        const update_date = "2026-04-17T17:05:00.000Z";
+        const theme = defaultThemeService.createTheme("Mon thème préféré");
+        clock.now = vi.fn().mockReturnValue(new Date(update_date));
+        themeRepository.getById = vi.fn().mockReturnValue(theme);
+        const updated_name = "I love it";
+        const updated_theme = defaultThemeService.updateTheme(theme.id, updated_name);
+        expect(updated_theme.name).toBe(updated_name);
+        expect(updated_theme.last_updated_at).toBe(update_date);
     });
 });

@@ -55,6 +55,17 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
         }
     });
 
+    app.put('/api/v1/themes/:id', async (request, reply) => {
+        try {
+            const { id } = request.params as { id: string };
+            const { name } = request.body as { name: string };
+            const updatedTheme = themeService.updateTheme(id, name);
+            reply.status(200).send(updatedTheme);
+        } catch (error) {
+            reply.status(500).send({ error: 'Failed to update theme' });
+        }
+    });
+
     function paginationParametersAreInvalid(limit: number, page: number) {
         return (limit > 100 || limit <= 0) || (isNaN(limit) || isNaN(page)) || page <= 0;
     }

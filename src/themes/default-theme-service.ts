@@ -2,6 +2,7 @@ import { Clock } from "../common/clock.interface";
 import { Pagination } from "../common/pagination.interface";
 import { UuidGenerator } from "../common/uuid-generator.interface";
 import { ConflictError } from "./conflict-error";
+import { ThemeNotFoundError } from "./theme-not-found-error";
 import { ThemeRepository } from "./theme-repository.interface";
 import { ThemeService } from "./theme-service.interface";
 import { Theme } from "./theme.interface";
@@ -9,7 +10,7 @@ import { ValidationError } from "./validation-error";
 
 export class DefaultThemeService implements ThemeService {
     constructor(private clock: Clock, private uuidGenerator: UuidGenerator, private themeRepository: ThemeRepository) { }
-    
+
     getAll(page: number, limit: number): Pagination<Theme> {
         const themes: Theme[] = this.themeRepository.getAll(page, limit);
         const total: number = this.themeRepository.count();
@@ -22,7 +23,7 @@ export class DefaultThemeService implements ThemeService {
         };
         return pagination;
     }
-    
+
     getById(id: string): Theme | undefined {
         return this.themeRepository.getById(id);
     }
@@ -46,6 +47,19 @@ export class DefaultThemeService implements ThemeService {
         this.themeRepository.insert(theme);
         return theme;
     };
+
+    updateTheme(id: string, name: string): Theme {
+        const theme = this.themeRepository.getById(id);
+
+        if (theme === undefined) {
+            throw new ThemeNotFoundError();
+        }
+
+        theme.name = name;
+        theme.last_updated_at = this.clock.now().toISOString();
+        this.themeRepository.update(theme);
+        return theme;
+    }
 
     private trimBlanks(name: string): string {
         return name.trim().replace(/\s+/g, ' ');

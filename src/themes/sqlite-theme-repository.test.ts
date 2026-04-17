@@ -123,3 +123,17 @@ describe("US-004/CA-18 - Retrieve an empty list of themes if table is emy", () =
         expect(themes.length).toBe(0);
     });
 });
+
+describe("US-004/CA-20 - Update the theme", () => {
+    it("should update the last_updated_date and return a 200 HTML code", async () => {
+        repository.insert(theme);
+        const updatedName = "Updated name for theme test";
+        const date = "2026-04-17 16:33:00";
+        theme.name = updatedName;
+        theme.last_updated_at = date;
+        repository.update(theme);
+        const updatedTheme = repository.getById(theme.id);
+        expect(updatedTheme?.name).toBe(updatedName);
+        expect(updatedTheme?.last_updated_at).toBe(date);
+    });
+});

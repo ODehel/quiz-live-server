@@ -28,6 +28,11 @@ export class SqliteThemeRepository implements ThemeRepository {
         const stmt = this.db.prepare("INSERT INTO T_THEME_THM (THM_ID, THM_NAME, THM_CREATED_AT, THM_LAST_UPDATED_AT) VALUES (?, ?, ?, ?)");
         stmt.run(theme.id, theme.name, theme.created_at, theme.last_updated_at);
     }
+
+    update(theme: Theme): void {
+        const statement = this.db.prepare("UPDATE T_THEME_THM SET THM_NAME = ?, THM_LAST_UPDATED_AT = ? WHERE THM_ID = ?");
+        statement.run(theme.name, theme.last_updated_at, theme.id);
+    }
     
     getByName(name: string): Theme | undefined {
         const theme = this.db.prepare("SELECT THM_ID as id, THM_NAME as name, THM_CREATED_AT as created_at, THM_LAST_UPDATED_AT as last_updated_at FROM T_THEME_THM WHERE THM_NAME = ? COLLATE NOCASE").get(name) as Theme | undefined;

@@ -15,6 +15,7 @@ let mockUuidValidator: UuidValidator;
 beforeEach(() => {
     mockThemeService = {
         createTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme),
+        updateTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale 2', created_at: new Date().toISOString(), last_updated_at: new Date().toISOString() } as Theme),
         getById: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme),
         getAll: vi.fn().mockReturnValue({
             data: [{
@@ -324,4 +325,18 @@ describe("US-004/CA-19a - Wrong content-type", () => {
         });
         expect(response.statusCode).toBe(200);
     });
+});
+
+describe("US-004/CA-20 - Update an existing theme", () => {
+   it('should update the theme successfully', async () => {
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: "019d92d2-e1f6-7d05-9803-3948dbc4c416", name: "Culture générale 2" })
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale 2', created_at: expect.any(String), last_updated_at: expect.any(String) });
+        expect(mockThemeService.updateTheme).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416', 'Culture générale 2');
+    }); 
 });
