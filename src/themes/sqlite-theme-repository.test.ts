@@ -74,3 +74,27 @@ describe("US-004/CA-13 - Retrieve a list of themes with pagination", () => {
         expect(themes.length).toBe(2);
     });
 });
+
+describe("US-004/CA-14 - Retrieve a list of themes with pagination in the correct order", () => {
+    let otherTheme: Theme;
+    beforeEach(() => {
+        otherTheme = {
+            id: "019d979f-6a51-7c7c-879f-b2b8a20d8273",
+            name: "Other theme test",
+            created_at: new Date("2028-04-17 10:00:00").toISOString(),
+            last_updated_at: null
+        };
+        repository.insert(theme);
+        repository.insert(otherTheme);
+    });
+    it("should give a list with the first theme", async () => {
+        const themes: Theme[] = repository.getAll(1, 1);
+        expect(themes.length).toBe(1);
+        expect(themes[0].name).toBe("Other theme test");
+    });
+    it("should give a list with the second theme", async () => {
+        const themes: Theme[] = repository.getAll(2, 1);
+        expect(themes.length).toBe(1);
+        expect(themes[0].name).toBe("Theme test");
+    });
+});

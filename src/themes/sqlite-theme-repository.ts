@@ -10,7 +10,7 @@ export class SqliteThemeRepository implements ThemeRepository {
         this.createTableIfNotExists();
     }
     getAll(page: number, limit: number): Theme[] {
-        const themes = this.db.prepare("SELECT THM_ID as id, THM_NAME as name, THM_CREATED_AT as created_at, THM_LAST_UPDATED_AT as last_updated_at FROM T_THEME_THM LIMIT ? OFFSET ?").all(limit, (page - 1) * limit) as Theme[];
+        const themes = this.db.prepare("SELECT THM_ID as id, THM_NAME as name, THM_CREATED_AT as created_at, THM_LAST_UPDATED_AT as last_updated_at FROM T_THEME_THM ORDER BY THM_CREATED_AT DESC LIMIT ? OFFSET ?").all(limit, (page - 1) * limit) as Theme[];
         return themes;
     }
 
