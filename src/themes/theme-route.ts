@@ -25,7 +25,7 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
     app.get('/api/v1/themes', async (request, reply) => {
         const { page = 1, limit = 20 } = request.query as { page?: number, limit?: number };
 
-        if (limit > 100) {
+        if (paginationParametersAreInvalid(limit, page)) {
             reply.status(400).send({ error: INVALID_PAGINATION });
             return;
         }
@@ -54,6 +54,10 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
             }
         }
     });
+
+    function paginationParametersAreInvalid(limit: number, page: number) {
+        return (limit > 100 || limit <= 0) || (isNaN(limit) || isNaN(page)) || page <= 0;
+    }
 
     function bodyHasUnknownFields(body: object): boolean {
         const allowedFields = ['name'];

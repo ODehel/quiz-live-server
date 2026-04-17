@@ -257,3 +257,60 @@ describe("US-004/CA-16 - Limit must be equal or less than 100", () => {
         expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
     });
 });
+
+describe("US-004/CA-17 - When pagination parameters are invalid", () => {
+    it("should send a 400 error code - negative page", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?page=-1',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+    });
+    it("should send a 400 error code - negative limit", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?limit=-1',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+    });
+    it("should send a 400 error code - 0 page", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?page=0',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+    });
+    it("should send a 400 error code - 0 limit", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?limit=0',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+    });
+    it("should send a 400 error code - not numeric page", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?page=A',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+    });
+    it("should send a 400 error code - not numeric limit", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?limit=B',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+    });
+});
