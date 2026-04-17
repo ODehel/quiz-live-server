@@ -6,6 +6,7 @@ import themeRoute from './theme-route';
 import { ValidationError } from './validation-error';
 import { ConflictError } from './conflict-error';
 import { UuidValidator } from '../common/uuid-validator.interface';
+import { Pagination } from '../common/pagination.interface';
 
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
@@ -13,7 +14,31 @@ let mockUuidValidator: UuidValidator;
 beforeEach(() => {
     mockThemeService = {
         createTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme),
-        getById: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme)
+        getById: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme),
+        getAll: vi.fn().mockReturnValue({
+            data: [{
+                id: "019d9aa3-bfb7-7eaf-af2a-739ed8e0a2a6",
+                name: "First Theme",
+                created_at: "2026-04-17T10:56:00Z",
+                last_updated_at: null
+            },
+            {
+                id: "019d9aa8-4660-77f7-8766-2d26115ee22f",
+                name: "Second Theme",
+                created_at: "2026-04-17T10:57:00Z",
+                last_updated_at: null
+            },
+            {
+                id: "019d9aa9-265f-7a16-b11b-6dcf9f1a4df1",
+                name: "Third Theme",
+                created_at: "2026-04-17T10:58:00Z",
+                last_updated_at: "2026-04-17T10:59:00Z"
+            }],
+            limit: 3,
+            page: 1,
+            total: 6,
+            total_pages: 2
+        } as Pagination<Theme>)
     };
     mockUuidValidator = {
         validate: vi.fn().mockReturnValue(true)
@@ -57,7 +82,7 @@ describe('US-004/CA-04 - Create Theme with existing name', () => {
         const response = await app.inject({
             method: 'POST',
             url: '/api/v1/themes',
-            headers: { 'content-type': 'application/json'},
+            headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ name: 'Culture générale' })
         });
         expect(response.statusCode).toBe(409);
@@ -101,12 +126,12 @@ describe("US-004/CA-08 - Wrong content-type", () => {
         });
         expect(response.statusCode).toBe(415);
         expect(response.json()).toEqual({ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 });
-        expect(mockThemeService.createTheme).not.toHaveBeenCalled(); 
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
     });
 });
 
 describe("US-004/CA-09 - Retrieve a theme by its ID", () => {
-    it("should return a 200 HTML code", async() => {
+    it("should return a 200 HTML code", async () => {
         const response = await app.inject({
             method: 'GET',
             url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
@@ -117,7 +142,7 @@ describe("US-004/CA-09 - Retrieve a theme by its ID", () => {
 });
 
 describe("US-004/CA-10 - Inexisting theme", () => {
-    it("should return a 404 HTML code", async() => {
+    it("should return a 404 HTML code", async () => {
         mockThemeService.getById = vi.fn().mockImplementation(() => { return undefined });
         const response = await app.inject({
             method: 'GET',
@@ -138,5 +163,58 @@ describe("US-004/CA-11 - Wrong format for UUID", () => {
             headers: { 'content-type': 'application/json' }
         });
         expect(response.statusCode).toBe(400);
+    });
+});
+
+describe("US-004/CA-13 - Get all themes with pagination", () => {
+    it("should return 200 with the first theme", async () => {
+        mockThemeService.getAll = vi.fn().mockImplementation(() => {
+            return {
+                data: [{
+                    id: "019d9aa3-bfb7-7eaf-af2a-739ed8e0a2a6",
+                    name: "First Theme",
+                    created_at: "2026-04-17T10:56:00Z",
+                    last_updated_at: null
+                }],
+                limit: 1,
+                page: 1,
+                total: 6,
+                total_pages: 3
+            } as Pagination<Theme>
+        });
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?page=1&limit=1',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(200);
+    });
+    it("should return the two first themes", async () => {
+        mockThemeService.getAll = vi.fn().mockImplementation(() => {
+            return {
+                data: [{
+                    id: "019d9aa3-bfb7-7eaf-af2a-739ed8e0a2a6",
+                    name: "First Theme",
+                    created_at: "2026-04-17T10:56:00Z",
+                    last_updated_at: null
+                },
+                {
+                    id: "019d9aa8-4660-77f7-8766-2d26115ee22f",
+                    name: "Second Theme",
+                    created_at: "2026-04-17T10:57:00Z",
+                    last_updated_at: null
+                }],
+                limit: 2,
+                page: 1,
+                total: 6,
+                total_pages: 3
+            } as Pagination<Theme>
+        });
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?page=1&limit=2',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(200);
     });
 });

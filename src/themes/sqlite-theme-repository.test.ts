@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { Theme } from "./theme.interface";
 import { SqliteThemeRepository } from "./sqlite-theme-repository";
+import { assert } from "node:console";
 
 let repository: SqliteThemeRepository;
 let theme: Theme;
@@ -49,5 +50,27 @@ describe("US-004/CA-04 - Case insensitive for getById", () => {
         const existingTheme = repository.getByName("ThEmE tEsT");
         // Assert
         expect(existingTheme).not.toBeUndefined();
+    });
+});
+
+describe("US-004/CA-13 - Retrieve a list of themes with pagination", () => {
+    let otherTheme: Theme;
+    beforeEach(() => {
+        otherTheme = {
+            id: "019d979f-6a51-7c7c-879f-b2b8a20d8273",
+            name: "Other theme test",
+            created_at: new Date().toISOString(),
+            last_updated_at: null
+        };
+        repository.insert(theme);
+        repository.insert(otherTheme);
+    });
+    it("should give a list with the first theme", async () => {
+        const themes: Theme[] = repository.getAll(0, 1);
+        expect(themes.length).toBe(1);
+    });
+    it("should give a list with the second theme", async () => {
+        const themes: Theme[] = repository.getAll(0, 2);
+        expect(themes.length).toBe(2);
     });
 });

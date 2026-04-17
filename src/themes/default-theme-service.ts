@@ -1,4 +1,5 @@
 import { Clock } from "../common/clock.interface";
+import { Pagination } from "../common/pagination.interface";
 import { UuidGenerator } from "../common/uuid-generator.interface";
 import { ConflictError } from "./conflict-error";
 import { ThemeRepository } from "./theme-repository.interface";
@@ -8,6 +9,19 @@ import { ValidationError } from "./validation-error";
 
 export class DefaultThemeService implements ThemeService {
     constructor(private clock: Clock, private uuidGenerator: UuidGenerator, private themeRepository: ThemeRepository) { }
+    
+    getAll(page: number, limit: number): Pagination<Theme> {
+        const themes: Theme[] = this.themeRepository.getAll(page, limit);
+        const total: number = this.themeRepository.count();
+        const pagination: Pagination<Theme> = {
+            data: themes,
+            limit: limit,
+            page: page,
+            total: total,
+            total_pages: Math.ceil(total / limit)
+        };
+        return pagination;
+    }
     
     getById(id: string): Theme | undefined {
         return this.themeRepository.getById(id);

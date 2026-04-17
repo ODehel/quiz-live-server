@@ -22,6 +22,12 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
         }
     });
 
+    app.get('/api/v1/themes', async(request, reply) => {
+        const { page = 1, limit = 20 } = request.query as { page?: number, limit?: number };
+        const pagination = themeService.getAll(page, limit);
+        reply.status(200).send(pagination);
+    });
+
     app.post('/api/v1/themes', async (request, reply) => {
         if (bodyHasUnknownFields(request.body as object)) {
             reply.status(400).send({ error: UNKNOWN_FIELDS });

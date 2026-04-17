@@ -6,6 +6,7 @@ import { Theme } from "./theme.interface";
 import { ThemeRepository } from "./theme-repository.interface";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
+import { Pagination } from "../common/pagination.interface";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
@@ -19,7 +20,8 @@ beforeEach(() => {
         count: vi.fn(),
         insert: vi.fn(),
         getById: vi.fn(),
-        getByName: vi.fn()
+        getByName: vi.fn(),
+        getAll: vi.fn()
     };
     defaultThemeService = new DefaultThemeService(clock, uuidGenerator, themeRepository);
 });
@@ -84,5 +86,33 @@ describe("US-004/CA-09 - When the service is called to find a theme by its id", 
         themeRepository.getById = vi.fn().mockReturnValue(undefined);
         const notexistingTheme = defaultThemeService.getById("not-existing-id");
         expect(notexistingTheme).toBeUndefined();
+    });
+});
+
+describe("US-004/CA-13 - When the service is called to find all themes with pagination", () => {
+    beforeEach(() => {
+        themeRepository.count = vi.fn().mockReturnValue(10);
+    });
+    it("should return the first theme", () => {
+        themeRepository.getAll = vi.fn().mockReturnValue([{ id: "existing-id", name: "Existing Theme", created_at: "2026-04-16T23:02:00Z", last_updated_at: null }] as Theme[]);
+        const themes: Pagination<Theme> = defaultThemeService.getAll(0, 1);
+        expect(themes.data?.length).toBe(1);
+        expect(themes.limit).toBe(1);
+        expect(themes.page).toBe(0);
+        expect(themes.total).toBe(10);
+        expect(themes.total_pages).toBe(10);
+    });
+    it("should return the two first themes", () => {
+        themeRepository.getAll = vi.fn().mockReturnValue(
+        [
+            { id: "existing-id", name: "Existing Theme", created_at: "2026-04-16T23:02:00Z", last_updated_at: null },
+            { id: "another-id", name: "Another Theme", created_at: "2026-04-16T23:09:00Z", last_updated_at: null }
+        ] as Theme[]);
+        const themes: Pagination<Theme> = defaultThemeService.getAll(0, 2);
+        expect(themes.data?.length).toBe(2);
+        expect(themes.limit).toBe(2);
+        expect(themes.page).toBe(0);
+        expect(themes.total).toBe(10);
+        expect(themes.total_pages).toBe(5);
     });
 });
