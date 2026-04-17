@@ -98,3 +98,21 @@ describe("US-004/CA-14 - Retrieve a list of themes with pagination in the correc
         expect(themes[0].name).toBe("Theme test");
     });
 });
+
+describe("US-004/CA-18 - Retrieve an empty list of themes if page is more than total_pages", () => {
+    let otherTheme: Theme;
+    beforeEach(() => {
+        otherTheme = {
+            id: "019d979f-6a51-7c7c-879f-b2b8a20d8273",
+            name: "Other theme test",
+            created_at: new Date("2028-04-17 10:00:00").toISOString(),
+            last_updated_at: null
+        };
+        repository.insert(theme);
+        repository.insert(otherTheme);
+    });
+    it("should give an empty list", async () => {
+        const themes: Theme[] = repository.getAll(3, 1);
+        expect(themes.length).toBe(0);
+    });
+});
