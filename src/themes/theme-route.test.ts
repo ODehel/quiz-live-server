@@ -218,3 +218,29 @@ describe("US-004/CA-13 - Get all themes with pagination", () => {
         expect(response.statusCode).toBe(200);
     });
 });
+
+describe("US-004/CA-15 - Parameters of pagination set by default", () => {
+    it ("should send page 1 and limit 20 by default", async () => {
+         mockThemeService.getAll = vi.fn().mockImplementation(() => {
+            return {
+                data: [{
+                    id: "019d9aa3-bfb7-7eaf-af2a-739ed8e0a2a6",
+                    name: "First Theme",
+                    created_at: "2026-04-17T10:56:00Z",
+                    last_updated_at: null
+                }],
+                limit: 1,
+                page: 1,
+                total: 6,
+                total_pages: 3
+            } as Pagination<Theme>
+        });
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(200);
+        expect(mockThemeService.getAll).toHaveBeenCalledWith(1, 20);
+    });
+});
