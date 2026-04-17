@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { ThemeService } from "./theme-service.interface";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
-import { INVALID_UUID, THEME_ALREADY_EXISTS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
+import { INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
 import { UuidValidator } from "../common/uuid-validator.interface";
 
 export default async function themeRoute(app: FastifyInstance, options: { themeService: ThemeService, uuidValidator: UuidValidator }) {
@@ -22,8 +22,14 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
         }
     });
 
-    app.get('/api/v1/themes', async(request, reply) => {
+    app.get('/api/v1/themes', async (request, reply) => {
         const { page = 1, limit = 20 } = request.query as { page?: number, limit?: number };
+
+        if (limit > 100) {
+            reply.status(400).send({ error: INVALID_PAGINATION });
+            return;
+        }
+
         const pagination = themeService.getAll(page, limit);
         reply.status(200).send(pagination);
     });

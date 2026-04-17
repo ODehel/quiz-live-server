@@ -7,6 +7,7 @@ import { ValidationError } from './validation-error';
 import { ConflictError } from './conflict-error';
 import { UuidValidator } from '../common/uuid-validator.interface';
 import { Pagination } from '../common/pagination.interface';
+import { INVALID_PAGINATION } from '../common/error-codes';
 
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
@@ -220,8 +221,8 @@ describe("US-004/CA-13 - Get all themes with pagination", () => {
 });
 
 describe("US-004/CA-15 - Parameters of pagination set by default", () => {
-    it ("should send page 1 and limit 20 by default", async () => {
-         mockThemeService.getAll = vi.fn().mockImplementation(() => {
+    it("should send page 1 and limit 20 by default", async () => {
+        mockThemeService.getAll = vi.fn().mockImplementation(() => {
             return {
                 data: [{
                     id: "019d9aa3-bfb7-7eaf-af2a-739ed8e0a2a6",
@@ -242,5 +243,17 @@ describe("US-004/CA-15 - Parameters of pagination set by default", () => {
         });
         expect(response.statusCode).toBe(200);
         expect(mockThemeService.getAll).toHaveBeenCalledWith(1, 20);
+    });
+});
+
+describe("US-004/CA-16 - Limit must be equal or less than 100", () => {
+    it("should send a 400 error code", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?limit=101',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
     });
 });
