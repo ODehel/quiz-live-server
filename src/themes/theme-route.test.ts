@@ -314,3 +314,14 @@ describe("US-004/CA-17 - When pagination parameters are invalid", () => {
         expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
     });
 });
+
+describe("US-004/CA-19a - Wrong content-type", () => {
+    it("should return a 200 HTML code", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?page=1&limit=1',
+            headers: { 'content-type': 'application/xml' }
+        });
+        expect(response.statusCode).toBe(200);
+    });
+});
