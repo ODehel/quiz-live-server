@@ -48,6 +48,10 @@ export class DefaultThemeService implements ThemeService {
             throw new ThemeNotFoundError();
         }
         const trimmedName = this.formatName(name);
+        if (trimmedName.localeCompare(theme.name, undefined, { sensitivity: 'base' }) === 0) {
+            return theme;
+        }
+
         theme.name = trimmedName;
         theme.last_updated_at = this.clock.now().toISOString();
         this.themeRepository.update(theme);

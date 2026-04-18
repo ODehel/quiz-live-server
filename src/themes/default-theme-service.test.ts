@@ -1,4 +1,4 @@
-import { assert, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
 import { Clock } from "../common/clock.interface";
 import { UuidGenerator } from "../common/uuid-generator.interface";
 import { DefaultThemeService } from "./default-theme-service";
@@ -149,6 +149,29 @@ describe("US-004/CA-21 - Update a formatted theme", () => {
     it("should throw a conflict error", () => {
         themeRepository.getByName = vi.fn().mockReturnValue({ id: "019d9d6f-eae6-730c-96db-b81da74765e2", name: "An existing theme", created_at: "2026-04-23 10:29:30", last_updated_at: null } as Theme);
         const update_name = "An existing theme";
-        expect(() => defaultThemeService.updateTheme(theme.id, update_name)).toThrow(ConflictError); 
+        expect(() => defaultThemeService.updateTheme(theme.id, update_name)).toThrow(ConflictError);
+    });
+});
+
+describe("US-004/CA-22 - Update a theme with the same name", () => {
+    let theme: Theme;
+    let updated_theme: Theme;
+    beforeEach(() => {
+        theme = defaultThemeService.createTheme("Test Theme");
+        themeRepository.getById = vi.fn().mockReturnValue(theme);
+    });
+    it("should return a 200 and the update date unchanged", () => {
+        updated_theme = defaultThemeService.updateTheme(theme.id, theme.name);
+    });
+    it("should return a 200 and the update date unchanged when formatted names are equal", () => {
+        updated_theme = defaultThemeService.updateTheme(theme.id, "  TeST    tHeMe   ");
+    });
+    afterEach(() => {
+        expect(updated_theme.id).toBe(theme.id);
+        expect(updated_theme.name).toBe(theme.name);
+        expect(updated_theme.created_at).toBe(theme.created_at);
+        expect(updated_theme.last_updated_at).toBe(theme.last_updated_at);
+        expect(themeRepository.update).not.toHaveBeenCalled();
+
     });
 });
