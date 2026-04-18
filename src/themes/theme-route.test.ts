@@ -412,3 +412,28 @@ describe("US-004/CA-26 - Wrong content-type", () => {
         expect(mockThemeService.createTheme).not.toHaveBeenCalled();
     });
 });
+
+describe("US-004/CA-27 - Unknown fields", () => {
+    it("should return an error 400 with a mispelled property", async () => {
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', nem: 'Inconnu' })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'UNKNOWN_FIELDS' });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+    it("should return an error 400 with an unknown property", async () => {
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu', active: false })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'UNKNOWN_FIELDS' });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+});

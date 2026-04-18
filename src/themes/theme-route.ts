@@ -36,7 +36,7 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
     });
 
     app.post('/api/v1/themes', async (request, reply) => {
-        if (bodyHasUnknownFields(request.body as object)) {
+        if (bodyHasUnknownFields(request.body as object, ['name'])) {
             reply.status(400).send({ error: UNKNOWN_FIELDS });
         }
         else {
@@ -51,21 +51,26 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
     });
 
     app.put('/api/v1/themes/:id', async (request, reply) => {
-        try {
-            const { id: idFromParams } = request.params as { id: string };
-            const { id: idFromBody, name } = request.body as { id?: string, name: string };
+        if (bodyHasUnknownFields(request.body as object, ['id', 'name'])) {
+            reply.status(400).send({ error: UNKNOWN_FIELDS });
+        }
+        else {
+            try {
+                const { id: idFromParams } = request.params as { id: string };
+                const { id: idFromBody, name } = request.body as { id?: string, name: string };
 
-            if (idFromBody !== undefined && idFromParams !== idFromBody) {
-                reply.status(400).send({ error: ID_MISMATCH });
-                return;
-            }
-            const updatedTheme = themeService.updateTheme(idFromParams, name);
-            reply.status(200).send(updatedTheme);
-        } catch (error) {
-            if (error instanceof ThemeNotFoundError) {
-                reply.status(404).send({ error: THEME_NOT_FOUND });
-            } else {
-                sendError(error, 'Failed to update theme', reply);
+                if (idFromBody !== undefined && idFromParams !== idFromBody) {
+                    reply.status(400).send({ error: ID_MISMATCH });
+                    return;
+                }
+                const updatedTheme = themeService.updateTheme(idFromParams, name);
+                reply.status(200).send(updatedTheme);
+            } catch (error) {
+                if (error instanceof ThemeNotFoundError) {
+                    reply.status(404).send({ error: THEME_NOT_FOUND });
+                } else {
+                    sendError(error, 'Failed to update theme', reply);
+                }
             }
         }
     });
@@ -84,8 +89,7 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
         return (limit > 100 || limit <= 0) || (isNaN(limit) || isNaN(page)) || page <= 0;
     }
 
-    function bodyHasUnknownFields(body: object): boolean {
-        const allowedFields = ['name'];
+    function bodyHasUnknownFields(body: object, allowedFields: string[]): boolean {
         const unknownFields = Object.keys(body).filter(key => !allowedFields.includes(key));
         return unknownFields.length > 0;
     }
