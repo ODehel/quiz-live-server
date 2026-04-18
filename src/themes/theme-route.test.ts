@@ -370,3 +370,16 @@ describe('US-004/CA-21 - Update Theme with other existing name', () => {
         expect(mockThemeService.updateTheme).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416', 'Un nom de thème qui existe déjà');
     });
 });
+
+describe("US-004/CA-23 - Id should be the same in body and url", () => {
+    it("should return a id_mismatch error", async () => {
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: '019da051-e379-74e7-b446-65518f88cc3a', name: 'Un nom de thème qui existe déjà' })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'ID_MISMATCH' });
+    });
+});

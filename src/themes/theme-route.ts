@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply } from "fastify";
 import { ThemeService } from "./theme-service.interface";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
-import { INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
+import { ID_MISMATCH, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
 import { UuidValidator } from "../common/uuid-validator.interface";
 
 export default async function themeRoute(app: FastifyInstance, options: { themeService: ThemeService, uuidValidator: UuidValidator }) {
@@ -51,9 +51,14 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
 
     app.put('/api/v1/themes/:id', async (request, reply) => {
         try {
-            const { id } = request.params as { id: string };
-            const { name } = request.body as { name: string };
-            const updatedTheme = themeService.updateTheme(id, name);
+            const { id: idFromParams } = request.params as { id: string };
+            const { id: idFromBody, name } = request.body as { id?: string, name: string };
+
+            if (idFromBody !== undefined && idFromParams !== idFromBody) {
+                reply.status(400).send({ error: ID_MISMATCH });
+                return;
+            }
+            const updatedTheme = themeService.updateTheme(idFromParams, name);
             reply.status(200).send(updatedTheme);
         } catch (error) {
             sendError(error, 'Failed to update theme', reply);
