@@ -8,6 +8,7 @@ import { ConflictError } from './conflict-error';
 import { UuidValidator } from '../common/uuid-validator.interface';
 import { Pagination } from '../common/pagination.interface';
 import { INVALID_PAGINATION } from '../common/error-codes';
+import { ThemeNotFoundError } from './theme-not-found-error';
 
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
@@ -381,5 +382,19 @@ describe("US-004/CA-23 - Id should be the same in body and url", () => {
         });
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual({ error: 'ID_MISMATCH' });
+    });
+});
+
+describe("US-004/CA-25 - Unknown id", () => {
+    it("should return a not found error", async () => {
+        mockThemeService.updateTheme = vi.fn().mockImplementation(() => { throw new ThemeNotFoundError(); });
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu' })
+        });
+        expect(response.statusCode).toBe(404);
+        expect(response.json()).toEqual({ error: 'THEME_NOT_FOUND' });
     });
 });

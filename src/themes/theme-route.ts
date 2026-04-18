@@ -4,6 +4,7 @@ import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { ID_MISMATCH, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
 import { UuidValidator } from "../common/uuid-validator.interface";
+import { ThemeNotFoundError } from "./theme-not-found-error";
 
 export default async function themeRoute(app: FastifyInstance, options: { themeService: ThemeService, uuidValidator: UuidValidator }) {
     const { themeService, uuidValidator } = options;
@@ -61,7 +62,11 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
             const updatedTheme = themeService.updateTheme(idFromParams, name);
             reply.status(200).send(updatedTheme);
         } catch (error) {
-            sendError(error, 'Failed to update theme', reply);
+            if (error instanceof ThemeNotFoundError) {
+                reply.status(404).send({ error: THEME_NOT_FOUND });
+            } else {
+                sendError(error, 'Failed to update theme', reply);
+            }
         }
     });
 
