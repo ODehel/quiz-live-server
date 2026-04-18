@@ -398,3 +398,17 @@ describe("US-004/CA-25 - Unknown id", () => {
         expect(response.json()).toEqual({ error: 'THEME_NOT_FOUND' });
     });
 });
+
+describe("US-004/CA-26 - Wrong content-type", () => {
+    it("should return a 415 error code", async () => {
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/xml' },
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu' })
+        });
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual({ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+});
