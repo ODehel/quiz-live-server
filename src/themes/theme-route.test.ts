@@ -340,3 +340,33 @@ describe("US-004/CA-20 - Update an existing theme", () => {
         expect(mockThemeService.updateTheme).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416', 'Culture générale 2');
     }); 
 });
+
+describe("US-004/CA-21 - Format an existing theme", () => {
+    it("should trim the new name", async () => {
+        mockThemeService.updateTheme = vi.fn().mockImplementation(() => { throw new ValidationError(); });
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: "019d92d2-e1f6-7d05-9803-3948dbc4c416", name: "Culture générale avec un nom beaucoup trop long que ce qui est autorisé" })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'VALIDATION_ERROR' });
+        expect(mockThemeService.updateTheme).toHaveBeenCalledWith("019d92d2-e1f6-7d05-9803-3948dbc4c416", "Culture générale avec un nom beaucoup trop long que ce qui est autorisé");
+    });
+});
+
+describe('US-004/CA-21 - Update Theme with other existing name', () => {
+    it('should return a conflict error for existing theme name', async () => {
+        mockThemeService.updateTheme = vi.fn().mockImplementation(() => { throw new ConflictError(); });
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Un nom de thème qui existe déjà' })
+        });
+        expect(response.statusCode).toBe(409);
+        expect(response.json()).toEqual({ error: 'THEME_ALREADY_EXISTS' });
+        expect(mockThemeService.updateTheme).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416', 'Un nom de thème qui existe déjà');
+    });
+});

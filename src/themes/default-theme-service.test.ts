@@ -105,10 +105,10 @@ describe("US-004/CA-13 - When the service is called to find all themes with pagi
     });
     it("should return the two first themes", () => {
         themeRepository.getAll = vi.fn().mockReturnValue(
-        [
-            { id: "existing-id", name: "Existing Theme", created_at: "2026-04-16T23:02:00Z", last_updated_at: null },
-            { id: "another-id", name: "Another Theme", created_at: "2026-04-16T23:09:00Z", last_updated_at: null }
-        ] as Theme[]);
+            [
+                { id: "existing-id", name: "Existing Theme", created_at: "2026-04-16T23:02:00Z", last_updated_at: null },
+                { id: "another-id", name: "Another Theme", created_at: "2026-04-16T23:09:00Z", last_updated_at: null }
+            ] as Theme[]);
         const themes: Pagination<Theme> = defaultThemeService.getAll(0, 2);
         expect(themes.data?.length).toBe(2);
         expect(themes.limit).toBe(2);
@@ -128,5 +128,27 @@ describe("US-004/CA-20 - Update a theme name", () => {
         const updated_theme = defaultThemeService.updateTheme(theme.id, updated_name);
         expect(updated_theme.name).toBe(updated_name);
         expect(updated_theme.last_updated_at).toBe(update_date);
+    });
+});
+
+describe("US-004/CA-21 - Update a formatted theme", () => {
+    let theme: Theme;
+    beforeEach(() => {
+        theme = defaultThemeService.createTheme("Mon thème préféré");
+        themeRepository.getById = vi.fn().mockReturnValue(theme);
+    });
+    it("should update with formatted name", () => {
+        const updated_name = "    I   love     it    ";
+        const updated_theme = defaultThemeService.updateTheme(theme.id, updated_name);
+        expect(updated_theme.name).toBe("I love it");
+    });
+    it("should throw a validation error", () => {
+        const updated_name = "A";
+        expect(() => defaultThemeService.updateTheme(theme.id, updated_name)).toThrow(ValidationError);
+    });
+    it("should throw a conflict error", () => {
+        themeRepository.getByName = vi.fn().mockReturnValue({ id: "019d9d6f-eae6-730c-96db-b81da74765e2", name: "An existing theme", created_at: "2026-04-23 10:29:30", last_updated_at: null } as Theme);
+        const update_name = "An existing theme";
+        expect(() => defaultThemeService.updateTheme(theme.id, update_name)).toThrow(ConflictError); 
     });
 });

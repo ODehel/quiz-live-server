@@ -29,14 +29,7 @@ export class DefaultThemeService implements ThemeService {
     }
 
     createTheme(name: string): Theme {
-        const trimmedName = this.trimBlanks(name);
-        if (!/^[\p{Lu}][\p{L}\p{N} '\-]{1,38}[\p{L}\p{N}]$/u.test(trimmedName)) {
-            throw new ValidationError();
-        }
-
-        if (this.themeRepository.getByName(trimmedName) !== undefined) {
-            throw new ConflictError();
-        }
+        const trimmedName = this.formatName(name);
 
         const theme: Theme = {
             id: this.uuidGenerator.generate(),
@@ -54,8 +47,8 @@ export class DefaultThemeService implements ThemeService {
         if (theme === undefined) {
             throw new ThemeNotFoundError();
         }
-
-        theme.name = name;
+        const trimmedName = this.formatName(name);
+        theme.name = trimmedName;
         theme.last_updated_at = this.clock.now().toISOString();
         this.themeRepository.update(theme);
         return theme;
@@ -63,5 +56,17 @@ export class DefaultThemeService implements ThemeService {
 
     private trimBlanks(name: string): string {
         return name.trim().replace(/\s+/g, ' ');
+    }
+
+    private formatName(name: string) {
+        const trimmedName = this.trimBlanks(name);
+        if (!/^[\p{Lu}][\p{L}\p{N} '\-]{1,38}[\p{L}\p{N}]$/u.test(trimmedName)) {
+            throw new ValidationError();
+        }
+
+        if (this.themeRepository.getByName(trimmedName) !== undefined) {
+            throw new ConflictError();
+        }
+        return trimmedName;
     }
 }
