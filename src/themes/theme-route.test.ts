@@ -449,6 +449,25 @@ describe("US-004/CA-28 - Delete route", () => {
         expect(response.statusCode).toBe(204);
         expect(mockThemeService.deleteTheme).toHaveBeenCalled();
     });
+    it("should ignore the body", async() => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu', active: false }),
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(204);
+        expect(mockThemeService.deleteTheme).toHaveBeenCalled();
+    });
+    it("should ignore the content type", async() => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(204);
+        expect(mockThemeService.deleteTheme).toHaveBeenCalled();
+    });
 });
 
 describe("US-004/CA-29 - Delete unfound theme", () => {

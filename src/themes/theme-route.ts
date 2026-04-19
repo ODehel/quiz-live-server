@@ -76,21 +76,26 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
         }
     });
 
-    app.delete('/api/v1/themes/:id', async (request, reply) => {
-        const { id } = request.params as { id: string };
+    app.register(async (instance) => {
+        instance.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, _body, done) => {
+            done(null, null);
+        });
+        instance.delete('/api/v1/themes/:id', async (request, reply) => {
+            const { id } = request.params as { id: string };
 
-        try {
-            themeService.deleteTheme(id);
-            reply.status(204).send();
-        } catch (error) {
-            if (error instanceof ThemeNotFoundError) {
-                reply.status(404).send({ error: THEME_NOT_FOUND });
-            } else if (error instanceof ThemeHasQuestionsError) {
-                reply.status(409).send({ error: THEME_HAS_QUESTIONS });
-            } else {
-                reply.status(500).send({ error: 'Failed to delete theme' });
+            try {
+                themeService.deleteTheme(id);
+                reply.status(204).send();
+            } catch (error) {
+                if (error instanceof ThemeNotFoundError) {
+                    reply.status(404).send({ error: THEME_NOT_FOUND });
+                } else if (error instanceof ThemeHasQuestionsError) {
+                    reply.status(409).send({ error: THEME_HAS_QUESTIONS });
+                } else {
+                    reply.status(500).send({ error: 'Failed to delete theme' });
+                }
             }
-        }
+        });
     });
 
     function sendError(error: unknown, error500message: string, reply: FastifyReply) {
