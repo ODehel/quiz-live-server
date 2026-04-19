@@ -76,10 +76,18 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
     });
 
     app.delete('/api/v1/themes/:id', async (request, reply) => {
-        console.log(request.body);
         const { id } = request.params as { id: string };
+
+        try {
         themeService.deleteTheme(id);
         reply.status(204).send();
+        } catch (error) {
+            if (error instanceof ThemeNotFoundError) {
+                reply.status(404).send({ error: THEME_NOT_FOUND });
+            } else {
+                reply.status(500).send({ error: 'Failed to delete theme'});
+            }
+        }
     });
 
     function sendError(error: unknown, error500message: string, reply: FastifyReply) {

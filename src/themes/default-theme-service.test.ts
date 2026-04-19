@@ -7,6 +7,7 @@ import { ThemeRepository } from "./theme-repository.interface";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { Pagination } from "../common/pagination.interface";
+import { ThemeNotFoundError } from "./theme-not-found-error";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
@@ -180,7 +181,15 @@ describe("US-004/CA-22 - Update a theme with the same name", () => {
 describe("US-004/CA-28 - Delete a theme without associated questions", () => {
     it("should delete the theme with the id", () => {
         let theme = defaultThemeService.createTheme("Test Theme");
+        themeRepository.getById = vi.fn().mockReturnValue(theme);
         defaultThemeService.deleteTheme(theme.id);
         expect(themeRepository.delete).toHaveBeenCalled();
+    });
+});
+
+describe("US-004/CA-29 - Delete a theme with inexisting id", () => {
+    it("should return a NotFoundError", () => {
+        themeRepository.getById = vi.fn().mockReturnValue(undefined);
+        expect(() => defaultThemeService.deleteTheme("019d6cdd-30db-7437-ac57-5826c0695222")).toThrow(ThemeNotFoundError);
     });
 });
