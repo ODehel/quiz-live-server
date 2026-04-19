@@ -75,6 +75,13 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
         }
     });
 
+    app.delete('/api/v1/themes/:id', async (request, reply) => {
+        console.log(request.body);
+        const { id } = request.params as { id: string };
+        themeService.deleteTheme(id);
+        reply.status(204).send();
+    });
+
     function sendError(error: unknown, error500message: string, reply: FastifyReply) {
         if (error instanceof ValidationError) {
             reply.status(400).send({ error: VALIDATION_ERROR });

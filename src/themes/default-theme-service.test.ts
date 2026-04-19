@@ -20,6 +20,7 @@ beforeEach(() => {
         count: vi.fn(),
         insert: vi.fn(),
         update: vi.fn(),
+        delete: vi.fn(),
         getById: vi.fn(),
         getByName: vi.fn(),
         getAll: vi.fn()
@@ -173,5 +174,13 @@ describe("US-004/CA-22 - Update a theme with the same name", () => {
         expect(updated_theme.last_updated_at).toBe(theme.last_updated_at);
         expect(themeRepository.update).not.toHaveBeenCalled();
 
+    });
+});
+
+describe("US-004/CA-28 - Delete a theme without associated questions", () => {
+    it("should delete the theme with the id", () => {
+        let theme = defaultThemeService.createTheme("Test Theme");
+        defaultThemeService.deleteTheme(theme.id);
+        expect(themeRepository.delete).toHaveBeenCalled();
     });
 });

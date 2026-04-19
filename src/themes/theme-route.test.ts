@@ -7,7 +7,6 @@ import { ValidationError } from './validation-error';
 import { ConflictError } from './conflict-error';
 import { UuidValidator } from '../common/uuid-validator.interface';
 import { Pagination } from '../common/pagination.interface';
-import { INVALID_PAGINATION } from '../common/error-codes';
 import { ThemeNotFoundError } from './theme-not-found-error';
 
 let app: FastifyInstance;
@@ -17,6 +16,7 @@ beforeEach(() => {
     mockThemeService = {
         createTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme),
         updateTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale 2', created_at: new Date().toISOString(), last_updated_at: new Date().toISOString() } as Theme),
+        deleteTheme: vi.fn(),
         getById: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme),
         getAll: vi.fn().mockReturnValue({
             data: [{
@@ -435,5 +435,16 @@ describe("US-004/CA-27 - Unknown fields", () => {
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual({ error: 'UNKNOWN_FIELDS' });
         expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+});
+
+describe("US-004/CA-28 - Delete route", () => {
+    it("should return a 204 code", async () => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416'
+        });
+        expect(response.statusCode).toBe(204);
+        expect(mockThemeService.deleteTheme).toHaveBeenCalled();
     });
 });

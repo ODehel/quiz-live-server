@@ -58,6 +58,10 @@ export class DefaultThemeService implements ThemeService {
         return theme;
     }
 
+    deleteTheme(id: string): void {
+        this.themeRepository.delete(id);
+    }
+
     private trimBlanks(name: string): string {
         return name.trim().replace(/\s+/g, ' ');
     }

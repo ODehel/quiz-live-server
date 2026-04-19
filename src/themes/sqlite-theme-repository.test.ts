@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { Theme } from "./theme.interface";
 import { SqliteThemeRepository } from "./sqlite-theme-repository";
-import { assert } from "node:console";
 
 let repository: SqliteThemeRepository;
 let theme: Theme;
@@ -135,5 +134,13 @@ describe("US-004/CA-20 - Update the theme", () => {
         const updatedTheme = repository.getById(theme.id);
         expect(updatedTheme?.name).toBe(updatedName);
         expect(updatedTheme?.last_updated_at).toBe(date);
+    });
+});
+
+describe("US-004/CA-28 - Delete a theme without associated questions", () => {
+    it("should delete the theme", async () => {
+        repository.insert(theme);
+        repository.delete("019d6c17-1c08-7161-9358-fe4a116fa388");
+        expect(repository.count()).toBe(0);
     });
 });
