@@ -2,9 +2,10 @@ import { FastifyInstance, FastifyReply } from "fastify";
 import { ThemeService } from "./theme-service.interface";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
-import { ID_MISMATCH, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
+import { ID_MISMATCH, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
 import { UuidValidator } from "../common/uuid-validator.interface";
 import { ThemeNotFoundError } from "./theme-not-found-error";
+import { ThemeHasQuestionsError } from "./theme-has-questions-error";
 
 export default async function themeRoute(app: FastifyInstance, options: { themeService: ThemeService, uuidValidator: UuidValidator }) {
     const { themeService, uuidValidator } = options;
@@ -79,13 +80,15 @@ export default async function themeRoute(app: FastifyInstance, options: { themeS
         const { id } = request.params as { id: string };
 
         try {
-        themeService.deleteTheme(id);
-        reply.status(204).send();
+            themeService.deleteTheme(id);
+            reply.status(204).send();
         } catch (error) {
             if (error instanceof ThemeNotFoundError) {
                 reply.status(404).send({ error: THEME_NOT_FOUND });
+            } else if (error instanceof ThemeHasQuestionsError) {
+                reply.status(409).send({ error: THEME_HAS_QUESTIONS });
             } else {
-                reply.status(500).send({ error: 'Failed to delete theme'});
+                reply.status(500).send({ error: 'Failed to delete theme' });
             }
         }
     });

@@ -8,4 +8,5 @@ export interface ThemeRepository {
     getAll(page: number, limit: number): Theme[];
     getById(id: string): Theme | undefined;
     getByName(name: string): Theme | undefined;
+    isUsedInQuestions(id: string): boolean;
 }

@@ -38,10 +38,15 @@ export class SqliteThemeRepository implements ThemeRepository {
         const statement = this.db.prepare("DELETE FROM T_THEME_THM WHERE THM_ID = ?");
         statement.run(id);
     }
-    
+
     getByName(name: string): Theme | undefined {
         const theme = this.db.prepare("SELECT THM_ID as id, THM_NAME as name, THM_CREATED_AT as created_at, THM_LAST_UPDATED_AT as last_updated_at FROM T_THEME_THM WHERE THM_NAME = ? COLLATE NOCASE").get(name) as Theme | undefined;
         return theme;
+    }
+
+    isUsedInQuestions(id: string): boolean {
+        // TODO: implémenter quand QuestionRepository sera disponible
+        return false;
     }
 
     private createTableIfNotExists() {

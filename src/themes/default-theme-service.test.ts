@@ -8,6 +8,7 @@ import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { Pagination } from "../common/pagination.interface";
 import { ThemeNotFoundError } from "./theme-not-found-error";
+import { ThemeHasQuestionsError } from "./theme-has-questions-error";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
@@ -24,7 +25,8 @@ beforeEach(() => {
         delete: vi.fn(),
         getById: vi.fn(),
         getByName: vi.fn(),
-        getAll: vi.fn()
+        getAll: vi.fn(),
+        isUsedInQuestions: vi.fn()
     };
     defaultThemeService = new DefaultThemeService(clock, uuidGenerator, themeRepository);
 });
@@ -191,5 +193,13 @@ describe("US-004/CA-29 - Delete a theme with inexisting id", () => {
     it("should return a NotFoundError", () => {
         themeRepository.getById = vi.fn().mockReturnValue(undefined);
         expect(() => defaultThemeService.deleteTheme("019d6cdd-30db-7437-ac57-5826c0695222")).toThrow(ThemeNotFoundError);
+    });
+});
+
+describe("US-004/CA-30 - Delete a theme used in questions", () => {
+    it("should return a ThemeHasQuestionsError", () => {
+        themeRepository.getById = vi.fn().mockReturnValue({ id: "019d6cdd-30db-7437-ac57-5826c0695222", name: "Theme Test", created_at: clock.now().toISOString(), last_updated_at: null } as Theme);
+        themeRepository.isUsedInQuestions = vi.fn().mockImplementation(() => { return true });
+        expect(() => defaultThemeService.deleteTheme("019d6cdd-30db-7437-ac57-5826c0695222")).toThrow(ThemeHasQuestionsError);
     });
 });

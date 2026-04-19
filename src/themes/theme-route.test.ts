@@ -9,6 +9,7 @@ import { UuidValidator } from '../common/uuid-validator.interface';
 import { Pagination } from '../common/pagination.interface';
 import { ThemeNotFoundError } from './theme-not-found-error';
 import { THEME_NOT_FOUND } from '../common/error-codes';
+import { ThemeHasQuestionsError } from './theme-has-questions-error';
 
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
@@ -459,5 +460,17 @@ describe("US-004/CA-29 - Delete unfound theme", () => {
         });
         expect(response.statusCode).toBe(404);
         expect(response.json()).toEqual({ error: 'THEME_NOT_FOUND' });
+    });
+});
+
+describe("US-004/CA-30 - Delete theme with questions", () => {
+    it("should return a 409 error", async () => {
+        mockThemeService.deleteTheme = vi.fn().mockImplementation(() => { throw new ThemeHasQuestionsError(); });
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416'
+        });
+        expect(response.statusCode).toBe(409);
+        expect(response.json()).toEqual({ error: 'THEME_HAS_QUESTIONS' });
     });
 });

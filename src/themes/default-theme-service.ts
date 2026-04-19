@@ -2,6 +2,7 @@ import { Clock } from "../common/clock.interface";
 import { Pagination } from "../common/pagination.interface";
 import { UuidGenerator } from "../common/uuid-generator.interface";
 import { ConflictError } from "./conflict-error";
+import { ThemeHasQuestionsError } from "./theme-has-questions-error";
 import { ThemeNotFoundError } from "./theme-not-found-error";
 import { ThemeRepository } from "./theme-repository.interface";
 import { ThemeService } from "./theme-service.interface";
@@ -65,6 +66,10 @@ export class DefaultThemeService implements ThemeService {
             throw new ThemeNotFoundError();
         }
 
+        if (this.themeRepository.isUsedInQuestions(id)) {
+            throw new ThemeHasQuestionsError();
+        }
+        
         this.themeRepository.delete(id);
     }
 
