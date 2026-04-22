@@ -1,10 +1,9 @@
 import { FastifyInstance } from "fastify";
 import rateLimit from "@fastify/rate-limit"
-import { AuthenticationService } from "../authentication/authentication-service.interface";
-import { TokenGenerator } from "../authentication/token-generator.interface";
+import { TokenRouteConfiguration } from "./token-route-configuration.interface";
 
-export default async function tokenRoute(app: FastifyInstance, options: { authService: AuthenticationService; tokenGenerator: TokenGenerator, maxRequestsPerMinute: number }) {
-    const { authService, tokenGenerator, maxRequestsPerMinute } = options;
+export default async function tokenRoute(app: FastifyInstance, options: TokenRouteConfiguration) {
+    const { authenticationService, tokenGenerator, maxRequestsPerMinute } = options;
     const schema = {
         body: {
             type: 'object',
@@ -22,7 +21,7 @@ export default async function tokenRoute(app: FastifyInstance, options: { authSe
     });
     app.post('/api/v1/token', { schema }, async (request, reply) => {
         const { username, password } = request.body as { username: string; password: string };
-        const user = await authService.authenticate(username, password);
+        const user = await authenticationService.authenticate(username, password);
         if (!user) {
             request.log.warn({ username, ip: request.ip }, 'Authentication failed');
             return reply.status(401).send({ error: 'Invalid credentials' });

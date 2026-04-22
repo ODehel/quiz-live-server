@@ -5,6 +5,12 @@ import { Network } from './common/network.interface'
 import { QuizServerConfiguration } from './quiz-server-configuration.interface'
 import { Token } from './authentication/token.interface'
 import { User } from './users/user.interface'
+import { ThemeService } from './themes/theme-service.interface'
+import { UuidValidator } from './common/uuid-validator.interface'
+import { TokenValidator } from './authentication/token-validator.interface'
+import { FastifyInstance } from 'fastify'
+import { TokenRouteConfiguration } from './authentication/token-route-configuration.interface'
+import { ThemeRouteConfiguration } from './themes/theme-route-configuration.interface'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -36,10 +42,38 @@ const mockTokenGenerator = {
 	}
 };
 
+const mockThemeService: ThemeService = {
+	createTheme: vi.fn(),
+	deleteTheme: vi.fn(),
+	getAll: vi.fn(),
+	getById: vi.fn(),
+	updateTheme: vi.fn()
+};
+const mockUuidValidator: UuidValidator = {
+	validate: vi.fn()
+};
+const mockTokenValidator: TokenValidator = {
+	validateToken: vi.fn()
+};
+const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => {};
+
+const mockTokenRouteConfiguration: TokenRouteConfiguration = {
+	authenticationService: mockAuthenticationService,
+	tokenGenerator: mockTokenGenerator,
+	maxRequestsPerMinute: 100
+};
+
+const mockThemeRouteConfiguration: ThemeRouteConfiguration = {
+	themeService: mockThemeService,
+	uuidValidator: mockUuidValidator,
+	tokenValidator: mockTokenValidator,
+	middleware: mockMiddleware
+};
+
 describe('CA-1 - Le serveur démarre sans erreur', () => {
 	let server: QuizServer
 	beforeEach(() => {
-		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator, 100)
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration);
 	})
 	it('should start and remain listening without error', async () => {
 		await server.start()
@@ -56,7 +90,7 @@ describe('CA-2 - La console affiche l`heure de lancement', () => {
 	let spy: any
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator, 100)
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration);
 	})
 	it('should display a message with current hour within console', async () => {
 		await server.start()
@@ -72,7 +106,7 @@ describe('CA-3 - La console affiche l`adresse IP et le port', () => {
 	let spy: any
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		server = new QuizServer(mockQuizServerConfiguration, mockAuthenticationService, mockTokenGenerator, 100)
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration);
 	})
 	it('should display a message with current hour within console', async () => {
 		await server.start()
@@ -95,7 +129,7 @@ describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 			...mockQuizServerConfiguration,
 			network: mockNetworkNoIP
 		}
-		server = new QuizServer(configWithNoIP, mockAuthenticationService, mockTokenGenerator, 100)
+		server = new QuizServer(configWithNoIP, mockTokenRouteConfiguration, mockThemeRouteConfiguration);
 	})
 	it('should display a fallback message if no IP address is found', async () => {
 		await server.start()

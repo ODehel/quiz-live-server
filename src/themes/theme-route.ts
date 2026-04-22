@@ -1,15 +1,16 @@
 import { FastifyInstance, FastifyReply } from "fastify";
-import { ThemeService } from "./theme-service.interface";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { ID_MISMATCH, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
-import { UuidValidator } from "../common/uuid-validator.interface";
 import { ThemeNotFoundError } from "./theme-not-found-error";
 import { ThemeHasQuestionsError } from "./theme-has-questions-error";
+import { ThemeRouteConfiguration } from "./theme-route-configuration.interface";
 
-export default async function themeRoute(app: FastifyInstance, options: { themeService: ThemeService, uuidValidator: UuidValidator }) {
-    const { themeService, uuidValidator } = options;
+export default async function themeRoute(app: FastifyInstance, options: ThemeRouteConfiguration) {
+    const { themeService, uuidValidator, tokenValidator, middleware } = options;
 
+    await middleware(app, { tokenValidator: tokenValidator });
+    
     app.get('/api/v1/themes/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
         if (!uuidValidator.validate(id)) {

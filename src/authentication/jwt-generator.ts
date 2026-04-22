@@ -3,7 +3,7 @@ import { Token } from "./token.interface";
 import { TokenGenerator } from "./token-generator.interface";
 import jwt from "jsonwebtoken";
 
-export class JwtTokenGenerator implements TokenGenerator {
+export class JwtGenerator implements TokenGenerator {
     private secretKey: string;
     private duration: number;
 

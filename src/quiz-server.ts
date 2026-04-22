@@ -1,23 +1,24 @@
 import Fastify, { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { QuizServerConfiguration } from './quiz-server-configuration.interface';
 import healthRoute from './routes/health-route';
-import tokenRoute from './routes/token-route';
-import { AuthenticationService } from './authentication/authentication-service.interface';
-import { TokenGenerator } from './authentication/token-generator.interface';
+import tokenRoute from './authentication/token-route';
+import themeRoute from './themes/theme-route';
+import { TokenRouteConfiguration } from './authentication/token-route-configuration.interface';
+import { ThemeRouteConfiguration } from './themes/theme-route-configuration.interface';
 
 export class QuizServer {
     private app: FastifyInstance;
     private configuration : QuizServerConfiguration;
-    private authenticationService: AuthenticationService;
-    private tokenGenerator: TokenGenerator;
-    private maxRequestsPerMinute: number;
+    private tokenRouteConfiguration: TokenRouteConfiguration;
+    private themeRouteConfiguration: ThemeRouteConfiguration;
 
-    constructor(configuration : QuizServerConfiguration, authenticationService: AuthenticationService, tokenGenerator: TokenGenerator, maxRequestsPerMinute: number) {
+    constructor(configuration : QuizServerConfiguration, 
+        tokenRouteConfiguration: TokenRouteConfiguration,
+        themeRouteConfiguration: ThemeRouteConfiguration) {
         this.app = Fastify({ logger: true });
         this.configuration = configuration;
-        this.authenticationService = authenticationService;
-        this.tokenGenerator = tokenGenerator;
-        this.maxRequestsPerMinute = maxRequestsPerMinute;
+        this.tokenRouteConfiguration = tokenRouteConfiguration;
+        this.themeRouteConfiguration = themeRouteConfiguration;
     }
 
 	async start() : Promise<void> {
@@ -37,7 +38,8 @@ export class QuizServer {
 
     private registerRoutes() {
         this.app.register(healthRoute);
-        this.app.register(tokenRoute, { authService: this.authenticationService, tokenGenerator: this.tokenGenerator, maxRequestsPerMinute: this.maxRequestsPerMinute });
+        this.app.register(tokenRoute, this.tokenRouteConfiguration);
+        this.app.register(themeRoute, this.themeRouteConfiguration);
     }
 
     private formatDateNow() {

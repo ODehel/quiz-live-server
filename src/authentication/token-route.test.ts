@@ -1,11 +1,11 @@
 import Fastify, { FastifyInstance } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthenticationService } from "../authentication/authentication-service.interface";
-import { TokenGenerator } from "../authentication/token-generator.interface";
+import { AuthenticationService } from "./authentication-service.interface";
+import { TokenGenerator } from "./token-generator.interface";
 import { User } from "../users/user.interface";
 import { UserRole } from "../users/user-role";
-import { Token } from "../authentication/token.interface";
-import tokenRoute from "./token-route";
+import { Token } from "./token.interface";
+import tokenRoute from "../authentication/token-route";
 
 let app: FastifyInstance;
 let mockAuthenticationService: AuthenticationService;
@@ -20,7 +20,7 @@ beforeEach(async () => {
         }
     };
     app = Fastify();
-    await app.register(tokenRoute, { authService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, maxRequestsPerMinute: 5 });
+    await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, maxRequestsPerMinute: 5 });
 });
 
 describe('US-003/CA-05: Without token', () => {
@@ -31,7 +31,7 @@ describe('US-003/CA-05: Without token', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: 'User Name', password: 'user-password' })
         })
-        expect(response.statusCode).toBe(200)
+        expect(response.statusCode).toBe(200);
     });
 });
 

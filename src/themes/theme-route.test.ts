@@ -8,12 +8,15 @@ import { ConflictError } from './conflict-error';
 import { UuidValidator } from '../common/uuid-validator.interface';
 import { Pagination } from '../common/pagination.interface';
 import { ThemeNotFoundError } from './theme-not-found-error';
-import { THEME_NOT_FOUND } from '../common/error-codes';
 import { ThemeHasQuestionsError } from './theme-has-questions-error';
+import { TokenValidator } from '../authentication/token-validator.interface';
+import authenticationMiddleware from '../authentication/authentication-middleware';
 
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
 let mockUuidValidator: UuidValidator;
+let mockTokenValidator: TokenValidator;
+let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void>;
 beforeEach(() => {
     mockThemeService = {
         createTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme),
@@ -48,8 +51,12 @@ beforeEach(() => {
     mockUuidValidator = {
         validate: vi.fn().mockReturnValue(true)
     };
+    mockTokenValidator = {
+        validateToken: vi.fn().mockReturnValue(true)
+    };
+    mockMiddleware = async (app, options) => { };
     app = Fastify();
-    app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator });
+    app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, middleware: mockMiddleware });
 });
 
 describe('US-004/CA-01 - Create Theme', () => {
@@ -331,7 +338,7 @@ describe("US-004/CA-19a - Wrong content-type", () => {
 });
 
 describe("US-004/CA-20 - Update an existing theme", () => {
-   it('should update the theme successfully', async () => {
+    it('should update the theme successfully', async () => {
         const response = await app.inject({
             method: 'PUT',
             url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
@@ -341,7 +348,7 @@ describe("US-004/CA-20 - Update an existing theme", () => {
         expect(response.statusCode).toBe(200);
         expect(response.json()).toEqual({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale 2', created_at: expect.any(String), last_updated_at: expect.any(String) });
         expect(mockThemeService.updateTheme).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416', 'Culture générale 2');
-    }); 
+    });
 });
 
 describe("US-004/CA-21 - Format an existing theme", () => {
@@ -449,7 +456,7 @@ describe("US-004/CA-28 - Delete route", () => {
         expect(response.statusCode).toBe(204);
         expect(mockThemeService.deleteTheme).toHaveBeenCalled();
     });
-    it("should ignore the body", async() => {
+    it("should ignore the body", async () => {
         const response = await app.inject({
             method: 'DELETE',
             url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
@@ -459,7 +466,7 @@ describe("US-004/CA-28 - Delete route", () => {
         expect(response.statusCode).toBe(204);
         expect(mockThemeService.deleteTheme).toHaveBeenCalled();
     });
-    it("should ignore the content type", async() => {
+    it("should ignore the content type", async () => {
         const response = await app.inject({
             method: 'DELETE',
             url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
@@ -471,7 +478,7 @@ describe("US-004/CA-28 - Delete route", () => {
 });
 
 describe("US-004/CA-29 - Delete unfound theme", () => {
-    it ("should return a 404 not found error", async () => {
+    it("should return a 404 not found error", async () => {
         mockThemeService.deleteTheme = vi.fn().mockImplementation(() => { throw new ThemeNotFoundError(); });
         const response = await app.inject({
             method: 'DELETE',
@@ -491,5 +498,20 @@ describe("US-004/CA-30 - Delete theme with questions", () => {
         });
         expect(response.statusCode).toBe(409);
         expect(response.json()).toEqual({ error: 'THEME_HAS_QUESTIONS' });
+    });
+});
+
+describe("US-004/CA-32 - Request without authorization", () => {
+    beforeEach(() => {
+        app = Fastify();
+        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, middleware: authenticationMiddleware });
+    });
+    it("should return a 401 error", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(401);
     });
 });

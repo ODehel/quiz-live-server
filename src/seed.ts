@@ -3,13 +3,11 @@ import { SqliteUserRepository } from "./users/sqlite-user-repository";
 import { SeedUsers } from "./users/seed-users";
 import { BcryptHasher } from './infrastructure/bcrypt-hasher';
 import { OwaspPasswordValidator } from './users/owasp-password-validator';
+import { ProcessEnvironment } from './common/process-environment';
 
-const userRepository: SqliteUserRepository = new SqliteUserRepository(process.env.DATABASE_PATH || "database.sqlite");
+const environment: ProcessEnvironment = new ProcessEnvironment();
+const userRepository: SqliteUserRepository = new SqliteUserRepository(environment.sqliteDbPath);
 const hasher = new BcryptHasher();
 const passwordValidator = new OwaspPasswordValidator();
 const seedUsers: SeedUsers = new SeedUsers(userRepository, hasher, passwordValidator);
-const environment = {
-    playerPassword: process.env.BUZZER_DEFAULT_PASSWORD || "player123",
-    adminPassword: process.env.ADMIN_PASSWORD || "admin123"
-}
 seedUsers.seed(environment);
