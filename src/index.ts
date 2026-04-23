@@ -38,7 +38,8 @@ const themeRouteConfiguration: ThemeRouteConfiguration = {
     uuidValidator: new Uuidv7Validator(),
     tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
     tokenDecoder: new JwtDecoder(),
-    middleware: authenticationMiddleware
+    middleware: authenticationMiddleware,
+    maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute
 };
 const server : QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration);
 server.start();

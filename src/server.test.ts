@@ -75,7 +75,8 @@ const mockThemeRouteConfiguration: ThemeRouteConfiguration = {
 	uuidValidator: mockUuidValidator,
 	tokenValidator: mockTokenValidator,
 	tokenDecoder: mockTokenDecoder,
-	middleware: mockMiddleware
+	middleware: mockMiddleware,
+	maxRequestsPerMinute: 100
 };
 
 describe('CA-1 - Le serveur démarre sans erreur', () => {

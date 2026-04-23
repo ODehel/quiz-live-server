@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyReply } from "fastify";
+import rateLimit from "@fastify/rate-limit"
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { ID_MISMATCH, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
@@ -7,10 +8,15 @@ import { ThemeHasQuestionsError } from "./theme-has-questions-error";
 import { ThemeRouteConfiguration } from "./theme-route-configuration.interface";
 
 export default async function themeRoute(app: FastifyInstance, options: ThemeRouteConfiguration) {
-    const { themeService, uuidValidator, tokenValidator, tokenDecoder, middleware } = options;
+    const { themeService, uuidValidator, tokenValidator, tokenDecoder, middleware, maxRequestsPerMinute } = options;
+
+    await app.register(rateLimit, {
+        max: maxRequestsPerMinute,
+        timeWindow: '1 minute'
+    });
 
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
-    
+
     app.get('/api/v1/themes/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
         if (!uuidValidator.validate(id)) {

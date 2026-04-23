@@ -63,7 +63,7 @@ beforeEach(() => {
     };
     mockMiddleware = async (app, options) => { };
     app = Fastify();
-    app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware });
+    app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, maxRequestsPerMinute: 60 });
 });
 
 describe('US-004/CA-01 - Create Theme', () => {
@@ -511,7 +511,7 @@ describe("US-004/CA-30 - Delete theme with questions", () => {
 describe("US-004/CA-32 - Request without authorization", () => {
     beforeEach(() => {
         app = Fastify();
-        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
+        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware, maxRequestsPerMinute: 60 });
     });
     it("should return a 401 error", async () => {
         const response = await app.inject({
@@ -520,5 +520,29 @@ describe("US-004/CA-32 - Request without authorization", () => {
             headers: { 'content-type': 'application/json' }
         });
         expect(response.statusCode).toBe(401);
+    });
+});
+
+describe('US-004/CA-34: When rate limit is exceeded', () => {
+    beforeEach(() => {
+        app = Fastify();
+        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, maxRequestsPerMinute: 5 });
+    });
+    it('should return 429', async () => {
+        for (let i = 0; i < 5; i++) {
+            await app.inject({
+                method: 'POST',
+                url: '/api/v1/themes',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: 'Culture générale ' + i.toString() })
+            });
+        }
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/themes',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'Culture générale 6' })
+        });
+        expect(response.statusCode).toBe(429);
     });
 });
