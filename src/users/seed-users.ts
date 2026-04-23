@@ -4,6 +4,7 @@ import { Hasher } from "../common/hasher.interface";
 import { PasswordValidator } from "./password-validator.interface";
 import { UserRepository } from "./user-repository.interface"
 import { UserRole } from "./user-role"
+import { SeedUserConfiguration } from "./seed-user-configuration.interface";
 
 export class SeedUsers {
     private repository: UserRepository;
@@ -15,8 +16,8 @@ export class SeedUsers {
         this.passwordValidator = passwordValidator;
     }
 
-    public async seed(environment: Environment) {
-        if (this.passwordsCantValidate(environment)) {
+    public async seed(configuration: SeedUserConfiguration) {
+        if (this.passwordsCantValidate(configuration)) {
             throw new Error("Invalid password");
         }
         const userCount = await this.repository.count()
@@ -25,13 +26,13 @@ export class SeedUsers {
                 Array.from({ length: 10 }, async (_, i) => ({
                     id: uuidv7(),
                     username: `quiz_buzzer_${String(i + 1).padStart(2, '0')}`,
-                    password: await this.hasher.hash(environment.playerPassword),
+                    password: await this.hasher.hash(configuration.playerDefaultPassword),
                     role: UserRole.PLAYER
                 }))
             );
             const defaultUsers = [
                 ...buzzers,
-                { id: uuidv7(), username: 'admin', password: await this.hasher.hash(environment.adminPassword), role: UserRole.ADMIN }
+                { id: uuidv7(), username: 'admin', password: await this.hasher.hash(configuration.adminPassword), role: UserRole.ADMIN }
             ]
             for (const user of defaultUsers) {
                 await this.repository.insert(user)
@@ -39,7 +40,7 @@ export class SeedUsers {
         }
     }
 
-    private passwordsCantValidate(environment: Environment) {
-        return !this.passwordValidator.validate(environment.adminPassword) || !this.passwordValidator.validate(environment.playerPassword);
+    private passwordsCantValidate(configuration: SeedUserConfiguration) {
+        return !this.passwordValidator.validate(configuration.adminPassword) || !this.passwordValidator.validate(configuration.playerDefaultPassword);
     }
 }

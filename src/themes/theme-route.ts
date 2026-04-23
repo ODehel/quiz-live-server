@@ -7,9 +7,9 @@ import { ThemeHasQuestionsError } from "./theme-has-questions-error";
 import { ThemeRouteConfiguration } from "./theme-route-configuration.interface";
 
 export default async function themeRoute(app: FastifyInstance, options: ThemeRouteConfiguration) {
-    const { themeService, uuidValidator, tokenValidator, middleware } = options;
+    const { themeService, uuidValidator, tokenValidator, tokenDecoder, middleware } = options;
 
-    await middleware(app, { tokenValidator: tokenValidator });
+    await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
     
     app.get('/api/v1/themes/:id', async (request, reply) => {
         const { id } = request.params as { id: string };

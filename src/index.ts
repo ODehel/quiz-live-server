@@ -16,6 +16,7 @@ import { Uuidv7Validator } from './infrastructure/uuidv7-validator';
 import { JwtValidator } from './authentication/jwt-validator';
 import authenticationMiddleware from './authentication/authentication-middleware';
 import { ProcessEnvironment } from './common/process-environment';
+import { JwtDecoder } from './authentication/jwt-decoder';
 
 const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
 
@@ -36,6 +37,7 @@ const themeRouteConfiguration: ThemeRouteConfiguration = {
     themeService: new DefaultThemeService(new SystemClock(), new Uuidv7Generator(), new SqliteThemeRepository(processEnvironment.sqliteDbPath)),
     uuidValidator: new Uuidv7Validator(),
     tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
+    tokenDecoder: new JwtDecoder(),
     middleware: authenticationMiddleware
 };
 const server : QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration);

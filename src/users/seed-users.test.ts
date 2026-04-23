@@ -4,10 +4,11 @@ import { SeedUsers } from './seed-users';
 import { UserRole } from './user-role';
 import { Hasher } from '../common/hasher.interface';
 import { PasswordValidator } from './password-validator.interface';
+import { SeedUserConfiguration } from './seed-user-configuration.interface';
 
-const mockEnvironment = {
+const mockEnvironment: SeedUserConfiguration = {
     adminPassword: 'admin123',
-    playerPassword: 'player123'
+    playerDefaultPassword: 'player123'
 };
 
 describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore", () => {
@@ -93,7 +94,7 @@ describe("CA-4 - Les mots de passe respectent les règles de validation", () => 
     it("should validate passwords before hashing", async () => {
         await userSeed.seed(mockEnvironment);
         expect(mockPasswordValidator.validate).toHaveBeenCalledWith(mockEnvironment.adminPassword);
-        expect(mockPasswordValidator.validate).toHaveBeenCalledWith(mockEnvironment.playerPassword);
+        expect(mockPasswordValidator.validate).toHaveBeenCalledWith(mockEnvironment.playerDefaultPassword);
     });
     it("should throw an error if a password is invalid", async () => {
         vi.mocked(mockPasswordValidator.validate).mockReturnValue(false);

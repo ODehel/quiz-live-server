@@ -11,6 +11,9 @@ import { TokenValidator } from './authentication/token-validator.interface'
 import { FastifyInstance } from 'fastify'
 import { TokenRouteConfiguration } from './authentication/token-route-configuration.interface'
 import { ThemeRouteConfiguration } from './themes/theme-route-configuration.interface'
+import { TokenDecoder } from './authentication/token-decoder.interface'
+import { DecodedToken } from './authentication/decoded-token.interface'
+import { UserRole } from './users/user-role'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -42,6 +45,10 @@ const mockTokenGenerator = {
 	}
 };
 
+const mockTokenDecoder: TokenDecoder = {
+	decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
+};
+
 const mockThemeService: ThemeService = {
 	createTheme: vi.fn(),
 	deleteTheme: vi.fn(),
@@ -67,6 +74,7 @@ const mockThemeRouteConfiguration: ThemeRouteConfiguration = {
 	themeService: mockThemeService,
 	uuidValidator: mockUuidValidator,
 	tokenValidator: mockTokenValidator,
+	tokenDecoder: mockTokenDecoder,
 	middleware: mockMiddleware
 };
 

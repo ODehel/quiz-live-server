@@ -11,11 +11,15 @@ import { ThemeNotFoundError } from './theme-not-found-error';
 import { ThemeHasQuestionsError } from './theme-has-questions-error';
 import { TokenValidator } from '../authentication/token-validator.interface';
 import authenticationMiddleware from '../authentication/authentication-middleware';
+import { TokenDecoder } from '../authentication/token-decoder.interface';
+import { DecodedToken } from '../authentication/decoded-token.interface';
+import { UserRole } from '../users/user-role';
 
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
 let mockUuidValidator: UuidValidator;
 let mockTokenValidator: TokenValidator;
+let mockTokenDecoder: TokenDecoder;
 let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void>;
 beforeEach(() => {
     mockThemeService = {
@@ -54,9 +58,12 @@ beforeEach(() => {
     mockTokenValidator = {
         validateToken: vi.fn().mockReturnValue(true)
     };
+    mockTokenDecoder = {
+        decode: vi.fn().mockReturnValue({ role: UserRole.ADMIN } as DecodedToken)
+    };
     mockMiddleware = async (app, options) => { };
     app = Fastify();
-    app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, middleware: mockMiddleware });
+    app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware });
 });
 
 describe('US-004/CA-01 - Create Theme', () => {
@@ -504,7 +511,7 @@ describe("US-004/CA-30 - Delete theme with questions", () => {
 describe("US-004/CA-32 - Request without authorization", () => {
     beforeEach(() => {
         app = Fastify();
-        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, middleware: authenticationMiddleware });
+        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
     });
     it("should return a 401 error", async () => {
         const response = await app.inject({
