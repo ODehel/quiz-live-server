@@ -123,15 +123,24 @@ describe("US-004/CA-13 - When the service is called to find all themes with pagi
 });
 
 describe("US-004/CA-20 - Update a theme name", () => {
-    it("should update the date", () => {
-        const update_date = "2026-04-17T17:05:00.000Z";
-        const theme = defaultThemeService.createTheme("Mon thème préféré");
+    let update_date: string;
+    let theme: Theme;
+    let updated_name: string;
+    beforeEach(() => {
+        update_date = "2026-04-17T17:05:00.000Z";
+        theme = defaultThemeService.createTheme("Mon thème préféré");
         clock.now = vi.fn().mockReturnValue(new Date(update_date));
+        updated_name = "I love it";
+    });
+    it("should update the date", () => {
         themeRepository.getById = vi.fn().mockReturnValue(theme);
-        const updated_name = "I love it";
         const updated_theme = defaultThemeService.updateTheme(theme.id, updated_name);
         expect(updated_theme.name).toBe(updated_name);
         expect(updated_theme.last_updated_at).toBe(update_date);
+    });
+    it("should throw a ThemeNotFoundError", () => {
+        themeRepository.getById = vi.fn().mockReturnValue(undefined);
+        expect(() => { defaultThemeService.updateTheme(theme.id, updated_name) }).toThrow(ThemeNotFoundError);
     });
 });
 

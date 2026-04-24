@@ -28,4 +28,9 @@ describe("US-004/CA-33 - Decode a valid token", () => {
         expect(decodedToken).not.toBeUndefined();
         expect(decodedToken?.role).toBe(UserRole.ADMIN);
     });
+    it("should return undefined", () => {
+        const decoder: JwtDecoder = new JwtDecoder();
+        const decodedToken = decoder.decode("blabla");
+        expect(decodedToken).toBeUndefined();
+    });
 });
