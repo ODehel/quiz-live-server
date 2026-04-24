@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply } from "fastify";
 import rateLimit from "@fastify/rate-limit"
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
-import { ID_MISMATCH, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
+import { ID_MISMATCH, INTERNAL_SERVER_ERROR, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
 import { ThemeNotFoundError } from "./theme-not-found-error";
 import { ThemeHasQuestionsError } from "./theme-has-questions-error";
 import { ThemeRouteConfiguration } from "./theme-route-configuration.interface";
@@ -53,7 +53,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
                 const newTheme = themeService.createTheme(name);
                 reply.status(201).send(newTheme);
             } catch (error) {
-                sendError(error, 'Failed to create theme', reply);
+                sendError(error, reply);
             }
         }
     });
@@ -74,11 +74,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
                 const updatedTheme = themeService.updateTheme(idFromParams, name);
                 reply.status(200).send(updatedTheme);
             } catch (error) {
-                if (error instanceof ThemeNotFoundError) {
-                    reply.status(404).send({ error: THEME_NOT_FOUND });
-                } else {
-                    sendError(error, 'Failed to update theme', reply);
-                }
+                sendError(error, reply);
             }
         }
     });
@@ -94,24 +90,22 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
                 themeService.deleteTheme(id);
                 reply.status(204).send();
             } catch (error) {
-                if (error instanceof ThemeNotFoundError) {
-                    reply.status(404).send({ error: THEME_NOT_FOUND });
-                } else if (error instanceof ThemeHasQuestionsError) {
-                    reply.status(409).send({ error: THEME_HAS_QUESTIONS });
-                } else {
-                    reply.status(500).send({ error: 'Failed to delete theme' });
-                }
+                sendError(error, reply);
             }
         });
     });
 
-    function sendError(error: unknown, error500message: string, reply: FastifyReply) {
+    function sendError(error: unknown, reply: FastifyReply) {
         if (error instanceof ValidationError) {
             reply.status(400).send({ error: VALIDATION_ERROR });
         } else if (error instanceof ConflictError) {
             reply.status(409).send({ error: THEME_ALREADY_EXISTS });
+        } else if (error instanceof ThemeNotFoundError) {
+            reply.status(404).send({ error: THEME_NOT_FOUND });
+        } else if (error instanceof ThemeHasQuestionsError) {
+            reply.status(409).send({ error: THEME_HAS_QUESTIONS });
         } else {
-            reply.status(500).send({ error: error500message });
+            reply.status(500).send({ error: INTERNAL_SERVER_ERROR });
         }
     }
 

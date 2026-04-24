@@ -546,3 +546,17 @@ describe('US-004/CA-34: When rate limit is exceeded', () => {
         expect(response.statusCode).toBe(429);
     });
 });
+
+describe("US-004/CA-36 - Unexpected error", () => {
+    it("should return a 500 error", async () => {
+        mockThemeService.updateTheme = vi.fn().mockImplementation(() => { throw new Error(); });
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu' })
+        });
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual({ error: 'INTERNAL_SERVER_ERROR' });
+    });
+});
