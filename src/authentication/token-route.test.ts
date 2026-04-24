@@ -1,15 +1,17 @@
 import Fastify, { FastifyInstance } from "fastify";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthenticationService } from "./authentication-service.interface";
 import { TokenGenerator } from "./token-generator.interface";
 import { User } from "../users/user.interface";
 import { UserRole } from "../users/user-role";
 import { Token } from "./token.interface";
 import tokenRoute from "../authentication/token-route";
+import rateLimitMiddleware from "../infrastructure/rate-limit-middleware";
 
 let app: FastifyInstance;
 let mockAuthenticationService: AuthenticationService;
 let mockTokenGenerator: TokenGenerator;
+let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
 beforeEach(async () => {
     mockAuthenticationService = {
         authenticate: vi.fn().mockResolvedValue({ id: 'user-id', username: 'User Name', password: 'user-password', role: UserRole.PLAYER } as User)
@@ -19,8 +21,9 @@ beforeEach(async () => {
             return { token: 'generated-token' } as Token;
         }
     };
+    mockRateLimitMiddleware = async (app) => { };
     app = Fastify();
-    await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, maxRequestsPerMinute: 5 });
+    await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, rateLimitMiddleware: mockRateLimitMiddleware });
 });
 
 describe('US-003/CA-05: Without token', () => {
@@ -108,8 +111,14 @@ describe('US-003/CA-11: Without body', () => {
 });
 
 describe('US-003/CA-13: When rate limit is exceeded', () => {
+    let lowRateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
+    beforeEach(async () => {
+        app = Fastify();
+        lowRateLimitMiddleware = (app) => rateLimitMiddleware(app, { maxRequestsPerMinute: 5 });
+        await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, rateLimitMiddleware: lowRateLimitMiddleware });
+    });
     it('should return 429', async () => {
-        for (let i = 0; i < 5; i++) {   
+        for (let i = 0; i < 5; i++) {
             await app.inject({
                 method: 'POST',
                 url: '/api/v1/token',

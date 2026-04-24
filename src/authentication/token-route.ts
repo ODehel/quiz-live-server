@@ -1,9 +1,9 @@
 import { FastifyInstance } from "fastify";
-import rateLimit from "@fastify/rate-limit"
+import rateLimit from "@fastify/rate-limit";
 import { TokenRouteConfiguration } from "./token-route-configuration.interface";
 
 export default async function tokenRoute(app: FastifyInstance, options: TokenRouteConfiguration) {
-    const { authenticationService, tokenGenerator, maxRequestsPerMinute } = options;
+    const { authenticationService, tokenGenerator, rateLimitMiddleware } = options;
     const schema = {
         body: {
             type: 'object',
@@ -15,10 +15,9 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
             additionalProperties: false
         }
     };
-    await app.register(rateLimit, {
-        max: maxRequestsPerMinute,
-        timeWindow: '1 minute'
-    });
+    
+    await rateLimitMiddleware(app);
+
     app.post('/api/v1/token', { schema }, async (request, reply) => {
         const { username, password } = request.body as { username: string; password: string };
         const user = await authenticationService.authenticate(username, password);

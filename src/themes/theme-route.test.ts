@@ -14,6 +14,7 @@ import authenticationMiddleware from '../authentication/authentication-middlewar
 import { TokenDecoder } from '../authentication/token-decoder.interface';
 import { DecodedToken } from '../authentication/decoded-token.interface';
 import { UserRole } from '../users/user-role';
+import rateLimitMiddleware from '../infrastructure/rate-limit-middleware';
 
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
@@ -21,6 +22,7 @@ let mockUuidValidator: UuidValidator;
 let mockTokenValidator: TokenValidator;
 let mockTokenDecoder: TokenDecoder;
 let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void>;
+let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
 beforeEach(() => {
     mockThemeService = {
         createTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme),
@@ -62,8 +64,9 @@ beforeEach(() => {
         decode: vi.fn().mockReturnValue({ role: UserRole.ADMIN } as DecodedToken)
     };
     mockMiddleware = async (app, options) => { };
+    mockRateLimitMiddleware = async (app) => { };
     app = Fastify();
-    app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, maxRequestsPerMinute: 60 });
+    app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, rateLimitMiddleware: mockRateLimitMiddleware });
 });
 
 describe('US-004/CA-01 - Create Theme', () => {
@@ -511,7 +514,7 @@ describe("US-004/CA-30 - Delete theme with questions", () => {
 describe("US-004/CA-32 - Request without authorization", () => {
     beforeEach(() => {
         app = Fastify();
-        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware, maxRequestsPerMinute: 60 });
+        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware, rateLimitMiddleware: mockRateLimitMiddleware });
     });
     it("should return a 401 error", async () => {
         const response = await app.inject({
@@ -524,9 +527,11 @@ describe("US-004/CA-32 - Request without authorization", () => {
 });
 
 describe('US-004/CA-34: When rate limit is exceeded', () => {
+    let lowRateLimitMiddleware: (app : FastifyInstance) => Promise<void>;
     beforeEach(() => {
         app = Fastify();
-        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, maxRequestsPerMinute: 5 });
+        lowRateLimitMiddleware = (app) => rateLimitMiddleware(app, { maxRequestsPerMinute: 5 });
+        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, rateLimitMiddleware: lowRateLimitMiddleware });
     });
     it('should return 429', async () => {
         for (let i = 0; i < 5; i++) {

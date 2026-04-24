@@ -17,6 +17,7 @@ import { JwtValidator } from './authentication/jwt-validator';
 import authenticationMiddleware from './authentication/authentication-middleware';
 import { ProcessEnvironment } from './common/process-environment';
 import { JwtDecoder } from './authentication/jwt-decoder';
+import rateLimitMiddleware from './infrastructure/rate-limit-middleware';
 
 const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
 
@@ -31,7 +32,7 @@ const hasher = new BcryptHasher();
 const tokenRouteConfiguration: TokenRouteConfiguration = {
     authenticationService: new JwtAuthenticationService(userRepository, hasher),
     tokenGenerator: new JwtGenerator(processEnvironment.jwtSecretKey, processEnvironment.jwtExpirationTime),
-    maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute
+    rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 const themeRouteConfiguration: ThemeRouteConfiguration = {
     themeService: new DefaultThemeService(new SystemClock(), new Uuidv7Generator(), new SqliteThemeRepository(processEnvironment.sqliteDbPath)),
@@ -39,7 +40,7 @@ const themeRouteConfiguration: ThemeRouteConfiguration = {
     tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
     tokenDecoder: new JwtDecoder(),
     middleware: authenticationMiddleware,
-    maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute
+    rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 const server : QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration);
 server.start();

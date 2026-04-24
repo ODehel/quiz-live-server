@@ -10,5 +10,5 @@ export interface ThemeRouteConfiguration {
     tokenValidator: TokenValidator;
     tokenDecoder: TokenDecoder;
     middleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator, tokenDecoder: TokenDecoder }) => Promise<void>;
-    maxRequestsPerMinute: number;
+    rateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
 }

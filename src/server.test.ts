@@ -63,11 +63,12 @@ const mockTokenValidator: TokenValidator = {
 	validateToken: vi.fn()
 };
 const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => {};
+const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => {};
 
 const mockTokenRouteConfiguration: TokenRouteConfiguration = {
 	authenticationService: mockAuthenticationService,
 	tokenGenerator: mockTokenGenerator,
-	maxRequestsPerMinute: 100
+	rateLimitMiddleware: mockRateLimitMiddleware
 };
 
 const mockThemeRouteConfiguration: ThemeRouteConfiguration = {
@@ -76,7 +77,7 @@ const mockThemeRouteConfiguration: ThemeRouteConfiguration = {
 	tokenValidator: mockTokenValidator,
 	tokenDecoder: mockTokenDecoder,
 	middleware: mockMiddleware,
-	maxRequestsPerMinute: 100
+	rateLimitMiddleware: mockRateLimitMiddleware
 };
 
 describe('CA-1 - Le serveur démarre sans erreur', () => {
