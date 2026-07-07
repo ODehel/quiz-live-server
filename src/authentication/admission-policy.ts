@@ -5,7 +5,10 @@ import { Participant } from "./participant.interface";
 
 export enum AuthOutcome { Success, Rejected };
 
-export type AdmissionResult = { authOutcome: AuthOutcome; participant?: Participant };
+export type AdmissionResult =
+  | { authOutcome: AuthOutcome.Success; participant: Participant }
+  | { authOutcome: AuthOutcome.Rejected };
+
 
 export class AdmissionPolicy {
     constructor(private readonly tokenValidator: TokenValidator, 
@@ -15,13 +18,13 @@ export class AdmissionPolicy {
 
     evaluate(token: string): AdmissionResult {
         if (!this.tokenValidator.validateToken(token))
-            return { authOutcome: AuthOutcome.Rejected, participant: undefined };
+            return { authOutcome: AuthOutcome.Rejected };
 
         const sub: string = this.subjectExtractor.extract(token);
         const participant: Participant | null = this.participantResolver.resolve(sub);
 
         return participant !== null
             ? { authOutcome: AuthOutcome.Success, participant } 
-            : { authOutcome: AuthOutcome.Rejected, participant: undefined };
+            : { authOutcome: AuthOutcome.Rejected };
     }
 }

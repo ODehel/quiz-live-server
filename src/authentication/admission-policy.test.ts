@@ -52,6 +52,8 @@ describe("Admission Policy", () => {
 
         const result = admissionPolicy.evaluate('any-token');
 
-        expect(result.participant).toBe(participant);
+        expect(result.authOutcome).toBe(AuthOutcome.Success);
+        if (result.authOutcome === AuthOutcome.Success)
+            expect(result.participant).toBe(participant);
     });
 });
