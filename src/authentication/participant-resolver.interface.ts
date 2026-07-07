@@ -1,3 +1,5 @@
+import { Participant } from "./participant.interface";
+
 export interface ParticipantResolver {
-    exists(sub: string): boolean;
+    resolve(sub: string): Participant | null;
 }
