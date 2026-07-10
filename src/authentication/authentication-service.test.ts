@@ -11,7 +11,8 @@ describe("Login inexistant en base de données", () => {
         mockUserRepository = {
             count: () => Promise.resolve(0),
             insert: (user) => Promise.resolve(),
-            retrieveByLogin: (login) => Promise.resolve(undefined)
+            retrieveByLogin: (login) => Promise.resolve(undefined),
+            retrieveById: (id) => Promise.resolve(undefined)
         };
     });
     it("should return an error", async () => {
@@ -31,7 +32,8 @@ describe("Login with wrong password", () => {
         mockUserRepository = {
             count: () => Promise.resolve(1),
             insert: (user) => Promise.resolve(),
-            retrieveByLogin: (login) => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER })
+            retrieveByLogin: (login) => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER }),
+            retrieveById: (id) => Promise.resolve(undefined)
         };
         // Arrange : Faire un mock de IHasher pour qu'il retourne true lors de la comparaison
         hasher = {
@@ -58,7 +60,8 @@ describe("Login with correct credentials", () => {
         mockUserRepository = {
             count: () => Promise.resolve(1),
             insert: (user) => Promise.resolve(),
-            retrieveByLogin: (login) => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER })
+            retrieveByLogin: (login) => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER }),
+            retrieveById: (id) => Promise.resolve(undefined)
         };
         // Arrange : Faire un mock de IHasher pour qu'il retourne true lors de la comparaison
         hasher = {

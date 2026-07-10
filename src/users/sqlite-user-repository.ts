@@ -22,6 +22,10 @@ export class SqliteUserRepository implements UserRepository {
         return Promise.resolve(user);
     }
 
+    retrieveById(id: string): Promise<User | undefined> {
+        throw new Error("Not implemented");
+    }
+
     private createTableIfNotExists() {
         this.db.prepare(`CREATE TABLE IF NOT EXISTS T_USER_USR (
             USR_ID TEXT NOT NULL PRIMARY KEY,

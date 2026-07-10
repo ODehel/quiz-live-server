@@ -6,25 +6,24 @@ import { Participant } from "./participant.interface";
 export enum AuthOutcome { Success, Rejected };
 
 export type AdmissionResult =
-  | { authOutcome: AuthOutcome.Success; participant: Participant }
-  | { authOutcome: AuthOutcome.Rejected };
+    | { authOutcome: AuthOutcome.Success; participant: Participant }
+    | { authOutcome: AuthOutcome.Rejected };
 
 
 export class AdmissionPolicy {
-    constructor(private readonly tokenValidator: TokenValidator, 
+    constructor(private readonly tokenValidator: TokenValidator,
         private readonly participantResolver: ParticipantResolver,
         private readonly subjectExtractor: SubjectExtractor) {
     }
 
-    evaluate(token: string): AdmissionResult {
+    async evaluate(token: string): Promise<AdmissionResult> {
         if (!this.tokenValidator.validateToken(token))
-            return { authOutcome: AuthOutcome.Rejected };
+            return Promise.resolve({ authOutcome: AuthOutcome.Rejected });
 
         const sub: string = this.subjectExtractor.extract(token);
-        const participant: Participant | null = this.participantResolver.resolve(sub);
-
+        const participant = await this.participantResolver.resolve(sub);
         return participant !== null
-            ? { authOutcome: AuthOutcome.Success, participant } 
+            ? { authOutcome: AuthOutcome.Success, participant }
             : { authOutcome: AuthOutcome.Rejected };
     }
 }

@@ -20,7 +20,8 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
-            retrieveByLogin: vi.fn().mockResolvedValue(undefined)
+            retrieveByLogin: vi.fn().mockResolvedValue(undefined),
+            retrieveById: vi.fn().mockResolvedValue(undefined)
         };
         mockHasher = {
             hash: vi.fn().mockResolvedValue(undefined),
@@ -53,7 +54,8 @@ describe("CA-2 - Les mots de passe sont lus depuis les variables d'environnement
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
-            retrieveByLogin: vi.fn().mockResolvedValue(undefined)
+            retrieveByLogin: vi.fn().mockResolvedValue(undefined),
+            retrieveById: vi.fn().mockResolvedValue(undefined)
         };
         mockHasher = {
             hash: vi.fn().mockImplementation((password: string) => Promise.resolve(`hashed_${password}`)),
@@ -80,7 +82,8 @@ describe("CA-4 - Les mots de passe respectent les règles de validation", () => 
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
-            retrieveByLogin: vi.fn().mockResolvedValue(undefined)
+            retrieveByLogin: vi.fn().mockResolvedValue(undefined),
+            retrieveById: vi.fn().mockResolvedValue(undefined)
         };
         mockHasher = {
             hash: vi.fn().mockImplementation((password: string) => Promise.resolve(`hashed_${password}`)),

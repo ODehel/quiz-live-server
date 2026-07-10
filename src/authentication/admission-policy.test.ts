@@ -24,33 +24,33 @@ describe("Admission Policy", () => {
         admissionPolicy = new AdmissionPolicy(tokenValidator, participantResolver, subjectExtractor);
     });
 
-    it("admits a connection with a valid token", () => {
-        const result = admissionPolicy.evaluate("any-token");
+    it("admits a connection with a valid token", async () => {
+        const result = await admissionPolicy.evaluate("any-token");
         expect(result.authOutcome).toBe(AuthOutcome.Success);
     });
 
-    it("rejects a connection with an invalid token", () => {
+    it("rejects a connection with an invalid token", async () => {
         vi.mocked(tokenValidator.validateToken).mockReturnValue(false);
-        const result = admissionPolicy.evaluate("wrong-token");
+        const result = await admissionPolicy.evaluate("wrong-token");
         expect(result.authOutcome).toBe(AuthOutcome.Rejected);
     });
 
-    it("rejects a connection with an unknown participant", () => {
-        vi.mocked(participantResolver.resolve).mockReturnValue(null);
-        const result = admissionPolicy.evaluate("any-token");
+    it("rejects a connection with an unknown participant", async () => {
+        vi.mocked(participantResolver.resolve).mockResolvedValue(null);
+        const result = await admissionPolicy.evaluate("any-token");
         expect(result.authOutcome).toBe(AuthOutcome.Rejected);
     });
 
-    it("resolves the participant using the extracted subject", () => {
-        admissionPolicy.evaluate("any-token");
+    it("resolves the participant using the extracted subject", async () => {
+        await admissionPolicy.evaluate("any-token");
         expect(participantResolver.resolve).toHaveBeenCalledWith("any-sub");
     });
 
-    it('carries the resolved participant when the connection is admitted', () => {
-        const participant: Participant = {};
-        vi.mocked(participantResolver.resolve).mockReturnValue(participant);
+    it('carries the resolved participant when the connection is admitted', async () => {
+        const participant: Participant = { id: "any-id" };
+        vi.mocked(participantResolver.resolve).mockResolvedValue(participant);
 
-        const result = admissionPolicy.evaluate('any-token');
+        const result = await admissionPolicy.evaluate('any-token');
 
         expect(result.authOutcome).toBe(AuthOutcome.Success);
         if (result.authOutcome === AuthOutcome.Success)
