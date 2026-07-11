@@ -23,4 +23,12 @@ describe("User repository participant resolver", () => {
         
         expect(participant?.id).toBe(knownUser.id);
     });
+
+    it("can't resolve a participant when the user is unknown", async () => {
+        vi.mocked(userRepository.retrieveById).mockResolvedValue(undefined);
+
+        const participant = await resolver.resolve("unknown-id");
+
+        expect(participant).toBeNull();
+    });
 });
