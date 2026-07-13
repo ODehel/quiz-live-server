@@ -97,6 +97,19 @@ describe("WebSocket", () => {
             client.on('error', (err) => reject(err));
         });
     });
+    it("receives an answer after connection", async () => {
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.send("pong");
+            });
+            client.on('error', (err) => reject(err));
+            client.on('message', (data, isBinary) => {
+                client.close();
+                resolve();
+            });
+        });
+    });
     afterEach(async () => {
         await server.stop();
     });
