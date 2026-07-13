@@ -1,6 +1,8 @@
 import Fastify, { FastifyInstance, LightMyRequestResponse } from 'fastify';
+import fastifyWebsocket from '@fastify/websocket';
 import { QuizServerConfiguration } from './quiz-server-configuration.interface';
 import healthRoute from './routes/health-route';
+import wsRoute from './websocket/ws-route';
 import tokenRoute from './authentication/token-route';
 import themeRoute from './themes/theme-route';
 import { TokenRouteConfiguration } from './authentication/token-route-configuration.interface';
@@ -37,7 +39,9 @@ export class QuizServer {
 	}
 
     private registerRoutes() {
+        this.app.register(fastifyWebsocket);
         this.app.register(healthRoute);
+        this.app.register(wsRoute);
         this.app.register(tokenRoute, this.tokenRouteConfiguration);
         this.app.register(themeRoute, this.themeRouteConfiguration);
     }
