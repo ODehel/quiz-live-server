@@ -7,7 +7,7 @@ export default async function wsRoute(app: FastifyInstance) {
             try {
                 JSON.parse(data.toString());
             } catch {
-                socket.close();
+                socket.close(4001, "Invalid token.");
                 return;
             }
             socket.send(JSON.stringify({ type: "auth_success" }));

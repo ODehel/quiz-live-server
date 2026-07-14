@@ -111,18 +111,20 @@ describe("WebSocket", () => {
         expect(received).toBe(JSON.stringify({ type: "auth_success" }));
         client.close();
     });
-    it("closes the connection when message is not Json-typed", async () => {
+    it("closes the connection with code and reason when message is not Json-typed", async () => {
         const client = new WebSocket(`ws://localhost:${port}/ws`);
-        await new Promise<void>((resolve, reject) => {
+        const received = await new Promise<{code: number, reason: string}>((resolve, reject) => {
             client.on('open', () => {
                 client.send("not json-typed at all");
             });
-            client.on('close', () => {
-                resolve();
+            client.on('close', (code, reason) => {
+                resolve({code, reason: reason.toString()});
             });
             client.on('message', (data, isBinary) => reject(new Error("expected close, but received a message")));
             client.on('error', (err) => reject(err));
         });
+        expect(received.code).toBe(4001);
+        expect(received.reason).toBe("Invalid token.")
         client.close();
     });
     afterEach(async () => {
