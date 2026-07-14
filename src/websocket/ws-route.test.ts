@@ -99,16 +99,17 @@ describe("WebSocket", () => {
     });
     it("receives an answer after connection", async () => {
         const client = new WebSocket(`ws://localhost:${port}/ws`);
-        await new Promise<void>((resolve, reject) => {
+        const received = await new Promise<string>((resolve, reject) => {
             client.on('open', () => {
                 client.send("pong");
             });
             client.on('error', (err) => reject(err));
             client.on('message', (data, isBinary) => {
-                client.close();
-                resolve();
+                resolve(data.toString());
             });
         });
+        expect(received).toBe(JSON.stringify({ type: "auth_success" }));
+        client.close();
     });
     afterEach(async () => {
         await server.stop();
