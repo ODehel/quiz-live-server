@@ -101,7 +101,7 @@ describe("WebSocket", () => {
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         const received = await new Promise<string>((resolve, reject) => {
             client.on('open', () => {
-                client.send("pong");
+                client.send("{}");
             });
             client.on('error', (err) => reject(err));
             client.on('message', (data, isBinary) => {
@@ -109,6 +109,20 @@ describe("WebSocket", () => {
             });
         });
         expect(received).toBe(JSON.stringify({ type: "auth_success" }));
+        client.close();
+    });
+    it("closes the connection when message is not Json-typed", async () => {
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.send("not json-typed at all");
+            });
+            client.on('close', () => {
+                resolve();
+            });
+            client.on('message', (data, isBinary) => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
         client.close();
     });
     afterEach(async () => {
