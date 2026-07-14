@@ -97,14 +97,14 @@ describe("WebSocket", () => {
             client.on('error', (err) => reject(err));
         });
     });
-    it("receives an answer after connection", async () => {
+    it("replies with auth_success to a message carrying a token", async () => {
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         const received = await new Promise<string>((resolve, reject) => {
             client.on('open', () => {
-                client.send("{}");
+                client.send(JSON.stringify({ token: "X" }));
             });
             client.on('error', (err) => reject(err));
-            client.on('message', (data, isBinary) => {
+            client.on('message', (data) => {
                 resolve(data.toString());
             });
         });
@@ -113,19 +113,33 @@ describe("WebSocket", () => {
     });
     it("closes the connection with code and reason when message is not Json-typed", async () => {
         const client = new WebSocket(`ws://localhost:${port}/ws`);
-        const received = await new Promise<{code: number, reason: string}>((resolve, reject) => {
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
             client.on('open', () => {
                 client.send("not json-typed at all");
             });
             client.on('close', (code, reason) => {
-                resolve({code, reason: reason.toString()});
+                resolve({ code, reason: reason.toString() });
             });
-            client.on('message', (data, isBinary) => reject(new Error("expected close, but received a message")));
+            client.on('message', () => reject(new Error("expected close, but received a message")));
             client.on('error', (err) => reject(err));
         });
         expect(received.code).toBe(4001);
-        expect(received.reason).toBe("Invalid token.")
-        client.close();
+        expect(received.reason).toBe("Invalid token.");
+    });
+    it("rejects a message without a token", async () => {
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+            client.on('open', () => {
+                client.send("{}");
+            });
+            client.on('close', (code, reason) => {
+                resolve({ code, reason: reason.toString() });
+            });
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+        expect(received.code).toBe(4001);
+        expect(received.reason).toBe("Invalid token.");
     });
     afterEach(async () => {
         await server.stop();
