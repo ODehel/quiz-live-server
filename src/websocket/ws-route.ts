@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import '@fastify/websocket';
 
-const WS_CLOSE_INVALID_TOKEN: {code: number, reason: string} = {code: 4001, reason: "Invalid token."} as const;
+const WS_CLOSE_INVALID_TOKEN = {code: 4001, reason: "Invalid token."} as const;
 
 export default async function wsRoute(app: FastifyInstance) {
     app.get('/ws', { websocket: true }, (socket) => {
