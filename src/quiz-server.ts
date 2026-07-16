@@ -7,20 +7,24 @@ import tokenRoute from './authentication/token-route';
 import themeRoute from './themes/theme-route';
 import { TokenRouteConfiguration } from './authentication/token-route-configuration.interface';
 import { ThemeRouteConfiguration } from './themes/theme-route-configuration.interface';
+import { WsRouteConfiguration } from './websocket/ws-route-configuration.interface';
 
 export class QuizServer {
     private app: FastifyInstance;
     private configuration : QuizServerConfiguration;
     private tokenRouteConfiguration: TokenRouteConfiguration;
     private themeRouteConfiguration: ThemeRouteConfiguration;
+    private wsRouteConfiguration: WsRouteConfiguration;
 
     constructor(configuration : QuizServerConfiguration, 
         tokenRouteConfiguration: TokenRouteConfiguration,
-        themeRouteConfiguration: ThemeRouteConfiguration) {
+        themeRouteConfiguration: ThemeRouteConfiguration,
+        wsRouteConfiguration: WsRouteConfiguration) {
         this.app = Fastify({ logger: true });
         this.configuration = configuration;
         this.tokenRouteConfiguration = tokenRouteConfiguration;
         this.themeRouteConfiguration = themeRouteConfiguration;
+        this.wsRouteConfiguration = wsRouteConfiguration;
     }
 
 	async start() : Promise<void> {
@@ -41,7 +45,7 @@ export class QuizServer {
     private registerRoutes() {
         this.app.register(fastifyWebsocket);
         this.app.register(healthRoute);
-        this.app.register(wsRoute);
+        this.app.register(wsRoute, this.wsRouteConfiguration);
         this.app.register(tokenRoute, this.tokenRouteConfiguration);
         this.app.register(themeRoute, this.themeRouteConfiguration);
     }

@@ -1,9 +1,10 @@
 import { FastifyInstance } from "fastify";
 import '@fastify/websocket';
+import { WsRouteConfiguration } from "./ws-route-configuration.interface";
 
-const WS_CLOSE_INVALID_TOKEN = {code: 4001, reason: "Invalid token."} as const;
+const WS_CLOSE_INVALID_TOKEN = { code: 4001, reason: "Invalid token." } as const;
 
-export default async function wsRoute(app: FastifyInstance) {
+export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
     app.get('/ws', { websocket: true }, (socket) => {
         socket.on('message', (data) => {
             let message: { token?: string };
@@ -14,6 +15,10 @@ export default async function wsRoute(app: FastifyInstance) {
                 return;
             }
             if (message.token === undefined) {
+                socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
+                return;
+            }
+            if (!config.tokenValidator.validateToken(message.token)) {
                 socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
                 return;
             }

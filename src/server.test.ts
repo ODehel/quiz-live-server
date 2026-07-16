@@ -14,6 +14,7 @@ import { ThemeRouteConfiguration } from './themes/theme-route-configuration.inte
 import { TokenDecoder } from './authentication/token-decoder.interface'
 import { DecodedToken } from './authentication/decoded-token.interface'
 import { UserRole } from './users/user-role'
+import { WsRouteConfiguration } from './websocket/ws-route-configuration.interface'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -80,10 +81,14 @@ const mockThemeRouteConfiguration: ThemeRouteConfiguration = {
 	rateLimitMiddleware: mockRateLimitMiddleware
 };
 
+const mockWsRouteConfiguration: WsRouteConfiguration = {
+	tokenValidator: mockTokenValidator
+};
+
 describe('CA-1 - Le serveur démarre sans erreur', () => {
 	let server: QuizServer
 	beforeEach(() => {
-		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration);
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
 	})
 	it('should start and remain listening without error', async () => {
 		await server.start()
@@ -100,7 +105,7 @@ describe('CA-2 - La console affiche l`heure de lancement', () => {
 	let spy: any
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration);
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
 	})
 	it('should display a message with current hour within console', async () => {
 		await server.start()
@@ -116,7 +121,7 @@ describe('CA-3 - La console affiche l`adresse IP et le port', () => {
 	let spy: any
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration);
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
 	})
 	it('should display a message with current hour within console', async () => {
 		await server.start()
@@ -139,7 +144,7 @@ describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 			...mockQuizServerConfiguration,
 			network: mockNetworkNoIP
 		}
-		server = new QuizServer(configWithNoIP, mockTokenRouteConfiguration, mockThemeRouteConfiguration);
+		server = new QuizServer(configWithNoIP, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
 	})
 	it('should display a fallback message if no IP address is found', async () => {
 		await server.start()
