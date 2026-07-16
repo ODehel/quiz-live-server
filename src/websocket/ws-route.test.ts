@@ -150,12 +150,28 @@ describe("WebSocket", () => {
         expect(received.code).toBe(4001);
         expect(received.reason).toBe("Invalid token.");
     });
+    it("rejects a message without a type", async () => {
+        mockTokenValidator.validateToken = vi.fn().mockReturnValue(true);
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ token: "X" }));
+            });
+            client.on('close', (code, reason) => {
+                resolve({ code, reason: reason.toString() });
+            });
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+        expect(received.code).toBe(4001);
+        expect(received.reason).toBe("Invalid token.");
+    });
     it("replies with auth_success to a message carrying a valid token", async () => {
         mockTokenValidator.validateToken = vi.fn().mockReturnValue(true);
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         const received = await new Promise<string>((resolve, reject) => {
             client.on('open', () => {
-                client.send(JSON.stringify({ token: "X" }));
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
             });
             client.on('error', (err) => reject(err));
             client.on('message', (data) => {

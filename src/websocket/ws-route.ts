@@ -7,10 +7,14 @@ const WS_CLOSE_INVALID_TOKEN = { code: 4001, reason: "Invalid token." } as const
 export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
     app.get('/ws', { websocket: true }, (socket) => {
         socket.on('message', (data) => {
-            let message: { token?: string };
+            let message: { type?: string, token?: string };
             try {
                 message = JSON.parse(data.toString());
             } catch {
+                socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
+                return;
+            }
+            if (message.type !== "auth") {
                 socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
                 return;
             }
