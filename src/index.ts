@@ -19,6 +19,7 @@ import { ProcessEnvironment } from './common/process-environment';
 import { JwtDecoder } from './authentication/jwt-decoder';
 import rateLimitMiddleware from './infrastructure/rate-limit-middleware';
 import { WsRouteConfiguration } from './websocket/ws-route-configuration.interface';
+import { SystemScheduler } from './infrastructure/system-scheduler';
 
 const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
 
@@ -44,7 +45,8 @@ const themeRouteConfiguration: ThemeRouteConfiguration = {
     rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 const wsRouteConfiguration: WsRouteConfiguration = {
-    tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey)
+    tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
+    scheduler: new SystemScheduler()
 };
 const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration);
 server.start();

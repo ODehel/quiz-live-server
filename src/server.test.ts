@@ -15,10 +15,16 @@ import { TokenDecoder } from './authentication/token-decoder.interface'
 import { DecodedToken } from './authentication/decoded-token.interface'
 import { UserRole } from './users/user-role'
 import { WsRouteConfiguration } from './websocket/ws-route-configuration.interface'
+import { Scheduler } from './common/scheduler.interface'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
 }
+
+let capturedCallback: () => void;
+let mockScheduler: Scheduler = {
+	schedule: vi.fn((callback: () => void) => { capturedCallback = callback; })
+};
 
 const mockNetwork: Network = {
 	networkInterfaces: () => ({
@@ -63,8 +69,8 @@ const mockUuidValidator: UuidValidator = {
 const mockTokenValidator: TokenValidator = {
 	validateToken: vi.fn()
 };
-const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => {};
-const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => {};
+const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
+const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
 
 const mockTokenRouteConfiguration: TokenRouteConfiguration = {
 	authenticationService: mockAuthenticationService,
@@ -82,7 +88,8 @@ const mockThemeRouteConfiguration: ThemeRouteConfiguration = {
 };
 
 const mockWsRouteConfiguration: WsRouteConfiguration = {
-	tokenValidator: mockTokenValidator
+	tokenValidator: mockTokenValidator,
+	scheduler: mockScheduler
 };
 
 describe('CA-1 - Le serveur démarre sans erreur', () => {

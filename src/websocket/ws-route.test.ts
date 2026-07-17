@@ -16,6 +16,7 @@ import { ThemeService } from "../themes/theme-service.interface";
 import { UserRole } from "../users/user-role";
 import WebSocket from "ws";
 import { WsRouteConfiguration } from "./ws-route-configuration.interface";
+import { Scheduler } from "../common/scheduler.interface";
 
 
 
@@ -23,6 +24,11 @@ describe("WebSocket", () => {
     let mockClock: Clock = {
         now: () => new Date('2026-04-02T14:32:07')
     }
+
+    let capturedCallback: () => void;
+    let mockScheduler: Scheduler = {
+        schedule: vi.fn((callback: () => void) => { capturedCallback = callback; })
+    };
 
     let mockNetwork: Network = {
         networkInterfaces: () => ({
@@ -85,9 +91,10 @@ describe("WebSocket", () => {
     };
 
     let mockWsRouteConfiguration: WsRouteConfiguration = {
-        tokenValidator: mockTokenValidator
+        tokenValidator: mockTokenValidator,
+        scheduler: mockScheduler
     };
-    
+
     let server: QuizServer;
     beforeEach(async () => {
         mockTokenValidator.validateToken = vi.fn();
@@ -107,9 +114,9 @@ describe("WebSocket", () => {
     it("rejects a message carrying an invalid token", async () => {
         mockTokenValidator.validateToken = vi.fn().mockReturnValue(false);
         const client = new WebSocket(`ws://localhost:${port}/ws`);
-       const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
             client.on('open', () => {
-                client.send(JSON.stringify({token: "X"}));
+                client.send(JSON.stringify({ token: "X" }));
             });
             client.on('close', (code, reason) => {
                 resolve({ code, reason: reason.toString() });
@@ -180,6 +187,21 @@ describe("WebSocket", () => {
         });
         expect(received).toBe(JSON.stringify({ type: "auth_success" }));
         client.close();
+    });
+    it("closes the connection after the authentication timeout", async () => {
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+            client.on('open', () => {
+                capturedCallback();
+            });
+            client.on('close', (code, reason) => {
+                resolve({ code, reason: reason.toString() });
+            });
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+        expect(received.code).toBe(4003);
+        expect(received.reason).toBe("Authentication timeout.");
     });
     afterEach(async () => {
         await server.stop();

@@ -3,9 +3,16 @@ import '@fastify/websocket';
 import { WsRouteConfiguration } from "./ws-route-configuration.interface";
 
 const WS_CLOSE_INVALID_TOKEN = { code: 4001, reason: "Invalid token." } as const;
+const WS_CLOSE_AUTH_TIMEOUT = { code: 4003, reason: "Authentication timeout." } as const;
+
+const AUTH_TIMEOUT_WS = 60_000;
 
 export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
     app.get('/ws', { websocket: true }, (socket) => {
+        let schedulerCallback = () => {
+            socket.close(WS_CLOSE_AUTH_TIMEOUT.code, WS_CLOSE_AUTH_TIMEOUT.reason);
+        };
+        config.scheduler.schedule(schedulerCallback, AUTH_TIMEOUT_WS);
         socket.on('message', (data) => {
             let message: { type?: string, token?: string };
             try {
