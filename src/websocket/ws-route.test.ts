@@ -27,7 +27,10 @@ describe("WebSocket", () => {
 
     let capturedCallback: () => void;
     let mockScheduler: Scheduler = {
-        schedule: vi.fn((callback: () => void) => { capturedCallback = callback; })
+        schedule: vi.fn((callback) => {
+            capturedCallback = callback;
+            return { cancel: () => { capturedCallback = () => { }; } };
+        })
     };
 
     let mockNetwork: Network = {
@@ -202,6 +205,24 @@ describe("WebSocket", () => {
         });
         expect(received.code).toBe(4003);
         expect(received.reason).toBe("Authentication timeout.");
+    });
+    it("keeps the connection open after an authentication message", async () => {
+        mockTokenValidator.validateToken = vi.fn().mockReturnValue(true);
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('message', () => {
+                capturedCallback();
+                setTimeout(() => resolve(), 100);   // fenêtre : si un 4003 devait tomber, il tombe avant
+            });
+            client.on('close', (code) => {
+                if (code === 4003) reject(new Error("authentication timeout fired after a message"));
+            });
+            client.on('error', (err) => reject(err));
+        });
+        client.close();
     });
     afterEach(async () => {
         await server.stop();

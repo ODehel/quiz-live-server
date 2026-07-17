@@ -23,7 +23,7 @@ const mockClock: Clock = {
 
 let capturedCallback: () => void;
 let mockScheduler: Scheduler = {
-	schedule: vi.fn((callback: () => void) => { capturedCallback = callback; })
+	schedule: vi.fn(() => ({ cancel: () => { } }))
 };
 
 const mockNetwork: Network = {

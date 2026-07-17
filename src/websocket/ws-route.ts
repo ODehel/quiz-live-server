@@ -12,8 +12,9 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
         let schedulerCallback = () => {
             socket.close(WS_CLOSE_AUTH_TIMEOUT.code, WS_CLOSE_AUTH_TIMEOUT.reason);
         };
-        config.scheduler.schedule(schedulerCallback, AUTH_TIMEOUT_WS);
+        const handle = config.scheduler.schedule(schedulerCallback, AUTH_TIMEOUT_WS);
         socket.on('message', (data) => {
+            handle.cancel();
             let message: { type?: string, token?: string };
             try {
                 message = JSON.parse(data.toString());
