@@ -58,7 +58,8 @@ beforeEach(() => {
         validate: vi.fn().mockReturnValue(true)
     };
     mockTokenValidator = {
-        validateToken: vi.fn().mockReturnValue(true)
+        validateToken: vi.fn().mockReturnValue(true),
+        inspectToken: vi.fn()
     };
     mockTokenDecoder = {
         decode: vi.fn().mockReturnValue({ role: UserRole.ADMIN } as DecodedToken)

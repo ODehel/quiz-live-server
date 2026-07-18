@@ -12,7 +12,8 @@ describe("US-004/CA-32 - Test of the middleware", () => {
     let app: FastifyInstance;
     beforeEach(async () => {
         mockTokenValidator = {
-            validateToken: vi.fn().mockReturnValue(true)
+            validateToken: vi.fn().mockReturnValue(true),
+            inspectToken: vi.fn()
         };
         mockTokenDecoder = {
             decode: vi.fn().mockReturnValue({ role: UserRole.ADMIN } as DecodedToken)
@@ -39,7 +40,8 @@ describe("US-004/CA-32 - No token", () => {
     let app: FastifyInstance;
     beforeEach(async () => {
         mockTokenValidator = {
-            validateToken: vi.fn()
+            validateToken: vi.fn(),
+            inspectToken: vi.fn()
         };
         mockTokenDecoder = {
             decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
@@ -65,7 +67,8 @@ describe("US-004/CA-32 - Invalid token", () => {
     let app: FastifyInstance;
     beforeEach(async () => {
         mockTokenValidator = {
-            validateToken: vi.fn().mockReturnValue(false)
+            validateToken: vi.fn().mockReturnValue(false),
+            inspectToken: vi.fn()
         };
         mockTokenDecoder = {
             decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
@@ -92,7 +95,8 @@ describe("US-004/CA-33 - Valid token but wrong role", () => {
     let app: FastifyInstance;
     beforeEach(async () => {
         mockTokenValidator = {
-            validateToken: vi.fn().mockReturnValue(true)
+            validateToken: vi.fn().mockReturnValue(true),
+            inspectToken: vi.fn()
         };
         mockTokenDecoder = {
             decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)

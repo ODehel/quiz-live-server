@@ -67,7 +67,8 @@ const mockUuidValidator: UuidValidator = {
 	validate: vi.fn()
 };
 const mockTokenValidator: TokenValidator = {
-	validateToken: vi.fn()
+	validateToken: vi.fn(),
+	inspectToken: vi.fn()
 };
 const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
 const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };

@@ -13,7 +13,8 @@ describe("Admission Policy", () => {
 
     beforeEach(() => {
         tokenValidator = {
-            validateToken: vi.fn().mockReturnValue(true)
+            validateToken: vi.fn().mockReturnValue(true),
+            inspectToken: vi.fn()
         };
         participantResolver = {
             resolve: vi.fn()

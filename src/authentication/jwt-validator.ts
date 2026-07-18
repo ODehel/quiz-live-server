@@ -14,4 +14,14 @@ export class JwtValidator implements TokenValidator {
             return false;
         }
     }
+    inspectToken(token: string): { valid: boolean, reason: string } {
+        try {
+            jwt.verify(token, this.secretKey);
+            return { valid: true, reason: "valid" };
+        } catch (error) {
+            if (error instanceof jwt.TokenExpiredError)
+                return { valid: false, reason: "expired" };
+            return { valid: false, reason: "invalid" };
+        }
+    }
 }

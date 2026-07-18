@@ -74,7 +74,8 @@ describe("WebSocket", () => {
         validate: vi.fn()
     };
     let mockTokenValidator: TokenValidator = {
-        validateToken: vi.fn()
+        validateToken: vi.fn(),
+        inspectToken: vi.fn()
     };
     let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
     let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
@@ -100,7 +101,6 @@ describe("WebSocket", () => {
 
     let server: QuizServer;
     beforeEach(async () => {
-        mockTokenValidator.validateToken = vi.fn();
         server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
         await server.start();
     });
@@ -115,7 +115,6 @@ describe("WebSocket", () => {
         });
     });
     it("rejects a message carrying an invalid token", async () => {
-        mockTokenValidator.validateToken = vi.fn().mockReturnValue(false);
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
             client.on('open', () => {
@@ -161,7 +160,6 @@ describe("WebSocket", () => {
         expect(received.reason).toBe("Invalid token.");
     });
     it("rejects a message without a type", async () => {
-        mockTokenValidator.validateToken = vi.fn().mockReturnValue(true);
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
             client.on('open', () => {
@@ -177,7 +175,7 @@ describe("WebSocket", () => {
         expect(received.reason).toBe("Invalid token.");
     });
     it("replies with auth_success to a message carrying a valid token", async () => {
-        mockTokenValidator.validateToken = vi.fn().mockReturnValue(true);
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         const received = await new Promise<string>((resolve, reject) => {
             client.on('open', () => {
@@ -207,7 +205,7 @@ describe("WebSocket", () => {
         expect(received.reason).toBe("Authentication timeout.");
     });
     it("keeps the connection open after an authentication message", async () => {
-        mockTokenValidator.validateToken = vi.fn().mockReturnValue(true);
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         await new Promise<void>((resolve, reject) => {
             client.on('open', () => {
@@ -223,6 +221,22 @@ describe("WebSocket", () => {
             client.on('error', (err) => reject(err));
         });
         client.close();
+    });
+    it("closes the connection when the token has expired", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: false, reason: "expired" })
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('close', (code, reason) => {
+                resolve({ code, reason: reason.toString() });
+            });
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+        expect(received.code).toBe(4002);
+        expect(received.reason).toBe("Token expired.");
     });
     afterEach(async () => {
         await server.stop();
