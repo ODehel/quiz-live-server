@@ -23,7 +23,8 @@ export class SqliteUserRepository implements UserRepository {
     }
 
     retrieveById(id: string): Promise<User | undefined> {
-        throw new Error("Not implemented");
+        const user = this.db.prepare("SELECT USR_ID as id, USR_LOGIN as username, USR_HASH_PASSWORD as password, USR_ROLE as role FROM T_USER_USR WHERE USR_ID = ?").get(id) as User | undefined;
+        return Promise.resolve(user);
     }
 
     private createTableIfNotExists() {
