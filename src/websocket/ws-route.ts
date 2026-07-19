@@ -9,12 +9,12 @@ const WS_CLOSE_AUTH_TIMEOUT = { code: 4003, reason: "Authentication timeout." } 
 const AUTH_TIMEOUT_WS = 60_000;
 
 export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
-    app.get('/ws', { websocket: true }, (socket) => {
+    app.get('/ws', { websocket: true }, async (socket) => {
         let schedulerCallback = () => {
             socket.close(WS_CLOSE_AUTH_TIMEOUT.code, WS_CLOSE_AUTH_TIMEOUT.reason);
         };
         const handle = config.scheduler.schedule(schedulerCallback, AUTH_TIMEOUT_WS);
-        socket.on('message', (data) => {
+        socket.on('message', async (data) => {
             handle.cancel();
             let message: { type?: string, token?: string };
             try {
@@ -40,7 +40,13 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                 socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
                 return;
             }
-            socket.send(JSON.stringify({ type: "auth_success" }));
+            const subject = config.subjectExtractor.extract(message.token);
+            const participant = await config.participantResolver.resolve(subject);
+            if (participant === null) {
+                socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
+                return;
+            }
+            socket.send(JSON.stringify({ type: "auth_success", username: participant.username }));
         });
     });
 }

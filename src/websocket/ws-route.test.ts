@@ -190,21 +190,6 @@ describe("WebSocket", () => {
         expect(received.code).toBe(4001);
         expect(received.reason).toBe("Invalid token.");
     });
-    it("replies with auth_success to a message carrying a valid token", async () => {
-        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
-        const client = new WebSocket(`ws://localhost:${port}/ws`);
-        const received = await new Promise<string>((resolve, reject) => {
-            client.on('open', () => {
-                client.send(JSON.stringify({ type: "auth", token: "X" }));
-            });
-            client.on('error', (err) => reject(err));
-            client.on('message', (data) => {
-                resolve(data.toString());
-            });
-        });
-        expect(received).toBe(JSON.stringify({ type: "auth_success" }));
-        client.close();
-    });
     it("closes the connection after the authentication timeout", async () => {
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
@@ -222,6 +207,8 @@ describe("WebSocket", () => {
     });
     it("keeps the connection open after an authentication message", async () => {
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("sub-01");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01" });
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         await new Promise<void>((resolve, reject) => {
             client.on('open', () => {
@@ -254,22 +241,42 @@ describe("WebSocket", () => {
         expect(received.code).toBe(4002);
         expect(received.reason).toBe("Token expired.");
     });
-    // it("replies with auth_success carrying the username", async () => {
-    //     mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
-    //     mockSubjectExtractor.extract = vi.fn().mockReturnValue("sub-01");
-    //     const client = new WebSocket(`ws://localhost:${port}/ws`);
-    //     const received = await new Promise<string>((resolve, reject) => {
-    //         client.on('open', () => {
-    //             client.send(JSON.stringify({ type: "auth", token: "X" }));
-    //         });
-    //         client.on('error', (err) => reject(err));
-    //         client.on('message', (data) => {
-    //             resolve(data.toString());
-    //         });
-    //     });
-    //     expect(received.username).toBe("quiz_buzzer_01");
-    //     client.close();
-    // });
+    it("closes the connection when the subject resolves to no participant", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("sub-01");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue(null);
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('close', (code, reason) => {
+                resolve({ code, reason: reason.toString() });
+            });
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+        expect(received.code).toBe(4001);
+        expect(received.reason).toBe("Invalid token.");
+    });
+    it("replies with auth_success carrying the username", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("resolved-sub");
+        mockParticipantResolver.resolve = vi.fn()
+            .mockImplementation((sub) => sub === "resolved-sub" ? { username: "quiz_buzzer_01" } : { username: "wrong" });
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        const received = await new Promise<{ username: string }>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('error', (err) => reject(err));
+            client.on('message', (data) => {
+                resolve(JSON.parse(data.toString()));
+            });
+        });
+        expect(received.username).toBe("quiz_buzzer_01");
+        client.close();
+    });
     afterEach(async () => {
         await server.stop();
     });

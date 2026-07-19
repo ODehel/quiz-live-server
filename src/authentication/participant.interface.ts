@@ -1,4 +1,5 @@
 
 export interface Participant {
-    id: string
+    id: string,
+    username: string
 }

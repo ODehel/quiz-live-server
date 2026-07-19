@@ -48,7 +48,7 @@ describe("Admission Policy", () => {
     });
 
     it('carries the resolved participant when the connection is admitted', async () => {
-        const participant: Participant = { id: "any-id" };
+        const participant: Participant = { id: "any-id", username: "any-username" };
         vi.mocked(participantResolver.resolve).mockResolvedValue(participant);
 
         const result = await admissionPolicy.evaluate('any-token');
