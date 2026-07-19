@@ -17,90 +17,106 @@ import { UserRole } from "../users/user-role";
 import WebSocket from "ws";
 import { WsRouteConfiguration } from "./ws-route-configuration.interface";
 import { Scheduler } from "../common/scheduler.interface";
-
-
+import { SubjectExtractor } from "../authentication/subject-extractor.interface";
+import { ParticipantResolver } from "../authentication/participant-resolver.interface";
+import { TokenGenerator } from "../authentication/token-generator.interface";
+import { AuthenticationService } from "../authentication/authentication-service.interface";
 
 describe("WebSocket", () => {
-    let mockClock: Clock = {
-        now: () => new Date('2026-04-02T14:32:07')
-    }
-
+    let mockClock: Clock;
     let capturedCallback: () => void;
-    let mockScheduler: Scheduler = {
-        schedule: vi.fn((callback) => {
-            capturedCallback = callback;
-            return { cancel: () => { capturedCallback = () => { }; } };
-        })
-    };
-
-    let mockNetwork: Network = {
-        networkInterfaces: () => ({
-            'eth0': [
-                { address: '192.168.1.42', netmask: '255.255.255.0', family: 'IPv4', mac: '00:00:00:00:00:00', internal: false, cidr: '192.168.1.42/24' }
-            ]
-        })
-    }
-
-    let port: number = 3001
-
-    let mockQuizServerConfiguration: QuizServerConfiguration = {
-        clock: mockClock,
-        network: mockNetwork,
-        port: port
-    }
-
-    let mockAuthenticationService = {
-        authenticate: vi.fn().mockResolvedValue({ id: 'user-id', username: 'User Name', password: 'user-password', role: 'PLAYER' })
-    };
-
-    let mockTokenGenerator = {
-        generateToken: (user: User) => {
-            return { token: 'generated-token' } as Token;
-        }
-    };
-
-    let mockTokenDecoder: TokenDecoder = {
-        decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
-    };
-
-    let mockThemeService: ThemeService = {
-        createTheme: vi.fn(),
-        deleteTheme: vi.fn(),
-        getAll: vi.fn(),
-        getById: vi.fn(),
-        updateTheme: vi.fn()
-    };
-    let mockUuidValidator: UuidValidator = {
-        validate: vi.fn()
-    };
-    let mockTokenValidator: TokenValidator = {
-        validateToken: vi.fn(),
-        inspectToken: vi.fn()
-    };
+    let mockScheduler: Scheduler;
+    let mockNetwork: Network;
+    let port: number;
+    let mockQuizServerConfiguration: QuizServerConfiguration;
+    let mockAuthenticationService: AuthenticationService;
+    let mockSubjectExtractor: SubjectExtractor;
+    let mockParticipantResolver: ParticipantResolver;
+    let mockTokenGenerator: TokenGenerator;
+    let mockTokenDecoder: TokenDecoder;
+    let mockThemeService: ThemeService;
+    let mockUuidValidator: UuidValidator;
+    let mockTokenValidator: TokenValidator;
     let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
     let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
-    let mockTokenRouteConfiguration: TokenRouteConfiguration = {
-        authenticationService: mockAuthenticationService,
-        tokenGenerator: mockTokenGenerator,
-        rateLimitMiddleware: mockRateLimitMiddleware
-    };
-
-    let mockThemeRouteConfiguration: ThemeRouteConfiguration = {
-        themeService: mockThemeService,
-        uuidValidator: mockUuidValidator,
-        tokenValidator: mockTokenValidator,
-        tokenDecoder: mockTokenDecoder,
-        middleware: mockMiddleware,
-        rateLimitMiddleware: mockRateLimitMiddleware
-    };
-
-    let mockWsRouteConfiguration: WsRouteConfiguration = {
-        tokenValidator: mockTokenValidator,
-        scheduler: mockScheduler
-    };
-
+    let mockTokenRouteConfiguration: TokenRouteConfiguration;
+    let mockThemeRouteConfiguration: ThemeRouteConfiguration;
+    let mockWsRouteConfiguration: WsRouteConfiguration;
     let server: QuizServer;
+
     beforeEach(async () => {
+        mockClock = {
+            now: () => new Date('2026-04-02T14:32:07')
+        };
+        mockNetwork = {
+            networkInterfaces: () => ({
+                'eth0': [
+                    { address: '192.168.1.42', netmask: '255.255.255.0', family: 'IPv4', mac: '00:00:00:00:00:00', internal: false, cidr: '192.168.1.42/24' }
+                ]
+            })
+        };
+        port = 3001;
+        mockScheduler = {
+            schedule: vi.fn((callback) => {
+                capturedCallback = callback;
+                return { cancel: () => { capturedCallback = () => { }; } };
+            })
+        };
+        mockQuizServerConfiguration = {
+            clock: mockClock,
+            network: mockNetwork,
+            port: port
+        }
+        mockAuthenticationService = {
+            authenticate: vi.fn().mockResolvedValue({ id: 'user-id', username: 'User Name', password: 'user-password', role: 'PLAYER' })
+        };
+        mockSubjectExtractor = {
+            extract: vi.fn()
+        };
+        mockParticipantResolver = {
+            resolve: vi.fn()
+        };
+        mockTokenGenerator = {
+            generateToken: (user: User) => {
+                return { token: 'generated-token' } as Token;
+            }
+        };
+        mockTokenDecoder = {
+            decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
+        };
+        mockThemeService = {
+            createTheme: vi.fn(),
+            deleteTheme: vi.fn(),
+            getAll: vi.fn(),
+            getById: vi.fn(),
+            updateTheme: vi.fn()
+        };
+        mockUuidValidator = {
+            validate: vi.fn()
+        };
+        mockTokenValidator = {
+            validateToken: vi.fn(),
+            inspectToken: vi.fn()
+        };
+        mockTokenRouteConfiguration = {
+            authenticationService: mockAuthenticationService,
+            tokenGenerator: mockTokenGenerator,
+            rateLimitMiddleware: mockRateLimitMiddleware
+        };
+        mockThemeRouteConfiguration = {
+            themeService: mockThemeService,
+            uuidValidator: mockUuidValidator,
+            tokenValidator: mockTokenValidator,
+            tokenDecoder: mockTokenDecoder,
+            middleware: mockMiddleware,
+            rateLimitMiddleware: mockRateLimitMiddleware
+        };
+        mockWsRouteConfiguration = {
+            tokenValidator: mockTokenValidator,
+            scheduler: mockScheduler,
+            subjectExtractor: mockSubjectExtractor,
+            participantResolver: mockParticipantResolver
+        };
         server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
         await server.start();
     });
@@ -238,6 +254,22 @@ describe("WebSocket", () => {
         expect(received.code).toBe(4002);
         expect(received.reason).toBe("Token expired.");
     });
+    // it("replies with auth_success carrying the username", async () => {
+    //     mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+    //     mockSubjectExtractor.extract = vi.fn().mockReturnValue("sub-01");
+    //     const client = new WebSocket(`ws://localhost:${port}/ws`);
+    //     const received = await new Promise<string>((resolve, reject) => {
+    //         client.on('open', () => {
+    //             client.send(JSON.stringify({ type: "auth", token: "X" }));
+    //         });
+    //         client.on('error', (err) => reject(err));
+    //         client.on('message', (data) => {
+    //             resolve(data.toString());
+    //         });
+    //     });
+    //     expect(received.username).toBe("quiz_buzzer_01");
+    //     client.close();
+    // });
     afterEach(async () => {
         await server.stop();
     });

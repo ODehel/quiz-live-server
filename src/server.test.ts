@@ -16,6 +16,8 @@ import { DecodedToken } from './authentication/decoded-token.interface'
 import { UserRole } from './users/user-role'
 import { WsRouteConfiguration } from './websocket/ws-route-configuration.interface'
 import { Scheduler } from './common/scheduler.interface'
+import { SubjectExtractor } from './authentication/subject-extractor.interface'
+import { ParticipantResolver } from './authentication/participant-resolver.interface'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -24,6 +26,12 @@ const mockClock: Clock = {
 let capturedCallback: () => void;
 let mockScheduler: Scheduler = {
 	schedule: vi.fn(() => ({ cancel: () => { } }))
+};
+let mockSubjectExtractor: SubjectExtractor = {
+	extract: vi.fn()
+};
+let mockParticipantResolver: ParticipantResolver = {
+	resolve: vi.fn()
 };
 
 const mockNetwork: Network = {
@@ -90,7 +98,9 @@ const mockThemeRouteConfiguration: ThemeRouteConfiguration = {
 
 const mockWsRouteConfiguration: WsRouteConfiguration = {
 	tokenValidator: mockTokenValidator,
-	scheduler: mockScheduler
+	scheduler: mockScheduler,
+	subjectExtractor: mockSubjectExtractor,
+	participantResolver: mockParticipantResolver
 };
 
 describe('CA-1 - Le serveur démarre sans erreur', () => {

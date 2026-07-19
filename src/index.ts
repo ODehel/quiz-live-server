@@ -20,6 +20,8 @@ import { JwtDecoder } from './authentication/jwt-decoder';
 import rateLimitMiddleware from './infrastructure/rate-limit-middleware';
 import { WsRouteConfiguration } from './websocket/ws-route-configuration.interface';
 import { SystemScheduler } from './infrastructure/system-scheduler';
+import { JwtSubjectExtractor } from './authentication/jwt-subject-extractor';
+import { UserRepositoryParticipantResolver } from './authentication/user-repository-participant-resolver';
 
 const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
 
@@ -46,7 +48,9 @@ const themeRouteConfiguration: ThemeRouteConfiguration = {
 };
 const wsRouteConfiguration: WsRouteConfiguration = {
     tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
-    scheduler: new SystemScheduler()
+    scheduler: new SystemScheduler(),
+    subjectExtractor: new JwtSubjectExtractor(),
+    participantResolver: new UserRepositoryParticipantResolver(userRepository)
 };
 const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration);
 server.start();
