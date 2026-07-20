@@ -4,6 +4,7 @@ import { TokenValidator } from "./token-validator.interface";
 import { Participant } from "./participant.interface";
 import { ParticipantResolver } from "./participant-resolver.interface"
 import { SubjectExtractor } from "./subject-extractor.interface";
+import { UserRole } from "../users/user-role";
 
 describe("Admission Policy", () => {
     let tokenValidator: TokenValidator;
@@ -48,7 +49,7 @@ describe("Admission Policy", () => {
     });
 
     it('carries the resolved participant when the connection is admitted', async () => {
-        const participant: Participant = { id: "any-id", username: "any-username" };
+        const participant: Participant = { id: "any-id", username: "any-username", role: UserRole.ADMIN };
         vi.mocked(participantResolver.resolve).mockResolvedValue(participant);
 
         const result = await admissionPolicy.evaluate('any-token');

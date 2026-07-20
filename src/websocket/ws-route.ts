@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import '@fastify/websocket';
 import { WsRouteConfiguration } from "./ws-route-configuration.interface";
+import { toRoleLabel } from "../users/role-label";
 
 const WS_CLOSE_INVALID_TOKEN = { code: 4001, reason: "Invalid token." } as const;
 const WS_CLOSE_TOKEN_EXPIRED = { code: 4002, reason: "Token expired." } as const;
@@ -46,7 +47,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                 socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
                 return;
             }
-            socket.send(JSON.stringify({ type: "auth_success", username: participant.username }));
+            socket.send(JSON.stringify({ type: "auth_success", username: participant.username, role: toRoleLabel(participant.role) }));
         });
     });
 }

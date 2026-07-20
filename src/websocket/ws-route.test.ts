@@ -277,6 +277,26 @@ describe("WebSocket", () => {
         expect(received.username).toBe("quiz_buzzer_01");
         client.close();
     });
+    it.each([
+        [UserRole.PLAYER, "buzzer"],
+        [UserRole.ADMIN, "admin"],
+    ])("replies with auth_success carrying the role for %s", async (role, expectedLabel) => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("resolved-sub");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ id: "any-id", username: "any-user-name", role });
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        const received = await new Promise<{ role: string }>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('error', (err) => reject(err));
+            client.on('message', (data) => {
+                resolve(JSON.parse(data.toString()));
+            });
+        });
+        expect(received.role).toBe(expectedLabel);
+        client.close();
+    });
     afterEach(async () => {
         await server.stop();
     });
