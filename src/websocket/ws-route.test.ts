@@ -21,6 +21,7 @@ import { SubjectExtractor } from "../authentication/subject-extractor.interface"
 import { ParticipantResolver } from "../authentication/participant-resolver.interface";
 import { TokenGenerator } from "../authentication/token-generator.interface";
 import { AuthenticationService } from "../authentication/authentication-service.interface";
+import { ExpirationExtractor } from "../authentication/expiration-extractor";
 
 describe("WebSocket", () => {
     let mockClock: Clock;
@@ -32,6 +33,7 @@ describe("WebSocket", () => {
     let mockAuthenticationService: AuthenticationService;
     let mockSubjectExtractor: SubjectExtractor;
     let mockParticipantResolver: ParticipantResolver;
+    let mockExpirationExtractor: ExpirationExtractor;
     let mockTokenGenerator: TokenGenerator;
     let mockTokenDecoder: TokenDecoder;
     let mockThemeService: ThemeService;
@@ -76,6 +78,9 @@ describe("WebSocket", () => {
         mockParticipantResolver = {
             resolve: vi.fn()
         };
+        mockExpirationExtractor = {
+            extract: vi.fn()
+        };
         mockTokenGenerator = {
             generateToken: (user: User) => {
                 return { token: 'generated-token' } as Token;
@@ -115,7 +120,9 @@ describe("WebSocket", () => {
             tokenValidator: mockTokenValidator,
             scheduler: mockScheduler,
             subjectExtractor: mockSubjectExtractor,
-            participantResolver: mockParticipantResolver
+            participantResolver: mockParticipantResolver,
+            expirationExtractor: mockExpirationExtractor,
+            clock: mockClock
         };
         server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
         await server.start();
@@ -295,6 +302,25 @@ describe("WebSocket", () => {
             });
         });
         expect(received.role).toBe(expectedLabel);
+        client.close();
+    });
+    it("replies with auth_success carrying the remaining time for token", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("resolved-sub");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ id: "any-id", username: "any-user-name", role: UserRole.PLAYER });
+        const frozenNowInSeconds = new Date('2026-04-02T14:32:07').getTime() / 1000;
+        mockExpirationExtractor.extract = vi.fn().mockReturnValue(frozenNowInSeconds + 3600);
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        const received = await new Promise<{ expires_in: number }>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('error', (err) => reject(err));
+            client.on('message', (data) => {
+                resolve(JSON.parse(data.toString()));
+            });
+        });
+        expect(received.expires_in).toBe(3600);
         client.close();
     });
     afterEach(async () => {

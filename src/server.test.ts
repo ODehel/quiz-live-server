@@ -18,6 +18,7 @@ import { WsRouteConfiguration } from './websocket/ws-route-configuration.interfa
 import { Scheduler } from './common/scheduler.interface'
 import { SubjectExtractor } from './authentication/subject-extractor.interface'
 import { ParticipantResolver } from './authentication/participant-resolver.interface'
+import { ExpirationExtractor } from './authentication/expiration-extractor'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -28,6 +29,9 @@ let mockScheduler: Scheduler = {
 	schedule: vi.fn(() => ({ cancel: () => { } }))
 };
 let mockSubjectExtractor: SubjectExtractor = {
+	extract: vi.fn()
+};
+let mockExpirationExtractor: ExpirationExtractor = {
 	extract: vi.fn()
 };
 let mockParticipantResolver: ParticipantResolver = {
@@ -100,7 +104,9 @@ const mockWsRouteConfiguration: WsRouteConfiguration = {
 	tokenValidator: mockTokenValidator,
 	scheduler: mockScheduler,
 	subjectExtractor: mockSubjectExtractor,
-	participantResolver: mockParticipantResolver
+	participantResolver: mockParticipantResolver,
+	expirationExtractor: mockExpirationExtractor,
+	clock: mockClock
 };
 
 describe('CA-1 - Le serveur démarre sans erreur', () => {

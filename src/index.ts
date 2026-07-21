@@ -22,11 +22,14 @@ import { WsRouteConfiguration } from './websocket/ws-route-configuration.interfa
 import { SystemScheduler } from './infrastructure/system-scheduler';
 import { JwtSubjectExtractor } from './authentication/jwt-subject-extractor';
 import { UserRepositoryParticipantResolver } from './authentication/user-repository-participant-resolver';
+import { JwtExpirationExtractor } from './authentication/jwt-expiration-extractor';
+
+const clock = new SystemClock();
 
 const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
 
 const quizServerConfiguration: QuizServerConfiguration = {
-    clock: new SystemClock(),
+    clock: clock,
     network: new OsNetwork(),
     port: processEnvironment.port
 };
@@ -39,7 +42,7 @@ const tokenRouteConfiguration: TokenRouteConfiguration = {
     rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 const themeRouteConfiguration: ThemeRouteConfiguration = {
-    themeService: new DefaultThemeService(new SystemClock(), new Uuidv7Generator(), new SqliteThemeRepository(processEnvironment.sqliteDbPath)),
+    themeService: new DefaultThemeService(clock, new Uuidv7Generator(), new SqliteThemeRepository(processEnvironment.sqliteDbPath)),
     uuidValidator: new Uuidv7Validator(),
     tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
     tokenDecoder: new JwtDecoder(),
@@ -50,7 +53,9 @@ const wsRouteConfiguration: WsRouteConfiguration = {
     tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
     scheduler: new SystemScheduler(),
     subjectExtractor: new JwtSubjectExtractor(),
-    participantResolver: new UserRepositoryParticipantResolver(userRepository)
+    participantResolver: new UserRepositoryParticipantResolver(userRepository),
+    expirationExtractor: new JwtExpirationExtractor(),
+    clock: clock
 };
 const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration);
 server.start();

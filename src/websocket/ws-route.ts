@@ -47,7 +47,15 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                 socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
                 return;
             }
-            socket.send(JSON.stringify({ type: "auth_success", username: participant.username, role: toRoleLabel(participant.role) }));
+            const expiration = config.expirationExtractor.extract(message.token);
+            const now = config.clock.now().getTime() / 1000;
+            const expiresIn = Math.floor(expiration - now);
+            socket.send(JSON.stringify({
+                type: "auth_success", 
+                username: participant.username, 
+                role: toRoleLabel(participant.role),
+                expires_in: expiresIn
+             }));
         });
     });
 }
