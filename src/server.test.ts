@@ -19,6 +19,7 @@ import { Scheduler } from './common/scheduler.interface'
 import { SubjectExtractor } from './authentication/subject-extractor.interface'
 import { ParticipantResolver } from './authentication/participant-resolver.interface'
 import { ExpirationExtractor } from './authentication/expiration-extractor'
+import { WsEventReporter } from './websocket/ws-event-reporter.interface'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -82,6 +83,9 @@ const mockTokenValidator: TokenValidator = {
 	validateToken: vi.fn(),
 	inspectToken: vi.fn()
 };
+const mockWsEventReporter: WsEventReporter = {
+	connected: vi.fn()
+};
 const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
 const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
 
@@ -106,7 +110,8 @@ const mockWsRouteConfiguration: WsRouteConfiguration = {
 	subjectExtractor: mockSubjectExtractor,
 	participantResolver: mockParticipantResolver,
 	expirationExtractor: mockExpirationExtractor,
-	clock: mockClock
+	clock: mockClock,
+	wsEventReporter: mockWsEventReporter
 };
 
 describe('CA-1 - Le serveur démarre sans erreur', () => {

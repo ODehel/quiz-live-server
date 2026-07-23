@@ -22,6 +22,7 @@ import { ParticipantResolver } from "../authentication/participant-resolver.inte
 import { TokenGenerator } from "../authentication/token-generator.interface";
 import { AuthenticationService } from "../authentication/authentication-service.interface";
 import { ExpirationExtractor } from "../authentication/expiration-extractor";
+import { WsEventReporter } from "./ws-event-reporter.interface";
 
 describe("WebSocket", () => {
     let mockClock: Clock;
@@ -39,6 +40,7 @@ describe("WebSocket", () => {
     let mockThemeService: ThemeService;
     let mockUuidValidator: UuidValidator;
     let mockTokenValidator: TokenValidator;
+    let mockWsEventReporter: WsEventReporter;
     let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
     let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
     let mockTokenRouteConfiguration: TokenRouteConfiguration;
@@ -89,6 +91,9 @@ describe("WebSocket", () => {
         mockTokenDecoder = {
             decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
         };
+        mockWsEventReporter = {
+            connected: vi.fn()
+        }
         mockThemeService = {
             createTheme: vi.fn(),
             deleteTheme: vi.fn(),
@@ -122,7 +127,8 @@ describe("WebSocket", () => {
             subjectExtractor: mockSubjectExtractor,
             participantResolver: mockParticipantResolver,
             expirationExtractor: mockExpirationExtractor,
-            clock: mockClock
+            clock: mockClock,
+            wsEventReporter: mockWsEventReporter
         };
         server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
         await server.start();
@@ -322,6 +328,19 @@ describe("WebSocket", () => {
         });
         expect(received.expires_in).toBe(3600);
         client.close();
+    });
+    it("reports the connection even when authentication fails", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: false, reason: "invalid" });
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('close', () => resolve());
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+        expect(mockWsEventReporter.connected).toHaveBeenCalled();
     });
     afterEach(async () => {
         await server.stop();

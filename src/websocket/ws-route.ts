@@ -11,6 +11,7 @@ const AUTH_TIMEOUT_WS = 60_000;
 
 export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
     app.get('/ws', { websocket: true }, async (socket) => {
+        config.wsEventReporter.connected();
         let schedulerCallback = () => {
             socket.close(WS_CLOSE_AUTH_TIMEOUT.code, WS_CLOSE_AUTH_TIMEOUT.reason);
         };
@@ -51,11 +52,11 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
             const now = config.clock.now().getTime() / 1000;
             const expiresIn = Math.floor(expiration - now);
             socket.send(JSON.stringify({
-                type: "auth_success", 
-                username: participant.username, 
+                type: "auth_success",
+                username: participant.username,
                 role: toRoleLabel(participant.role),
                 expires_in: expiresIn
-             }));
+            }));
         });
     });
 }
