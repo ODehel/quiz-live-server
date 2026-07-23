@@ -1,3 +1,3 @@
 export interface WsEventReporter {
-    connected(): void;
+    connected(clientIp: string): void;
 }

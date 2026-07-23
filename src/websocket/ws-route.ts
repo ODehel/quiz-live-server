@@ -10,8 +10,8 @@ const WS_CLOSE_AUTH_TIMEOUT = { code: 4003, reason: "Authentication timeout." } 
 const AUTH_TIMEOUT_WS = 60_000;
 
 export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
-    app.get('/ws', { websocket: true }, async (socket) => {
-        config.wsEventReporter.connected();
+    app.get('/ws', { websocket: true }, async (socket, request) => {
+        config.wsEventReporter.connected(request.ip);
         let schedulerCallback = () => {
             socket.close(WS_CLOSE_AUTH_TIMEOUT.code, WS_CLOSE_AUTH_TIMEOUT.reason);
         };

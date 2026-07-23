@@ -329,7 +329,7 @@ describe("WebSocket", () => {
         expect(received.expires_in).toBe(3600);
         client.close();
     });
-    it("reports the connection even when authentication fails", async () => {
+    it("reports the connection with IP address even when authentication fails", async () => {
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: false, reason: "invalid" });
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         await new Promise<void>((resolve, reject) => {
@@ -340,7 +340,7 @@ describe("WebSocket", () => {
             client.on('message', () => reject(new Error("expected close, but received a message")));
             client.on('error', (err) => reject(err));
         });
-        expect(mockWsEventReporter.connected).toHaveBeenCalled();
+        expect(mockWsEventReporter.connected).toHaveBeenCalledWith("127.0.0.1");
     });
     afterEach(async () => {
         await server.stop();
