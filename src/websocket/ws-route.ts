@@ -35,6 +35,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
             }
             const inspection = config.tokenValidator.inspectToken(message.token);
             if (inspection.reason === "expired") {
+                config.wsEventReporter.tokenExpired(request.ip);
                 socket.close(WS_CLOSE_TOKEN_EXPIRED.code, WS_CLOSE_TOKEN_EXPIRED.reason);
                 return;
             }

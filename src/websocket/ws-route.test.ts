@@ -92,7 +92,8 @@ describe("WebSocket", () => {
             decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
         };
         mockWsEventReporter = {
-            connected: vi.fn()
+            connected: vi.fn(),
+            tokenExpired: vi.fn()
         }
         mockThemeService = {
             createTheme: vi.fn(),
@@ -253,6 +254,7 @@ describe("WebSocket", () => {
         });
         expect(received.code).toBe(4002);
         expect(received.reason).toBe("Token expired.");
+        expect(mockWsEventReporter.tokenExpired).toHaveBeenCalledWith("127.0.0.1");
     });
     it("closes the connection when the subject resolves to no participant", async () => {
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
