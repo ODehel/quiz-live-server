@@ -178,7 +178,7 @@ describe("WebSocket", () => {
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
             client.on('open', () => {
-                client.send("{}");
+                client.send(JSON.stringify({ type: "auth" }));
             });
             client.on('close', (code, reason) => {
                 resolve({ code, reason: reason.toString() });
