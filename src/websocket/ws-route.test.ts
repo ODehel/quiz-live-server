@@ -144,11 +144,13 @@ describe("WebSocket", () => {
             client.on('error', (err) => reject(err));
         });
     });
+
     it("rejects a message carrying an invalid token", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: false, reason: "invalid" });
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
             client.on('open', () => {
-                client.send(JSON.stringify({ token: "X" }));
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
             });
             client.on('close', (code, reason) => {
                 resolve({ code, reason: reason.toString() });
@@ -159,6 +161,7 @@ describe("WebSocket", () => {
         expect(received.code).toBe(4001);
         expect(received.reason).toBe("Invalid token.");
     });
+
     it("closes the connection with code and reason when message is not Json-typed", async () => {
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
