@@ -24,6 +24,7 @@ import { JwtSubjectExtractor } from './authentication/jwt-subject-extractor';
 import { UserRepositoryParticipantResolver } from './authentication/user-repository-participant-resolver';
 import { JwtExpirationExtractor } from './authentication/jwt-expiration-extractor';
 import { PinoWsEventReporter } from './websocket/pino-ws-event-reporter';
+import pino from 'pino';
 
 const clock = new SystemClock();
 
@@ -57,7 +58,7 @@ const wsRouteConfiguration: WsRouteConfiguration = {
     participantResolver: new UserRepositoryParticipantResolver(userRepository),
     expirationExtractor: new JwtExpirationExtractor(),
     clock: clock,
-    wsEventReporter: new PinoWsEventReporter()
+    wsEventReporter: new PinoWsEventReporter(pino())
 };
 const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration);
 server.start();
