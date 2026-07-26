@@ -11,4 +11,7 @@ export class PinoWsEventReporter implements WsEventReporter {
     tokenExpired(clientIp: string): void {
         this.logger.warn({ event: "WEBSOCKET_AUTH_FAILED", reason: "Token expired.", ip: clientIp });
     }
+    invalidToken(clientIp: string): void {
+        this.logger.warn({ event: "WEBSOCKET_AUTH_FAILED", reason: "Invalid token.", ip: clientIp });
+    }
 }

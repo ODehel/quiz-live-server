@@ -93,7 +93,8 @@ describe("WebSocket", () => {
         };
         mockWsEventReporter = {
             connected: vi.fn(),
-            tokenExpired: vi.fn()
+            tokenExpired: vi.fn(),
+            invalidToken: vi.fn()
         }
         mockThemeService = {
             createTheme: vi.fn(),
@@ -346,6 +347,23 @@ describe("WebSocket", () => {
             client.on('error', (err) => reject(err));
         });
         expect(mockWsEventReporter.connected).toHaveBeenCalledWith("127.0.0.1");
+    });
+    it("reports an authentication failure on an invalid token", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: false, reason: "invalid" });
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('close', () => {
+                resolve();
+            });
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+
+        expect(mockWsEventReporter.invalidToken).toHaveBeenCalledWith("127.0.0.1");
     });
     afterEach(async () => {
         await server.stop();

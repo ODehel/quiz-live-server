@@ -24,4 +24,9 @@ describe("Pino websocket event reporter", () => {
         reporter.tokenExpired(clientIp);
         expect(mockPino.warn).toHaveBeenCalledWith({ event: "WEBSOCKET_AUTH_FAILED", reason: "Token expired.", ip: clientIp })
     });
+
+    it("reports a connection close because of an invalid token", () => {
+        reporter.invalidToken(clientIp);
+        expect(mockPino.warn).toHaveBeenCalledWith({ event: "WEBSOCKET_AUTH_FAILED", reason: "Invalid token.", ip: clientIp });
+    });
 });
