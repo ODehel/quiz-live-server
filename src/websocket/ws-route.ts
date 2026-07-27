@@ -22,6 +22,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
             try {
                 message = JSON.parse(data.toString());
             } catch {
+                config.wsEventReporter.invalidToken(request.ip);
                 socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
                 return;
             }
