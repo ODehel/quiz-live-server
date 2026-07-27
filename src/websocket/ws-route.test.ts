@@ -351,7 +351,7 @@ describe("WebSocket", () => {
     it("reports an authentication failure on an invalid token", async () => {
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: false, reason: "invalid" });
         const client = new WebSocket(`ws://localhost:${port}/ws`);
-        
+
         await new Promise<void>((resolve, reject) => {
             client.on('open', () => {
                 client.send(JSON.stringify({ type: "auth", token: "X" }));
@@ -367,10 +367,25 @@ describe("WebSocket", () => {
     });
     it("reports an authentication failure when message is not Json-typed", async () => {
         const client = new WebSocket(`ws://localhost:${port}/ws`);
-        
+
         await new Promise<void>((resolve, reject) => {
             client.on('open', () => {
                 client.send("not json-typed at all");
+            });
+            client.on('close', () => {
+                resolve();
+            });
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+
+        expect(mockWsEventReporter.invalidToken).toHaveBeenCalledWith("127.0.0.1");
+    });
+    it("reports an authentication failure when message has no type", async () => {
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ token: "X" }));
             });
             client.on('close', () => {
                 resolve();
