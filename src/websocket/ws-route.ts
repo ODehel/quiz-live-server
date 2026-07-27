@@ -50,6 +50,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
             const subject = config.subjectExtractor.extract(message.token);
             const participant = await config.participantResolver.resolve(subject);
             if (participant === null) {
+                config.wsEventReporter.invalidToken(request.ip);
                 socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
                 return;
             }

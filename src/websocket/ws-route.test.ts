@@ -410,6 +410,23 @@ describe("WebSocket", () => {
         });
         expect(mockWsEventReporter.invalidToken).toHaveBeenCalledWith("127.0.0.1");
     });
+    it("reports an authentication failure when the subject resolves to no participant", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("sub-01");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue(null);
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('close', () => {
+                resolve();
+            });
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+        expect(mockWsEventReporter.invalidToken).toHaveBeenCalledWith("127.0.0.1");
+    });
     afterEach(async () => {
         await server.stop();
     });
