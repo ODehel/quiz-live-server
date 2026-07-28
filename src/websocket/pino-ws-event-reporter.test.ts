@@ -29,4 +29,9 @@ describe("Pino websocket event reporter", () => {
         reporter.invalidToken(clientIp);
         expect(mockPino.warn).toHaveBeenCalledWith({ event: "WEBSOCKET_AUTH_FAILED", reason: "Invalid token.", ip: clientIp });
     });
+
+    it("reports a connection close because of an authentication timeout", () => {
+        reporter.authenticationTimeout(clientIp);
+        expect(mockPino.warn).toHaveBeenCalledWith({ event: "WEBSOCKET_AUTH_FAILED", reason: "Authentication timeout.", ip: clientIp });
+    });
 });

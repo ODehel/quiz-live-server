@@ -40,7 +40,7 @@ describe("WebSocket", () => {
     let mockThemeService: ThemeService;
     let mockUuidValidator: UuidValidator;
     let mockTokenValidator: TokenValidator;
-    let mockWsEventReporter: WsEventReporter;
+    let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout'>;
     let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
     let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
     let mockTokenRouteConfiguration: TokenRouteConfiguration;
@@ -94,7 +94,8 @@ describe("WebSocket", () => {
         mockWsEventReporter = {
             connected: vi.fn(),
             tokenExpired: vi.fn(),
-            invalidToken: vi.fn()
+            invalidToken: vi.fn(),
+            authenticationTimeout: vi.fn()
         }
         mockThemeService = {
             createTheme: vi.fn(),
@@ -426,6 +427,21 @@ describe("WebSocket", () => {
             client.on('error', (err) => reject(err));
         });
         expect(mockWsEventReporter.invalidToken).toHaveBeenCalledWith("127.0.0.1");
+    });
+    
+    it("reports an authentication failure after the authentication timeout", async () => {
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                capturedCallback();
+            });
+            client.on('close', () => {
+                resolve();
+            });
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+        expect(mockWsEventReporter.authenticationTimeout).toHaveBeenCalledWith("127.0.0.1");
     });
     afterEach(async () => {
         await server.stop();

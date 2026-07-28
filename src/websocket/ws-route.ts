@@ -13,6 +13,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
     app.get('/ws', { websocket: true }, async (socket, request) => {
         config.wsEventReporter.connected(request.ip);
         let schedulerCallback = () => {
+            config.wsEventReporter.authenticationTimeout(request.ip);
             socket.close(WS_CLOSE_AUTH_TIMEOUT.code, WS_CLOSE_AUTH_TIMEOUT.reason);
         };
         const handle = config.scheduler.schedule(schedulerCallback, AUTH_TIMEOUT_WS);
