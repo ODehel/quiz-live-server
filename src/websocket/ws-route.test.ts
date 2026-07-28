@@ -428,7 +428,7 @@ describe("WebSocket", () => {
         });
         expect(mockWsEventReporter.invalidToken).toHaveBeenCalledWith("127.0.0.1");
     });
-    
+
     it("reports an authentication failure after the authentication timeout", async () => {
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         await new Promise<void>((resolve, reject) => {
@@ -442,6 +442,27 @@ describe("WebSocket", () => {
             client.on('error', (err) => reject(err));
         });
         expect(mockWsEventReporter.authenticationTimeout).toHaveBeenCalledWith("127.0.0.1");
+    });
+    it("keeps the connection open when an authenticated client sends another message", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("sub-01");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01" });
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        let authenticated = false
+        const received = await new Promise<{ code: number }>((resolve, reject) => {
+            client.on('open', () => client.send(JSON.stringify({ type: "auth", token: "X" })))
+            client.on('message', () => {
+                if (!authenticated) {
+                    authenticated = true
+                    client.send("bonjour", () => client.close());
+                } else {
+                    reject(new Error("expected basic message, but received an authentication message"));
+                }
+            })
+            client.on('close', (code) => resolve({ code }))
+            client.on('error', (err) => reject(err))
+        })
+        expect(received.code).not.toBe(4001)
     });
     afterEach(async () => {
         await server.stop();

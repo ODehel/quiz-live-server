@@ -11,6 +11,7 @@ const AUTH_TIMEOUT_WS = 60_000;
 
 export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
     app.get('/ws', { websocket: true }, async (socket, request) => {
+        let authenticated = false;
         config.wsEventReporter.connected(request.ip);
         let schedulerCallback = () => {
             config.wsEventReporter.authenticationTimeout(request.ip);
@@ -18,6 +19,10 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
         };
         const handle = config.scheduler.schedule(schedulerCallback, AUTH_TIMEOUT_WS);
         socket.on('message', async (data) => {
+            if (authenticated) {
+                return;
+            }
+            authenticated = true;
             handle.cancel();
             let message: { type?: string, token?: string };
             try {
