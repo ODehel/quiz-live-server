@@ -464,6 +464,37 @@ describe("WebSocket", () => {
         })
         expect(received.code).not.toBe(4001)
     });
+    it("closes the first connection when a second connection is created for the same player", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("sub-01");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01" });
+        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        let clientB: WebSocket;
+        let authenticated = false;
+        let closeCodeA: number;
+        let closeReasonA: string;
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+            clientA.on('open', () => clientA.send(JSON.stringify({ type: "auth", token: "X" })));
+            clientA.on('message', () => {
+                if (!authenticated) {
+                    authenticated = true
+                    clientB = new WebSocket(`ws://localhost:${port}/ws`);
+                    clientB.on('open', () => clientB.send(JSON.stringify({ type: "auth", token: "X" })));
+                    clientB.on('message', () => {
+                        setTimeout(() => resolve({ code: closeCodeA, reason: closeReasonA }), 100);
+                    });
+                    clientB.on('error', (err) => reject(err));
+                }
+            });
+            clientA.on('close', (code, reason) => {
+                closeCodeA = code;
+                closeReasonA = reason.toString();
+            });
+            clientA.on('error', (err) => reject(err));
+        });
+        expect(received.code).toBe(4004);
+        expect(received.reason).toBe("Session replaced.");
+    });
     afterEach(async () => {
         await server.stop();
     });

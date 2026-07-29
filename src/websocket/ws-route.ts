@@ -2,14 +2,17 @@ import { FastifyInstance } from "fastify";
 import '@fastify/websocket';
 import { WsRouteConfiguration } from "./ws-route-configuration.interface";
 import { toRoleLabel } from "../users/role-label";
+import { WebSocket } from "ws";
 
 const WS_CLOSE_INVALID_TOKEN = { code: 4001, reason: "Invalid token." } as const;
 const WS_CLOSE_TOKEN_EXPIRED = { code: 4002, reason: "Token expired." } as const;
 const WS_CLOSE_AUTH_TIMEOUT = { code: 4003, reason: "Authentication timeout." } as const;
+const WS_CLOSE_SESSION_REPLACED = { code: 4004, reason: "Session replaced." } as const;
 
 const AUTH_TIMEOUT_WS = 60_000;
 
 export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
+    const registry = new Map<string, WebSocket>();
     app.get('/ws', { websocket: true }, async (socket, request) => {
         let authenticated = false;
         config.wsEventReporter.connected(request.ip);
@@ -60,6 +63,11 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                 socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
                 return;
             }
+            const existing = registry.get(subject);
+            if (existing !== undefined) {
+                existing.close(WS_CLOSE_SESSION_REPLACED.code, WS_CLOSE_SESSION_REPLACED.reason);
+            }
+            registry.set(subject, socket);
             const expiration = config.expirationExtractor.extract(message.token);
             const now = config.clock.now().getTime() / 1000;
             const expiresIn = Math.floor(expiration - now);
