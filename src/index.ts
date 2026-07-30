@@ -58,7 +58,8 @@ const wsRouteConfiguration: WsRouteConfiguration = {
     participantResolver: new UserRepositoryParticipantResolver(userRepository),
     expirationExtractor: new JwtExpirationExtractor(),
     clock: clock,
-    wsEventReporter: new PinoWsEventReporter(pino())
+    wsEventReporter: new PinoWsEventReporter(pino()),
+    maxConnections: 10
 };
 const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration);
 server.start();

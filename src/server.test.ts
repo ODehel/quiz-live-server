@@ -114,7 +114,8 @@ const mockWsRouteConfiguration: WsRouteConfiguration = {
 	participantResolver: mockParticipantResolver,
 	expirationExtractor: mockExpirationExtractor,
 	clock: mockClock,
-	wsEventReporter: mockWsEventReporter
+	wsEventReporter: mockWsEventReporter,
+	maxConnections: 10
 };
 
 describe('CA-1 - Le serveur démarre sans erreur', () => {

@@ -30,6 +30,7 @@ describe("WebSocket", () => {
     let mockScheduler: Scheduler;
     let mockNetwork: Network;
     let port: number;
+    let maxConnections: number;
     let mockQuizServerConfiguration: QuizServerConfiguration;
     let mockAuthenticationService: AuthenticationService;
     let mockSubjectExtractor: SubjectExtractor;
@@ -60,6 +61,7 @@ describe("WebSocket", () => {
             })
         };
         port = 3001;
+        maxConnections = 10;
         mockScheduler = {
             schedule: vi.fn((callback) => {
                 capturedCallback = callback;
@@ -131,7 +133,8 @@ describe("WebSocket", () => {
             participantResolver: mockParticipantResolver,
             expirationExtractor: mockExpirationExtractor,
             clock: mockClock,
-            wsEventReporter: mockWsEventReporter
+            wsEventReporter: mockWsEventReporter,
+            maxConnections: maxConnections
         };
         server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
         await server.start();
@@ -494,6 +497,31 @@ describe("WebSocket", () => {
         });
         expect(received.code).toBe(4004);
         expect(received.reason).toBe("Session replaced.");
+    });
+    it("rejects a new connection when server is full", async () => {
+        mockWsRouteConfiguration.maxConnections = 1;
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01" });
+        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        let clientB: WebSocket;
+        let authenticated = false;
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+            clientA.on('open', () => clientA.send(JSON.stringify({ type: "auth", token: "token-A" })));
+            clientA.on('message', () => {
+                if (!authenticated) {
+                    authenticated = true;
+                    clientB = new WebSocket(`ws://localhost:${port}/ws`);
+                    clientB.on('open', () => clientB.send(JSON.stringify({ type: "auth", token: "token-B" })));
+                    clientB.on('message', () => reject(new Error("expected close, but received a message")));
+                    clientB.on('close', (code, reason) => resolve({ code, reason: reason.toString() }));
+                    clientB.on('error', (err) => reject(err));
+                }
+            });
+            clientA.on('error', (err) => reject(err));
+        });
+        expect(received.code).toBe(4005);
+        expect(received.reason).toBe("Server is full.");
     });
     afterEach(async () => {
         await server.stop();

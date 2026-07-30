@@ -13,5 +13,6 @@ export interface WsRouteConfiguration {
     participantResolver: ParticipantResolver;
     expirationExtractor: ExpirationExtractor;
     clock: Clock;
-    wsEventReporter: WsEventReporter
+    wsEventReporter: WsEventReporter;
+    maxConnections: number;
 }

@@ -8,6 +8,7 @@ const WS_CLOSE_INVALID_TOKEN = { code: 4001, reason: "Invalid token." } as const
 const WS_CLOSE_TOKEN_EXPIRED = { code: 4002, reason: "Token expired." } as const;
 const WS_CLOSE_AUTH_TIMEOUT = { code: 4003, reason: "Authentication timeout." } as const;
 const WS_CLOSE_SESSION_REPLACED = { code: 4004, reason: "Session replaced." } as const;
+const WS_CLOSE_SERVER_FULL = { code: 4005, reason: "Server is full." } as const;
 
 const AUTH_TIMEOUT_WS = 60_000;
 
@@ -64,6 +65,10 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                 return;
             }
             const existing = registry.get(subject);
+            if (existing === undefined && registry.size >= config.maxConnections) {
+                socket.close(WS_CLOSE_SERVER_FULL.code, WS_CLOSE_SERVER_FULL.reason);
+                return;
+            }
             if (existing !== undefined) {
                 existing.close(WS_CLOSE_SESSION_REPLACED.code, WS_CLOSE_SESSION_REPLACED.reason);
             }
