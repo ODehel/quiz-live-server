@@ -65,6 +65,14 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                 socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
                 return;
             }
+            if (participant.role === UserRole.ADMIN) {
+                const oldAdmin = [...registry.entries()].find(([, entry]) => entry.role === UserRole.ADMIN);
+                if (oldAdmin !== undefined) {
+                    const [oldSub, oldEntry] = oldAdmin;
+                    registry.delete(oldSub);
+                    oldEntry.ws.close(WS_CLOSE_SESSION_REPLACED.code, WS_CLOSE_SESSION_REPLACED.reason);
+                }
+            }
             const existing = registry.get(subject);
             if (existing === undefined && registry.size >= config.maxConnections) {
                 config.wsEventReporter.serverFull(request.ip);

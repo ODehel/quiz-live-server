@@ -548,6 +548,37 @@ describe("WebSocket", () => {
         });
         expect(mockWsEventReporter.serverFull).toHaveBeenCalledWith("127.0.0.1");
     });
+    it("closes the first connection when a second connection is created for an admin", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01", role: UserRole.ADMIN });
+        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        let clientB: WebSocket;
+        let authenticated = false;
+        let closeCodeA: number;
+        let closeReasonA: string;
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+            clientA.on('open', () => clientA.send(JSON.stringify({ type: "auth", token: "token-A" })));
+            clientA.on('message', () => {
+                if (!authenticated) {
+                    authenticated = true
+                    clientB = new WebSocket(`ws://localhost:${port}/ws`);
+                    clientB.on('open', () => clientB.send(JSON.stringify({ type: "auth", token: "token-B" })));
+                    clientB.on('message', () => {
+                        setTimeout(() => resolve({ code: closeCodeA, reason: closeReasonA }), 100);
+                    });
+                    clientB.on('error', (err) => reject(err));
+                }
+            });
+            clientA.on('close', (code, reason) => {
+                closeCodeA = code;
+                closeReasonA = reason.toString();
+            });
+            clientA.on('error', (err) => reject(err));
+        });
+        expect(received.code).toBe(4004);
+        expect(received.reason).toBe("Session replaced.");
+    });
     afterEach(async () => {
         await server.stop();
     });
