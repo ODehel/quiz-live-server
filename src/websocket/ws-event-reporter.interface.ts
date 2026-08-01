@@ -3,4 +3,5 @@ export interface WsEventReporter {
     tokenExpired(clientIp: string): void;
     invalidToken(clientIp: string): void;
     authenticationTimeout(clientIp: string): void;
+    serverFull(clientIp: string): void;
 }

@@ -17,6 +17,9 @@ export class PinoWsEventReporter implements WsEventReporter {
     authenticationTimeout(clientIp: string): void {
         this.reportAuthFailure("Authentication timeout.", clientIp);
     }
+    serverFull(clientIp: string): void {
+        this.logger.info({ event: "WEBSOCKET_SERVER_FULL", ip: clientIp });
+    }
 
     private reportAuthFailure(reason: string, clientIp: string): void {
         this.logger.warn({ event: "WEBSOCKET_AUTH_FAILED", reason, ip: clientIp });

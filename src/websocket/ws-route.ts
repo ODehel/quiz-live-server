@@ -66,6 +66,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
             }
             const existing = registry.get(subject);
             if (existing === undefined && registry.size >= config.maxConnections) {
+                config.wsEventReporter.serverFull(request.ip);
                 socket.close(WS_CLOSE_SERVER_FULL.code, WS_CLOSE_SERVER_FULL.reason);
                 return;
             }

@@ -41,7 +41,7 @@ describe("WebSocket", () => {
     let mockThemeService: ThemeService;
     let mockUuidValidator: UuidValidator;
     let mockTokenValidator: TokenValidator;
-    let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout'>;
+    let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout' | 'serverFull'>;
     let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
     let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
     let mockTokenRouteConfiguration: TokenRouteConfiguration;
@@ -97,7 +97,8 @@ describe("WebSocket", () => {
             connected: vi.fn(),
             tokenExpired: vi.fn(),
             invalidToken: vi.fn(),
-            authenticationTimeout: vi.fn()
+            authenticationTimeout: vi.fn(),
+            serverFull: vi.fn()
         }
         mockThemeService = {
             createTheme: vi.fn(),
@@ -522,6 +523,30 @@ describe("WebSocket", () => {
         });
         expect(received.code).toBe(4005);
         expect(received.reason).toBe("Server is full.");
+    });
+    it("reports that the server is full on new connection", async () => {
+        mockWsRouteConfiguration.maxConnections = 1;
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01" });
+        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        let clientB: WebSocket;
+        let authenticated = false;
+        await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+            clientA.on('open', () => clientA.send(JSON.stringify({ type: "auth", token: "token-A" })));
+            clientA.on('message', () => {
+                if (!authenticated) {
+                    authenticated = true;
+                    clientB = new WebSocket(`ws://localhost:${port}/ws`);
+                    clientB.on('open', () => clientB.send(JSON.stringify({ type: "auth", token: "token-B" })));
+                    clientB.on('message', () => reject(new Error("expected close, but received a message")));
+                    clientB.on('close', (code, reason) => resolve({ code, reason: reason.toString() }));
+                    clientB.on('error', (err) => reject(err));
+                }
+            });
+            clientA.on('error', (err) => reject(err));
+        });
+        expect(mockWsEventReporter.serverFull).toHaveBeenCalledWith("127.0.0.1");
     });
     afterEach(async () => {
         await server.stop();

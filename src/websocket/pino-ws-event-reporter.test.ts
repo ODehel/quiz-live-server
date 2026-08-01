@@ -34,4 +34,9 @@ describe("Pino websocket event reporter", () => {
         reporter.authenticationTimeout(clientIp);
         expect(mockPino.warn).toHaveBeenCalledWith({ event: "WEBSOCKET_AUTH_FAILED", reason: "Authentication timeout.", ip: clientIp });
     });
+    
+    it("reports that the server is full with its IP", () => {
+        reporter.serverFull(clientIp);
+        expect(mockPino.info).toHaveBeenCalledWith({ event: "WEBSOCKET_SERVER_FULL", ip: clientIp });
+    });
 });
