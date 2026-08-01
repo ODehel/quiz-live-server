@@ -579,6 +579,37 @@ describe("WebSocket", () => {
         expect(received.code).toBe(4004);
         expect(received.reason).toBe("Session replaced.");
     });
+    it("keeps a connected buzzer open when an admin connects", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
+        mockParticipantResolver.resolve = vi.fn().mockImplementation(sub => sub === "sub-A" ? { username: "quiz_buzzer_01", role: UserRole.PLAYER } : { username: "admin", role: UserRole.ADMIN });
+        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        let clientB: WebSocket;
+        let authenticated = false;
+        await new Promise<void>((resolve, reject) => {
+            clientA.on('open', () => clientA.send(JSON.stringify({ type: "auth", token: "token-A" })));
+            clientA.on('message', () => {
+                if (!authenticated) {
+                    authenticated = true;
+                    clientB = new WebSocket(`ws://localhost:${port}/ws`);
+                    clientB.on('open', () => clientB.send(JSON.stringify({ type: "auth", token: "token-B" })));
+                    clientB.on('message', () => {
+                        setTimeout(() => resolve(), 100);
+                    });
+                    clientB.on('error', (err) => reject(err));
+                }
+            });
+            clientA.on('close', (code) => {
+                if (code === 4004) {
+                    reject(new Error("Buzzer was evicted by admin connection"));
+                }
+            });
+            clientA.on('error', (err) => reject(err));
+        });
+        expect(clientA.readyState).toBe(WebSocket.OPEN);
+        clientA.close();
+        clientB!.close();
+    });
     afterEach(async () => {
         await server.stop();
     });
