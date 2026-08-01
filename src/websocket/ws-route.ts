@@ -3,6 +3,7 @@ import '@fastify/websocket';
 import { WsRouteConfiguration } from "./ws-route-configuration.interface";
 import { toRoleLabel } from "../users/role-label";
 import { WebSocket } from "ws";
+import { UserRole } from "../users/user-role";
 
 const WS_CLOSE_INVALID_TOKEN = { code: 4001, reason: "Invalid token." } as const;
 const WS_CLOSE_TOKEN_EXPIRED = { code: 4002, reason: "Token expired." } as const;
@@ -13,7 +14,7 @@ const WS_CLOSE_SERVER_FULL = { code: 4005, reason: "Server is full." } as const;
 const AUTH_TIMEOUT_WS = 60_000;
 
 export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
-    const registry = new Map<string, WebSocket>();
+    const registry = new Map<string, { ws: WebSocket, role: UserRole }>();
     app.get('/ws', { websocket: true }, async (socket, request) => {
         let authenticated = false;
         config.wsEventReporter.connected(request.ip);
@@ -71,9 +72,9 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                 return;
             }
             if (existing !== undefined) {
-                existing.close(WS_CLOSE_SESSION_REPLACED.code, WS_CLOSE_SESSION_REPLACED.reason);
+                existing.ws.close(WS_CLOSE_SESSION_REPLACED.code, WS_CLOSE_SESSION_REPLACED.reason);
             }
-            registry.set(subject, socket);
+            registry.set(subject, { ws: socket, role: participant.role });
             const expiration = config.expirationExtractor.extract(message.token);
             const now = config.clock.now().getTime() / 1000;
             const expiresIn = Math.floor(expiration - now);
