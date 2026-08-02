@@ -88,7 +88,8 @@ const mockWsEventReporter: WsEventReporter = {
 	tokenExpired: vi.fn(),
 	invalidToken: vi.fn(),
 	authenticationTimeout: vi.fn(),
-	serverFull: vi.fn()
+	serverFull: vi.fn(),
+	authenticated: vi.fn()
 };
 const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
 const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };

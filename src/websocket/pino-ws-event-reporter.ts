@@ -20,6 +20,14 @@ export class PinoWsEventReporter implements WsEventReporter {
     serverFull(clientIp: string): void {
         this.logger.info({ event: "WEBSOCKET_SERVER_FULL", ip: clientIp });
     }
+    authenticated(summary: { buzzersConnected: number; adminConnected: boolean; buzzersMax: number }): void {
+        this.logger.info({
+            event: "WEBSOCKET_AUTHENTICATED",
+            buzzers_connected: summary.buzzersConnected,
+            buzzers_max: summary.buzzersMax,
+            admin_connected: summary.adminConnected ? 1 : 0
+        });
+    }
 
     private reportAuthFailure(reason: string, clientIp: string): void {
         this.logger.warn({ event: "WEBSOCKET_AUTH_FAILED", reason, ip: clientIp });
