@@ -52,4 +52,17 @@ describe("Pino websocket event reporter", () => {
             admin_connected: expected
         });
     });
+
+    it.each([
+        [true, 1],
+        [false, 0]
+    ])("reports a disconnection with admin_connected %s as %s", (adminConnected, expected) => {
+        reporter.disconnected({ buzzersConnected: 3, adminConnected, buzzersMax: 10 });
+        expect(mockPino.info).toHaveBeenCalledWith({
+            event: "WEBSOCKET_DISCONNECTED",
+            buzzers_connected: 3,
+            buzzers_max: 10,
+            admin_connected: expected
+        });
+    });
 });

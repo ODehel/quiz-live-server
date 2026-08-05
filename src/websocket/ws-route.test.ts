@@ -41,7 +41,7 @@ describe("WebSocket", () => {
     let mockThemeService: ThemeService;
     let mockUuidValidator: UuidValidator;
     let mockTokenValidator: TokenValidator;
-    let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout' | 'serverFull' | 'authenticated'>;
+    let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout' | 'serverFull' | 'authenticated' | 'disconnected'>;
     let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
     let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
     let mockTokenRouteConfiguration: TokenRouteConfiguration;
@@ -99,7 +99,8 @@ describe("WebSocket", () => {
             invalidToken: vi.fn(),
             authenticationTimeout: vi.fn(),
             serverFull: vi.fn(),
-            authenticated: vi.fn()
+            authenticated: vi.fn(),
+            disconnected: vi.fn()
         }
         mockThemeService = {
             createTheme: vi.fn(),
@@ -695,6 +696,59 @@ describe("WebSocket", () => {
         });
         expect(mockWsEventReporter.authenticated).toHaveBeenCalledWith({ buzzersConnected: 1, adminConnected: false, buzzersMax: 5 });
         client.close();
+    });
+    it("reports disconnection", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("resolved-sub");
+        mockParticipantResolver.resolve = vi.fn().mockReturnValue({ username: "quiz_buzzer_01", role: UserRole.PLAYER });
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('error', (err) => reject(err));
+            client.on('message', (data) => {
+                client.close();
+                setTimeout(resolve, 100);
+            });
+        });
+        expect(mockWsEventReporter.disconnected).toHaveBeenCalled();
+    });
+    it("does not report a disconnection when the client was never authenticated", async () => {
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.close();
+                setTimeout(resolve, 100);
+            });
+            client.on('error', (err) => reject(err));
+        });
+        expect(mockWsEventReporter.disconnected).not.toHaveBeenCalled();
+    });
+    it("reports the remaining clients when one disconnects", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01", role: UserRole.PLAYER });
+        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        let clientB: WebSocket;
+        let authenticated = false;
+        const received = await new Promise<void>((resolve, reject) => {
+            clientA.on('open', () => clientA.send(JSON.stringify({ type: "auth", token: "token-A" })));
+            clientA.on('message', () => {
+                if (!authenticated) {
+                    authenticated = true
+                    clientB = new WebSocket(`ws://localhost:${port}/ws`);
+                    clientB.on('open', () => clientB.send(JSON.stringify({ type: "auth", token: "token-B" })));
+                    clientB.on('message', () => {
+                        clientA.close();
+                        setTimeout(() => resolve(), 100);
+                    });
+                    clientB.on('error', (err) => reject(err));
+                }
+            });
+            clientA.on('error', (err) => reject(err));
+        });
+        expect(mockWsEventReporter.disconnected).toHaveBeenCalledWith({ buzzersConnected: 1, adminConnected: false, buzzersMax: 5 });
     });
     afterEach(async () => {
         await server.stop();

@@ -17,6 +17,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
     const registry = new Map<string, { ws: WebSocket, role: UserRole }>();
     app.get('/ws', { websocket: true }, async (socket, request) => {
         let authenticated = false;
+        let subject: string | undefined;
         config.wsEventReporter.connected(request.ip);
         let schedulerCallback = () => {
             config.wsEventReporter.authenticationTimeout(request.ip);
@@ -58,7 +59,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                 socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
                 return;
             }
-            const subject = config.subjectExtractor.extract(message.token);
+            subject = config.subjectExtractor.extract(message.token);
             const participant = await config.participantResolver.resolve(subject);
             if (participant === null) {
                 config.wsEventReporter.invalidToken(request.ip);
@@ -95,6 +96,14 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
             const buzzersConnected = [...registry.values()].filter(e => e.role === UserRole.PLAYER).length;
             const adminConnected = [...registry.values()].some(e => e.role === UserRole.ADMIN);
             config.wsEventReporter.authenticated({ buzzersConnected, adminConnected, buzzersMax: config.maxConnections });
+        });
+        socket.on('close', () => {
+            if (subject !== undefined) {
+                registry.delete(subject);
+                const buzzersConnected = [...registry.values()].filter(e => e.role === UserRole.PLAYER).length;
+                const adminConnected = [...registry.values()].some(e => e.role === UserRole.ADMIN);
+                config.wsEventReporter.disconnected({ buzzersConnected, adminConnected, buzzersMax: config.maxConnections });
+            }
         });
     });
 }

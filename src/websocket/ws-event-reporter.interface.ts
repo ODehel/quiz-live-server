@@ -5,4 +5,5 @@ export interface WsEventReporter {
     authenticationTimeout(clientIp: string): void;
     serverFull(clientIp: string): void;
     authenticated(summary: { buzzersConnected: number; adminConnected: boolean; buzzersMax: number }): void;
+    disconnected(summary: { buzzersConnected: number; adminConnected: boolean; buzzersMax: number }): void;
 }
