@@ -95,6 +95,8 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
             }));
             const buzzersConnected = [...registry.values()].filter(e => e.role === UserRole.PLAYER).length;
             const adminConnected = [...registry.values()].some(e => e.role === UserRole.ADMIN);
+            const admin = [...registry.values()].find(e => e.role === UserRole.ADMIN);
+            admin?.ws.send(JSON.stringify({ type: "buzzer_connected", username: participant.username }));
             config.wsEventReporter.authenticated({ buzzersConnected, adminConnected, buzzersMax: config.maxConnections });
         });
         socket.on('close', () => {

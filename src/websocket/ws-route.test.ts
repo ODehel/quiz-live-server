@@ -741,7 +741,7 @@ describe("WebSocket", () => {
                     clientB.on('open', () => clientB.send(JSON.stringify({ type: "auth", token: "token-B" })));
                     clientB.on('message', () => {
                         clientA.close();
-                        setTimeout(() => resolve(), 100);
+                        setTimeout(resolve, 100);
                     });
                     clientB.on('error', (err) => reject(err));
                 }
@@ -749,6 +749,62 @@ describe("WebSocket", () => {
             clientA.on('error', (err) => reject(err));
         });
         expect(mockWsEventReporter.disconnected).toHaveBeenCalledWith({ buzzersConnected: 1, adminConnected: false, buzzersMax: 5 });
+    });
+    it("reports a player connection to the admin", async () => {
+        let receivedType: string | undefined;
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
+        mockParticipantResolver.resolve = vi.fn().mockImplementation(
+            sub => {
+                if (sub === "sub-A") {
+                    return { username: "admin", role: UserRole.ADMIN };
+                } else {
+                    return { username: "quiz_buzzer_01", role: UserRole.PLAYER };
+                }
+            });
+        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        let clientB: WebSocket;
+        let authenticated = false;
+        await new Promise<void>((resolve, reject) => {
+            clientA.on('open', () => clientA.send(JSON.stringify({ type: "auth", token: "token-A" })));
+            clientA.on('message', (data) => {
+                if (!authenticated) {
+                    authenticated = true
+                    clientB = new WebSocket(`ws://localhost:${port}/ws`);
+                    clientB.on('open', () => clientB.send(JSON.stringify({ type: "auth", token: "token-B" })));
+                    clientB.on('error', (err) => reject(err));
+                } else {
+                    receivedType = JSON.parse(data.toString()).type;
+                    resolve();
+                }
+            });
+            clientA.on('error', (err) => reject(err));
+        });
+        expect(receivedType).toBe("buzzer_connected");
+    });
+    it("does not report a player connection when no admin connected", async () => {
+        let receivedType: string | undefined;
+        let authenticated = false;
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("resolved-sub");
+        mockParticipantResolver.resolve = vi.fn().mockReturnValue({ username: "quiz_buzzer_01", role: UserRole.PLAYER });
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('error', (err) => reject(err));
+            client.on('message', (data) => {
+                if (!authenticated) {
+                    authenticated = true;
+                    setTimeout(resolve, 100);
+                } else {
+                    receivedType = JSON.parse(data.toString()).type;
+                }
+            });
+        });
+        expect(receivedType).toBeUndefined()
+        client.close();
     });
     afterEach(async () => {
         await server.stop();
