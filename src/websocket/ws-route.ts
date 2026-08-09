@@ -27,6 +27,12 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
         const handle = config.scheduler.schedule(schedulerCallback, AUTH_TIMEOUT_WS);
         socket.on('message', async (data) => {
             if (authenticated) {
+                try {
+                    const syncMessage: { type?: string } = JSON.parse(data.toString());
+                    if (syncMessage.type === "request_game_state") {
+                        socket.send(JSON.stringify({ type: "game_state_sync" }));
+                    }
+                } catch { }
                 return;
             }
             authenticated = true;

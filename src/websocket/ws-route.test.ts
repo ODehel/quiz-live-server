@@ -862,6 +862,33 @@ describe("WebSocket", () => {
         });
         expect(mockWsEventReporter.disconnected).toHaveBeenCalled();
     });
+    it("answers to the admin synchronisation request", async () => {
+        let authenticated = false;
+        let receivedType: string | undefined;
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("resolved-sub");
+        mockParticipantResolver.resolve = vi.fn().mockReturnValue({ username: "admin", role: UserRole.ADMIN });
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('error', (err) => reject(err));
+            client.on('message', (data) => {
+                if (!authenticated) {
+                    authenticated = true;
+                    client.send(JSON.stringify({ "type": "request_game_state" }));
+                } else {
+                    const type = JSON.parse(data.toString()).type;
+                    if (type === "buzzer_connected") return;
+                    receivedType = type;
+                    resolve();
+                }
+            });
+        });
+        expect(receivedType).toBe("game_state_sync");
+        client.close();
+    });
     afterEach(async () => {
         await server.stop();
     });
