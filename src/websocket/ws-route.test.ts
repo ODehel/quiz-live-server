@@ -889,6 +889,48 @@ describe("WebSocket", () => {
         expect(receivedType).toBe("game_state_sync");
         client.close();
     });
+    it("includes the connected buzzers in the game state sync", async () => {
+        let connectedBuzzers: Array<{ username: string }> = [];
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
+        mockParticipantResolver.resolve = vi.fn().mockImplementation(
+            sub => {
+                if (sub === "sub-A") {
+                    return { username: "admin", role: UserRole.ADMIN };
+                } else {
+                    return { username: "quiz_buzzer_01", role: UserRole.PLAYER };
+                }
+            });
+        const playerSocket = new WebSocket(`ws://localhost:${port}/ws`);
+        let adminSocket: WebSocket;
+        let authenticated = false;
+        await new Promise<void>((resolve, reject) => {
+            playerSocket.on('open', () => playerSocket.send(JSON.stringify({ type: "auth", token: "token-B" })));
+            playerSocket.on('message', (data) => {
+                if (!authenticated) {
+                    authenticated = true
+                    adminSocket = new WebSocket(`ws://localhost:${port}/ws`);
+                    adminSocket.on('message', (raw) => {
+                        const msg = JSON.parse(raw.toString());
+                        if (msg.type === 'auth_success') {
+                            adminSocket.send(JSON.stringify({ type: 'request_game_state' }));
+                            return;
+                        }
+                        if (msg.type === 'game_state_sync') {
+                            connectedBuzzers = msg.connected_buzzers;
+                            adminSocket.close();
+                            resolve();
+                        }
+                    });
+                    adminSocket.on('open', () => adminSocket.send(JSON.stringify({ type: "auth", token: "token-A" })));
+                    adminSocket.on('error', (err) => reject(err));
+                }
+            });
+            playerSocket.on('error', (err) => reject(err));
+        });
+        expect(connectedBuzzers).toContainEqual({ username: "quiz_buzzer_01" });
+        playerSocket.close();
+    });
     afterEach(async () => {
         await server.stop();
     });

@@ -14,7 +14,7 @@ const WS_CLOSE_SERVER_FULL = { code: 4005, reason: "Server is full." } as const;
 const AUTH_TIMEOUT_WS = 60_000;
 
 export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
-    const registry = new Map<string, { ws: WebSocket, role: UserRole }>();
+    const registry = new Map<string, { ws: WebSocket, role: UserRole, username: string }>();
     app.get('/ws', { websocket: true }, async (socket, request) => {
         let authenticated = false;
         let subject: string | undefined;
@@ -30,7 +30,8 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                 try {
                     const syncMessage: { type?: string } = JSON.parse(data.toString());
                     if (syncMessage.type === "request_game_state") {
-                        socket.send(JSON.stringify({ type: "game_state_sync" }));
+                        const connectedBuzzers = [...registry.values()].filter(e => e.role === UserRole.PLAYER).map(e => ({ username: e.username }));
+                        socket.send(JSON.stringify({ type: "game_state_sync", connected_buzzers: connectedBuzzers }));
                     }
                 } catch { }
                 return;
@@ -91,7 +92,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                 existing.ws.close(WS_CLOSE_SESSION_REPLACED.code, WS_CLOSE_SESSION_REPLACED.reason);
             }
             username = participant.username;
-            registry.set(subject, { ws: socket, role: participant.role });
+            registry.set(subject, { ws: socket, role: participant.role, username: participant.username });
             const expiration = config.expirationExtractor.extract(message.token);
             const now = config.clock.now().getTime() / 1000;
             const expiresIn = Math.floor(expiration - now);
