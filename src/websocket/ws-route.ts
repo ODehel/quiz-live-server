@@ -18,6 +18,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
     app.get('/ws', { websocket: true }, async (socket, request) => {
         let authenticated = false;
         let subject: string | undefined;
+        let username: string | undefined;
         config.wsEventReporter.connected(request.ip);
         let schedulerCallback = () => {
             config.wsEventReporter.authenticationTimeout(request.ip);
@@ -83,6 +84,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
             if (existing !== undefined) {
                 existing.ws.close(WS_CLOSE_SESSION_REPLACED.code, WS_CLOSE_SESSION_REPLACED.reason);
             }
+            username = participant.username;
             registry.set(subject, { ws: socket, role: participant.role });
             const expiration = config.expirationExtractor.extract(message.token);
             const now = config.clock.now().getTime() / 1000;
@@ -101,6 +103,11 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
         });
         socket.on('close', () => {
             if (subject !== undefined) {
+                const leaving = registry.get(subject);
+                if (leaving?.role === UserRole.PLAYER) {
+                    const admin = [...registry.values()].find(e => e.role === UserRole.ADMIN);
+                    admin?.ws.send(JSON.stringify({ type: "buzzer_disconnected", username }));
+                }
                 registry.delete(subject);
                 const buzzersConnected = [...registry.values()].filter(e => e.role === UserRole.PLAYER).length;
                 const adminConnected = [...registry.values()].some(e => e.role === UserRole.ADMIN);
