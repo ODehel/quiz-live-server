@@ -960,6 +960,24 @@ describe("WebSocket", () => {
         });
         expect(mockWsEventReporter.internalError).toHaveBeenCalledWith("127.0.0.1");
     });
+    it("reports an internal error when resolving the participant rejects", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("resolved-sub");
+        mockParticipantResolver.resolve = vi.fn().mockRejectedValue(new Error());
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('close', (code, reason) => {
+                resolve({ code, reason: reason.toString() });
+            });
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+        expect(received.code).toBe(1011);
+        expect(mockWsEventReporter.internalError).toHaveBeenCalledWith("127.0.0.1");
+    });
     afterEach(async () => {
         await server.stop();
     });
