@@ -102,9 +102,9 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                 role: toRoleLabel(participant.role),
                 expires_in: expiresIn
             }));
-            const buzzersConnected = [...registry.values()].filter(e => e.role === UserRole.PLAYER).length;
-            const adminConnected = [...registry.values()].some(e => e.role === UserRole.ADMIN);
             const admin = [...registry.values()].find(e => e.role === UserRole.ADMIN);
+            const buzzersConnected = [...registry.values()].filter(e => e.role === UserRole.PLAYER).length;
+            const adminConnected = admin !== undefined;
             admin?.ws.send(JSON.stringify({ type: "buzzer_connected", username: participant.username }));
             config.wsEventReporter.authenticated({ buzzersConnected, adminConnected, buzzersMax: config.maxConnections });
         });
