@@ -2,7 +2,7 @@ import { WsEventReporter } from "./ws-event-reporter.interface";
 import pino from 'pino';
 
 export class PinoWsEventReporter implements WsEventReporter {
-    constructor(private logger: Pick<pino.Logger, 'info' | 'warn'>) {
+    constructor(private logger: Pick<pino.Logger, 'info' | 'warn' | 'error'>) {
     }
 
     connected(clientIp: string): void {
@@ -23,6 +23,10 @@ export class PinoWsEventReporter implements WsEventReporter {
 
     serverFull(clientIp: string): void {
         this.logger.info({ event: "WEBSOCKET_SERVER_FULL", ip: clientIp });
+    }
+
+    internalError(clientIp: string): void {
+        this.logger.error({ event: "WEBSOCKET_INTERNAL_ERROR", ip: clientIp });
     }
     
     authenticated(summary: { buzzersConnected: number; adminConnected: boolean; buzzersMax: number }): void {

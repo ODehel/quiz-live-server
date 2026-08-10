@@ -4,6 +4,7 @@ export interface WsEventReporter {
     invalidToken(clientIp: string): void;
     authenticationTimeout(clientIp: string): void;
     serverFull(clientIp: string): void;
+    internalError(clientIp: string): void;
     authenticated(summary: { buzzersConnected: number; adminConnected: boolean; buzzersMax: number }): void;
     disconnected(summary: { buzzersConnected: number; adminConnected: boolean; buzzersMax: number }): void;
 }

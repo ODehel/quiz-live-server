@@ -41,7 +41,7 @@ describe("WebSocket", () => {
     let mockThemeService: ThemeService;
     let mockUuidValidator: UuidValidator;
     let mockTokenValidator: TokenValidator;
-    let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout' | 'serverFull' | 'authenticated' | 'disconnected'>;
+    let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout' | 'serverFull' | 'authenticated' | 'disconnected' | 'internalError'>;
     let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
     let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
     let mockTokenRouteConfiguration: TokenRouteConfiguration;
@@ -99,6 +99,7 @@ describe("WebSocket", () => {
             invalidToken: vi.fn(),
             authenticationTimeout: vi.fn(),
             serverFull: vi.fn(),
+            internalError: vi.fn(),
             authenticated: vi.fn(),
             disconnected: vi.fn()
         }
@@ -930,6 +931,34 @@ describe("WebSocket", () => {
         });
         expect(connectedBuzzers).toContainEqual({ username: "quiz_buzzer_01" });
         playerSocket.close();
+    });
+    it("closes the connection when an error is thrown", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockImplementation(() => { throw new Error(); });
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('close', (code, reason) => {
+                resolve({ code, reason: reason.toString() });
+            });
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+        expect(received.code).toBe(1011);
+    });
+    it("reports an internal error when the processing throws", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockImplementation(() => { throw new Error(); });
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            client.on('open', () => {
+                client.send(JSON.stringify({ type: "auth", token: "X" }));
+            });
+            client.on('close', () => resolve());
+            client.on('message', () => reject(new Error("expected close, but received a message")));
+            client.on('error', (err) => reject(err));
+        });
+        expect(mockWsEventReporter.internalError).toHaveBeenCalledWith("127.0.0.1");
     });
     afterEach(async () => {
         await server.stop();

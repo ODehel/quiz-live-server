@@ -89,6 +89,7 @@ const mockWsEventReporter: WsEventReporter = {
 	invalidToken: vi.fn(),
 	authenticationTimeout: vi.fn(),
 	serverFull: vi.fn(),
+	internalError: vi.fn(),
 	authenticated: vi.fn(),
 	disconnected: vi.fn()
 };

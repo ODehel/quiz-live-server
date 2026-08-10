@@ -3,14 +3,15 @@ import pino from 'pino';
 import { PinoWsEventReporter } from "./pino-ws-event-reporter";
 
 describe("Pino websocket event reporter", () => {
-    let mockPino: Pick<pino.Logger, 'info' | 'warn'>;
+    let mockPino: Pick<pino.Logger, 'info' | 'warn' | 'error'>;
     let reporter: PinoWsEventReporter;
     let clientIp = "127.0.0.1" as const;
 
     beforeEach(() => {
         mockPino = {
             info: vi.fn(),
-            warn: vi.fn()
+            warn: vi.fn(),
+            error: vi.fn()
         };
         reporter = new PinoWsEventReporter(mockPino);
     });
@@ -38,6 +39,11 @@ describe("Pino websocket event reporter", () => {
     it("reports that the server is full with its IP", () => {
         reporter.serverFull(clientIp);
         expect(mockPino.info).toHaveBeenCalledWith({ event: "WEBSOCKET_SERVER_FULL", ip: clientIp });
+    });
+
+    it("reports a connection close because of internal error", () => {
+        reporter.internalError(clientIp);
+        expect(mockPino.error).toHaveBeenCalledWith({ event: "WEBSOCKET_INTERNAL_ERROR", ip: clientIp });
     });
 
     it.each([
