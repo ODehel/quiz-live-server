@@ -7,4 +7,5 @@ export interface WsEventReporter {
     internalError(clientIp: string): void;
     authenticated(summary: { buzzersConnected: number; adminConnected: boolean; buzzersMax: number }): void;
     disconnected(summary: { buzzersConnected: number; adminConnected: boolean; buzzersMax: number }): void;
+    rateLimited(clientIp: string): void;
 }

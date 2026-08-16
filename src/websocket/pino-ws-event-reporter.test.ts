@@ -71,4 +71,9 @@ describe("Pino websocket event reporter", () => {
             admin_connected: expected
         });
     });
+
+    it("reports a connection close because of a rate limit", () => {
+        reporter.rateLimited(clientIp);
+        expect(mockPino.warn).toHaveBeenCalledWith({ event: "WEBSOCKET_RATE_LIMITED", ip: clientIp });
+    });
 });

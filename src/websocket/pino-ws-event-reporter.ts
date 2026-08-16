@@ -46,6 +46,10 @@ export class PinoWsEventReporter implements WsEventReporter {
             admin_connected: summary.adminConnected ? 1 : 0
         });
     }
+    
+    rateLimited(clientIp: string): void {
+        this.logger.warn({ event: "WEBSOCKET_RATE_LIMITED", ip: clientIp });
+    }
 
     private reportAuthFailure(reason: string, clientIp: string): void {
         this.logger.warn({ event: "WEBSOCKET_AUTH_FAILED", reason, ip: clientIp });

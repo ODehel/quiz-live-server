@@ -20,6 +20,7 @@ import { SubjectExtractor } from './authentication/subject-extractor.interface'
 import { ParticipantResolver } from './authentication/participant-resolver.interface'
 import { ExpirationExtractor } from './authentication/expiration-extractor'
 import { WsEventReporter } from './websocket/ws-event-reporter.interface'
+import { WsConnectionPolicy } from './websocket/ws-connection-policy'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -91,7 +92,8 @@ const mockWsEventReporter: WsEventReporter = {
 	serverFull: vi.fn(),
 	internalError: vi.fn(),
 	authenticated: vi.fn(),
-	disconnected: vi.fn()
+	disconnected: vi.fn(),
+	rateLimited: vi.fn()
 };
 const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
 const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
@@ -119,6 +121,7 @@ const mockWsRouteConfiguration: WsRouteConfiguration = {
 	expirationExtractor: mockExpirationExtractor,
 	clock: mockClock,
 	wsEventReporter: mockWsEventReporter,
+	wsConnectionPolicy: new WsConnectionPolicy(),
 	maxConnections: 10
 };
 

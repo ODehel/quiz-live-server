@@ -23,6 +23,7 @@ import { TokenGenerator } from "../authentication/token-generator.interface";
 import { AuthenticationService } from "../authentication/authentication-service.interface";
 import { ExpirationExtractor } from "../authentication/expiration-extractor";
 import { WsEventReporter } from "./ws-event-reporter.interface";
+import { WsConnectionPolicy } from "./ws-connection-policy";
 
 describe("WebSocket", () => {
     let mockClock: Clock;
@@ -41,7 +42,7 @@ describe("WebSocket", () => {
     let mockThemeService: ThemeService;
     let mockUuidValidator: UuidValidator;
     let mockTokenValidator: TokenValidator;
-    let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout' | 'serverFull' | 'authenticated' | 'disconnected' | 'internalError'>;
+    let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout' | 'serverFull' | 'authenticated' | 'disconnected' | 'internalError' | 'rateLimited'>;
     let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
     let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
     let mockTokenRouteConfiguration: TokenRouteConfiguration;
@@ -101,7 +102,8 @@ describe("WebSocket", () => {
             serverFull: vi.fn(),
             internalError: vi.fn(),
             authenticated: vi.fn(),
-            disconnected: vi.fn()
+            disconnected: vi.fn(),
+            rateLimited: vi.fn()
         }
         mockThemeService = {
             createTheme: vi.fn(),
@@ -138,6 +140,7 @@ describe("WebSocket", () => {
             expirationExtractor: mockExpirationExtractor,
             clock: mockClock,
             wsEventReporter: mockWsEventReporter,
+            wsConnectionPolicy: new WsConnectionPolicy(),
             maxConnections: maxConnections
         };
         server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
@@ -977,6 +980,46 @@ describe("WebSocket", () => {
         });
         expect(received.code).toBe(1011);
         expect(mockWsEventReporter.internalError).toHaveBeenCalledWith("127.0.0.1");
+    });
+    it("rejects the sixteenth connection from the same ip within a minute", async () => {
+        const openClients = Array.from({ length: 15 }, () => new WebSocket(`ws://localhost:${port}/ws`));
+        await Promise.all(openClients.map(client =>
+            new Promise<void>((resolve, reject) => {
+                client.on('open', () => resolve());
+                client.on('error', (err) => reject(err));
+            })
+        ));
+
+        const sixteenthClient = new WebSocket(`ws://localhost:${port}/ws`);
+        const closeCode = await new Promise<number>((resolve, reject) => {
+            sixteenthClient.on('close', (code) => resolve(code));
+            sixteenthClient.on('error', (err) => reject(err));
+        });
+
+        expect(closeCode).toBe(4006);
+
+        openClients.forEach(c => c.close());
+        sixteenthClient.close();
+    });
+    it("reports a connection rate limited when the sixteenth connection from the same ip within a minute is tried", async () => {
+        const openClients = Array.from({ length: 15 }, () => new WebSocket(`ws://localhost:${port}/ws`));
+        await Promise.all(openClients.map(client =>
+            new Promise<void>((resolve, reject) => {
+                client.on('open', () => resolve());
+                client.on('error', (err) => reject(err));
+            })
+        ));
+
+        const sixteenthClient = new WebSocket(`ws://localhost:${port}/ws`);
+        await new Promise<void>((resolve, reject) => {
+            sixteenthClient.on('close', resolve);
+            sixteenthClient.on('error', (err) => reject(err));
+        });
+
+        expect(mockWsEventReporter.rateLimited).toHaveBeenCalledWith("127.0.0.1");
+
+        openClients.forEach(c => c.close());
+        sixteenthClient.close();
     });
     afterEach(async () => {
         await server.stop();

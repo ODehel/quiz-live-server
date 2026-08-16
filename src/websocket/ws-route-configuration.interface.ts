@@ -4,6 +4,7 @@ import { SubjectExtractor } from "../authentication/subject-extractor.interface"
 import { TokenValidator } from "../authentication/token-validator.interface";
 import { Clock } from "../common/clock.interface";
 import { Scheduler } from "../common/scheduler.interface";
+import { WsConnectionPolicy } from "./ws-connection-policy";
 import { WsEventReporter } from "./ws-event-reporter.interface";
 
 export interface WsRouteConfiguration {
@@ -14,5 +15,6 @@ export interface WsRouteConfiguration {
     expirationExtractor: ExpirationExtractor;
     clock: Clock;
     wsEventReporter: WsEventReporter;
+    wsConnectionPolicy: WsConnectionPolicy;
     maxConnections: number;
 }

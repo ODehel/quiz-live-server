@@ -11,12 +11,18 @@ const WS_CLOSE_TOKEN_EXPIRED = { code: 4002, reason: "Token expired." } as const
 const WS_CLOSE_AUTH_TIMEOUT = { code: 4003, reason: "Authentication timeout." } as const;
 const WS_CLOSE_SESSION_REPLACED = { code: 4004, reason: "Session replaced." } as const;
 const WS_CLOSE_SERVER_FULL = { code: 4005, reason: "Server is full." } as const;
+const WS_CLOSE_RATE_LIMITED = { code: 4006, reason: "Rate limit exceeded." } as const;
 
 const AUTH_TIMEOUT_WS = 60_000;
 
 export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
     const registry = new Map<string, { ws: WebSocket, role: UserRole, username: string }>();
     app.get('/ws', { websocket: true }, async (socket, request) => {
+        if (!config.wsConnectionPolicy.admit(request.ip, config.clock.now())) {
+            config.wsEventReporter.rateLimited(request.ip);
+            socket.close(WS_CLOSE_RATE_LIMITED.code, WS_CLOSE_RATE_LIMITED.reason);
+            return;
+        }
         let authenticated = false;
         let subject: string | undefined;
         let username: string | undefined;
