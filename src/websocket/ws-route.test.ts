@@ -1021,6 +1021,17 @@ describe("WebSocket", () => {
         openClients.forEach(c => c.close());
         sixteenthClient.close();
     });
+    it("rejects an upgrade request on a different path of ws", async () => {
+        const client = new WebSocket(`ws://localhost:${port}/wrong-path-for-test`);
+        const received = await new Promise<{ code: number }>((resolve, reject) => {
+            client.on('open', () => reject(new Error("upgrade should have been refused")));
+            client.on('unexpected-response', (req, res) => {
+                resolve({ code: res.statusCode! });
+            });
+            client.on('error', (err) => reject(err));
+        });
+        expect(received.code).toBe(404);
+    });
     afterEach(async () => {
         await server.stop();
     });
