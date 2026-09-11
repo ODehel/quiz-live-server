@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Clock } from "../common/clock.interface";
 import { UuidGenerator } from "../common/uuid-generator.interface";
-import { DefaultQuestionService } from "./default-question-service";
+import { DefaultQuestionService, Question } from "./default-question-service";
 import { QuestionRepository } from "./question-repository.interface";
-import { McqQuestion } from "./question.interface";
-import { CreateMcqInput } from "./create-question-input.interface";
+import { CreateMcqInput } from "./create-mcq-input.interface";
+import { CreateSpeedInput } from "./create-speed-input.interface";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
@@ -21,7 +21,7 @@ beforeEach(() => {
 });
 
 describe("US-005/CA-001 - When the service is called to create a valid MCQ question", () => {
-    let question: McqQuestion;
+    let question: Question;
     const input: CreateMcqInput = {
         type: "MCQ",
         theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
@@ -36,6 +36,8 @@ describe("US-005/CA-001 - When the service is called to create a valid MCQ quest
         question = defaultQuestionService.createQuestion(input);
     });
     it("should create a MCQ question with the generated id, timestamps and all provided fields", () => {
+        if (question.type !== "MCQ") throw new Error("expected MCQ");
+
         expect(question.id).toBe("019d6cdd-30db-7437-ac57-5826c0695222");
         expect(question.type).toBe("MCQ");
         expect(question.theme_id).toBe("018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a");
@@ -52,5 +54,21 @@ describe("US-005/CA-001 - When the service is called to create a valid MCQ quest
     });
     it("should insert the created question into the repository", () => {
         expect(questionRepository.insert).toHaveBeenCalledWith(question);
+    });
+});
+
+describe("US-005/CA-002 - When the service is called to create a valid SPEED question", () => {
+    it("builds a SPEED question without a choices field", () => {
+        const input: CreateSpeedInput = {
+            type: "SPEED",
+            theme_id: "some-theme-id",
+            title: "Quel est le plus grand océan du monde ?",
+            correct_answer: "Pacifique",
+            level: 2,
+            time_limit: 15,
+            points: 20,
+        };
+        const question = defaultQuestionService.createQuestion(input);
+        expect("choices" in question).toBe(false);
     });
 });

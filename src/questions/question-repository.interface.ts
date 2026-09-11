@@ -1,5 +1,5 @@
-import { McqQuestion } from "./question.interface";
+import { Question } from "./default-question-service";
 
 export interface QuestionRepository {
-    insert(question: McqQuestion): void;
+    insert(question: Question): void;
 }
