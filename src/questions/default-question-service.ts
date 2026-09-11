@@ -3,12 +3,9 @@ import { UuidGenerator } from "../common/uuid-generator.interface";
 import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
 import { QuestionRepository } from "./question-repository.interface";
-import { McqQuestion } from "./mcq-question.interface";
-import { SpeedQuestion } from "./speed-question.interface";
+import { Question } from "./question.interface";
 
 type CreateQuestionInput = CreateMcqInput | CreateSpeedInput;
-
-export type Question = McqQuestion | SpeedQuestion;
 
 export class DefaultQuestionService {
     constructor(private clock: Clock, private uuidGenerator: UuidGenerator, private questionRepository: QuestionRepository) {

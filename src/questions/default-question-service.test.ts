@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Clock } from "../common/clock.interface";
 import { UuidGenerator } from "../common/uuid-generator.interface";
-import { DefaultQuestionService, Question } from "./default-question-service";
+import { DefaultQuestionService } from "./default-question-service";
 import { QuestionRepository } from "./question-repository.interface";
 import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
+import { Question } from "./question.interface";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
