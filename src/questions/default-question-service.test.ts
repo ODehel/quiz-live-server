@@ -58,17 +58,39 @@ describe("US-005/CA-001 - When the service is called to create a valid MCQ quest
 });
 
 describe("US-005/CA-002 - When the service is called to create a valid SPEED question", () => {
-    it("builds a SPEED question without a choices field", () => {
-        const input: CreateSpeedInput = {
-            type: "SPEED",
-            theme_id: "some-theme-id",
-            title: "Quel est le plus grand océan du monde ?",
-            correct_answer: "Pacifique",
-            level: 2,
-            time_limit: 15,
-            points: 20,
-        };
-        const question = defaultQuestionService.createQuestion(input);
+    let question: Question;
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 2,
+        time_limit: 15,
+        points: 20,
+    };
+    beforeEach(() => {
+        question = defaultQuestionService.createQuestion(input);
+    });
+    it("should create a SPEED question with the generated id, timestamps and all provided fields", () => {
+        if (question.type !== "SPEED") throw new Error("expected SPEED");
+
+        expect(question.id).toBe("019d6cdd-30db-7437-ac57-5826c0695222");
+        expect(question.type).toBe("SPEED");
+        expect(question.theme_id).toBe("018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a");
+        expect(question.title).toBe("Quel est le plus grand océan du monde ?");
+        expect(question.correct_answer).toBe("Pacifique");
+        expect(question.level).toBe(2);
+        expect(question.time_limit).toBe(15);
+        expect(question.points).toBe(20);
+        expect(question.image_path).toBeNull();
+        expect(question.audio_path).toBeNull();
+        expect(question.created_at).toBe("2026-04-08T13:32:00.000Z");
+        expect(question.last_updated_at).toBeNull();
+    });
+    it("should not carry a choices field", () => {
         expect("choices" in question).toBe(false);
+    });
+    it("should insert the created question into the repository", () => {
+        expect(questionRepository.insert).toHaveBeenCalledWith(question);
     });
 });
