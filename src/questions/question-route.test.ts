@@ -137,3 +137,24 @@ describe('US-005/CA-6 - Reject a question with an invalid type', () => {
         expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
     });
 });
+
+describe('US-005/CA-8 - Reject a question with a malformed theme_id', () => {
+    it('should reject a question whose theme_id is not a valid UUIDv7', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'SPEED',
+                theme_id: 'not-a-valid-uuid',
+                title: 'Qui a peint la Joconde ?',
+                correct_answer: 'Léonard de Vinci',
+                level: 3,
+                time_limit: 30,
+                points: 10
+            }
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
