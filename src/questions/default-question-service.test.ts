@@ -7,6 +7,7 @@ import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
 import { Question } from "./question.interface";
 import { ValidationError } from "./validation-error";
+import { ConflictError } from "./conflict-error";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
@@ -17,7 +18,8 @@ beforeEach(() => {
     clock = { now: vi.fn().mockReturnValue(new Date("2026-04-08T13:32:00Z")) };
     uuidGenerator = { generate: vi.fn().mockReturnValue("019d6cdd-30db-7437-ac57-5826c0695222") };
     questionRepository = {
-        insert: vi.fn()
+        insert: vi.fn(),
+        getByTitle: vi.fn()
     };
     defaultQuestionService = new DefaultQuestionService(clock, uuidGenerator, questionRepository);
 });
@@ -177,5 +179,24 @@ describe("US-005/CA-004 - When the service creates a question whose title does n
     };
     it("should reject a title that does not start with an uppercase letter with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-005 - When the service creates a question whose title already exists", () => {
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    beforeEach(() => {
+        const existing = { id: "018e4f5a-8c3b-7d2e-9f1a-000000000000" } as Question;
+        vi.mocked(questionRepository.getByTitle).mockReturnValue(existing);
+    });
+    it("should reject a title that already exists with a ConflictError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ConflictError);
     });
 });

@@ -1,6 +1,7 @@
 import { Clock } from "../common/clock.interface";
 import { UuidGenerator } from "../common/uuid-generator.interface";
 import { BaseQuestion } from "./base-question.interface";
+import { ConflictError } from "./conflict-error";
 import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
 import { QuestionRepository } from "./question-repository.interface";
@@ -14,10 +15,14 @@ export class DefaultQuestionService {
     }
 
     createQuestion(input: CreateQuestionInput): Question {
+        const title = this.validateTitle(this.normalizeTitle(input.title));
+        if (this.questionRepository.getByTitle(title) !== undefined) {
+            throw new ConflictError();
+        }
         const base: BaseQuestion = {
             id: this.uuidGenerator.generate(),
             theme_id: input.theme_id,
-            title: this.validateTitle(this.normalizeTitle(input.title)),
+            title: title,
             correct_answer: input.correct_answer,
             level: input.level,
             time_limit: input.time_limit,
