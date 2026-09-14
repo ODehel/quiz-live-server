@@ -8,11 +8,14 @@ import { CreateSpeedInput } from "./create-speed-input.interface";
 import { Question } from "./question.interface";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
+import { InvalidThemeError } from "./invalid-theme-error";
+import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
 let questionRepository: QuestionRepository;
 let defaultQuestionService: DefaultQuestionService;
+let themeExistenceChecker: ThemeExistenceChecker;
 
 beforeEach(() => {
     clock = { now: vi.fn().mockReturnValue(new Date("2026-04-08T13:32:00Z")) };
@@ -21,7 +24,10 @@ beforeEach(() => {
         insert: vi.fn(),
         getByTitle: vi.fn()
     };
-    defaultQuestionService = new DefaultQuestionService(clock, uuidGenerator, questionRepository);
+    themeExistenceChecker = { exists: vi.fn().mockReturnValue(true) };
+    defaultQuestionService = new DefaultQuestionService(
+        clock, uuidGenerator, questionRepository, themeExistenceChecker
+    );
 });
 
 describe("US-005/CA-001 - When the service is called to create a valid MCQ question", () => {
@@ -198,5 +204,23 @@ describe("US-005/CA-005 - When the service creates a question whose title alread
     });
     it("should reject a title that already exists with a ConflictError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ConflictError);
+    });
+});
+
+describe("US-005/CA-007 - When the service creates a question whose theme_id does not reference an existing theme", () => {
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "019d92d2-e1f6-7d05-9803-3948dbc4c416", // bien formé UUIDv7, mais inexistant
+        title: "Qui a peint la Joconde ?",
+        correct_answer: "Léonard de Vinci",
+        level: 3,
+        time_limit: 30,
+        points: 10,
+    };
+    beforeEach(() => {
+        vi.mocked(themeExistenceChecker.exists).mockReturnValue(false);
+    });
+    it("should reject a theme_id that references no existing theme with an InvalidThemeError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(InvalidThemeError);
     });
 });

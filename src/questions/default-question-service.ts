@@ -4,18 +4,25 @@ import { BaseQuestion } from "./base-question.interface";
 import { ConflictError } from "./conflict-error";
 import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
+import { InvalidThemeError } from "./invalid-theme-error";
 import { QuestionRepository } from "./question-repository.interface";
 import { Question } from "./question.interface";
+import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
 import { ValidationError } from "./validation-error";
 
 type CreateQuestionInput = CreateMcqInput | CreateSpeedInput;
 
 export class DefaultQuestionService {
-    constructor(private clock: Clock, private uuidGenerator: UuidGenerator, private questionRepository: QuestionRepository) {
+    constructor(private clock: Clock, private uuidGenerator: UuidGenerator, private questionRepository: QuestionRepository, private themeExistenceChecker: ThemeExistenceChecker) {
     }
 
     createQuestion(input: CreateQuestionInput): Question {
         const title = this.validateTitle(this.normalizeTitle(input.title));
+        
+        if (!this.themeExistenceChecker.exists(input.theme_id)) {
+            throw new InvalidThemeError();
+        }
+
         if (this.questionRepository.getByTitle(title) !== undefined) {
             throw new ConflictError();
         }
