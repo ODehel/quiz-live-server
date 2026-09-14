@@ -16,7 +16,7 @@ export class DefaultQuestionService {
         const base: BaseQuestion = {
             id: this.uuidGenerator.generate(),
             theme_id: input.theme_id,
-            title: input.title,
+            title: this.normalizeTitle(input.title),
             correct_answer: input.correct_answer,
             level: input.level,
             time_limit: input.time_limit,
@@ -31,9 +31,13 @@ export class DefaultQuestionService {
             input.type === "MCQ"
                 ? { ...base, type: "MCQ", choices: input.choices }
                 : { ...base, type: "SPEED" };
-                
+
         this.questionRepository.insert(question);
 
         return question;
+    }
+
+    private normalizeTitle(title: string): string {
+        return title.trim().replace(/ +/g, " ");
     }
 }

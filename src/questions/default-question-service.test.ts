@@ -95,3 +95,41 @@ describe("US-005/CA-002 - When the service is called to create a valid SPEED que
         expect(questionRepository.insert).toHaveBeenCalledWith(question);
     });
 });
+
+describe("US-005/CA-003 - When the service creates a question with internal multiple spaces in the title", () => {
+    let question: Question;
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est   la capitale",
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    beforeEach(() => {
+        question = defaultQuestionService.createQuestion(input);
+    });
+    it("should collapse multiple internal spaces in the title", () => {
+        expect(question.title).toBe("Quelle est la capitale");
+    });
+});
+
+describe("US-005/CA-003 - When the service creates a question with leading and trailing spaces in the title", () => {
+    let question: Question;
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "  Quelle est la capitale  ",
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    beforeEach(() => {
+        question = defaultQuestionService.createQuestion(input);
+    });
+    it("should trim leading and trailing spaces from the title", () => {
+        expect(question.title).toBe("Quelle est la capitale");
+    });
+});
