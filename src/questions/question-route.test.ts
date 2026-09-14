@@ -116,3 +116,24 @@ describe('US-005/CA-2 - Create a SPEED question', () => {
         expect(mockQuestionService.createQuestion).toHaveBeenCalledWith(input);
     });
 });
+
+describe('US-005/CA-6 - Reject a question with an invalid type', () => {
+    it('should reject a question whose type is neither MCQ nor SPEED', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'OPEN',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Qui a peint la Joconde ?',
+                correct_answer: 'Léonard de Vinci',
+                level: 3,
+                time_limit: 30,
+                points: 10
+            }
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});

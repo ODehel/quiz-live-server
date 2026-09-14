@@ -8,7 +8,11 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
 
     app.post('/api/v1/questions', async (request, reply) => {
         const input = request.body as CreateMcqInput | CreateSpeedInput;
-        const newQuestion = questionService.createQuestion(input);
-        reply.status(201).send(newQuestion);
+        if (input.type !== 'MCQ' && input.type !== 'SPEED') {
+            reply.status(400).send();
+            return;
+        }
+        const created = questionService.createQuestion(input);
+        reply.status(201).send(created);
     });
 }
