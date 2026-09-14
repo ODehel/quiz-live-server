@@ -6,6 +6,7 @@ import { QuestionRepository } from "./question-repository.interface";
 import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
 import { Question } from "./question.interface";
+import { ValidationError } from "./validation-error";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
@@ -131,5 +132,50 @@ describe("US-005/CA-003 - When the service creates a question with leading and t
     });
     it("should trim leading and trailing spaces from the title", () => {
         expect(question.title).toBe("Quelle est la capitale");
+    });
+});
+
+describe("US-005/CA-004 - When the service creates a question with a title shorter than 10 characters", () => {
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Bonjours!",
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    it("should reject a title shorter than 10 characters with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-004 - When the service creates a question with a title longer than 250 characters", () => {
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "A" + "a".repeat(250),
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    it("should reject a title longer than 250 characters with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-004 - When the service creates a question whose title does not start with an uppercase letter", () => {
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "bonjour le monde",
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    it("should reject a title that does not start with an uppercase letter with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
     });
 });

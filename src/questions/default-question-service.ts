@@ -5,6 +5,7 @@ import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
 import { QuestionRepository } from "./question-repository.interface";
 import { Question } from "./question.interface";
+import { ValidationError } from "./validation-error";
 
 type CreateQuestionInput = CreateMcqInput | CreateSpeedInput;
 
@@ -16,7 +17,7 @@ export class DefaultQuestionService {
         const base: BaseQuestion = {
             id: this.uuidGenerator.generate(),
             theme_id: input.theme_id,
-            title: this.normalizeTitle(input.title),
+            title: this.validateTitle(this.normalizeTitle(input.title)),
             correct_answer: input.correct_answer,
             level: input.level,
             time_limit: input.time_limit,
@@ -39,5 +40,12 @@ export class DefaultQuestionService {
 
     private normalizeTitle(title: string): string {
         return title.trim().replace(/ +/g, " ");
+    }
+
+    private validateTitle(title: string): string {
+        if (title.length < 10 || title.length > 250 || !/^\p{Lu}/u.test(title)) {
+            throw new ValidationError();
+        }
+        return title;
     }
 }
