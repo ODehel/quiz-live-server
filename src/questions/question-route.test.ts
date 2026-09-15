@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import questionRoute from './question-route';
 import { QuestionService } from './question-service.interface';
 import { Question } from './question.interface';
+import { InvalidThemeError } from './invalid-theme-error';
 
 let app: FastifyInstance;
 let mockQuestionService: QuestionService;
@@ -156,5 +157,34 @@ describe('US-005/CA-8 - Reject a question with a malformed theme_id', () => {
 
         expect(response.statusCode).toBe(400);
         expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-7 - Reject a question referencing a non-existent theme', () => {
+    it('should translate an InvalidThemeError into a 400 INVALID_THEME response', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new InvalidThemeError();
+        });
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'SPEED',
+                theme_id: '019d92d2-e1f6-7d05-9803-3948dbc4c416',
+                title: 'Qui a peint la Joconde ?',
+                correct_answer: 'Léonard de Vinci',
+                level: 3,
+                time_limit: 30,
+                points: 10
+            }
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_THEME',
+            message: 'The provided theme_id does not reference an existing theme.'
+        });
     });
 });
