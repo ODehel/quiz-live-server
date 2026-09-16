@@ -257,6 +257,43 @@ describe("US-005/CA-009 - When the service creates a MCQ question with an empty 
     });
 });
 
+describe("US-005/CA-009 - When the service creates a MCQ question with a blank choice", () => {
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", " ", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    it("should reject a MCQ with a blank choice with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-009 - When the service creates a MCQ question with surrounding spaces in a choice", () => {
+    let question: Question;
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris ", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    beforeEach(() => {
+        question = defaultQuestionService.createQuestion(input);
+    });
+    it("should trim surrounding spaces from each choice", () => {
+        if (question.type !== "MCQ") throw new Error("expected MCQ");
+        expect(question.choices).toEqual(["Paris", "Lyon", "Marseille", "Toulouse"]);
+    });
+});
+
 describe("US-005/CA-009 - When the service creates a MCQ question with a choice longer than 40 characters", () => {
     const input: CreateMcqInput = {
         type: "MCQ",
@@ -283,6 +320,22 @@ describe("US-005/CA-009 - When the service creates a MCQ question with two choic
         level: 1, time_limit: 30, points: 10,
     };
     it("should reject a MCQ with case-insensitive duplicate choices with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-009 - When the service creates a MCQ question with two choices that are duplicates after trimming", () => {
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris ", "paris", "Lyon", "Marseille"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    it("should reject choices that collide only after trimming with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
     });
 });

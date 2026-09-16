@@ -19,8 +19,8 @@ export class DefaultQuestionService {
     createQuestion(input: CreateQuestionInput): Question {
         const title = this.validateTitle(this.normalizeTitle(input.title));
 
-        if (input.type === 'MCQ') {
-            this.validateChoices(input.choices);
+        if (input.type === "MCQ") {
+            this.validateChoices(input.choices.map(c => c.trim()));
         }
 
         if (!this.themeExistenceChecker.exists(input.theme_id)) {
@@ -47,7 +47,7 @@ export class DefaultQuestionService {
 
         const question: Question =
             input.type === "MCQ"
-                ? { ...base, type: "MCQ", choices: input.choices }
+                ? { ...base, type: "MCQ", choices: input.choices.map(c => c.trim()) }
                 : { ...base, type: "SPEED" };
 
         this.questionRepository.insert(question);
@@ -70,7 +70,6 @@ export class DefaultQuestionService {
         if (choices.length !== 4 || choices.some(c => c.length < 1 || c.length > 40)) {
             throw new ValidationError();
         }
-
         if (new Set(choices.map(c => c.toLowerCase())).size !== choices.length) {
             throw new ValidationError();
         }
