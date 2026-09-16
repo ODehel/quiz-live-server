@@ -70,5 +70,9 @@ export class DefaultQuestionService {
         if (choices.length !== 4 || choices.some(c => c.length < 1 || c.length > 40)) {
             throw new ValidationError();
         }
+
+        if (new Set(choices.map(c => c.toLowerCase())).size !== choices.length) {
+            throw new ValidationError();
+        }
     }
 }

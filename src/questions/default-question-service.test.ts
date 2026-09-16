@@ -272,3 +272,17 @@ describe("US-005/CA-009 - When the service creates a MCQ question with a choice 
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
     });
 });
+
+describe("US-005/CA-009 - When the service creates a MCQ question with two choices that differ only by case", () => {
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "paris", "Lyon", "Marseille"], // 2 doublons à la casse près
+        correct_answer: "Paris",
+        level: 1, time_limit: 30, points: 10,
+    };
+    it("should reject a MCQ with case-insensitive duplicate choices with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
