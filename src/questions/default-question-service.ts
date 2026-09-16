@@ -18,7 +18,11 @@ export class DefaultQuestionService {
 
     createQuestion(input: CreateQuestionInput): Question {
         const title = this.validateTitle(this.normalizeTitle(input.title));
-        
+
+        if (input.type === 'MCQ') {
+            this.validateChoices(input.choices);
+        }
+
         if (!this.themeExistenceChecker.exists(input.theme_id)) {
             throw new InvalidThemeError();
         }
@@ -26,6 +30,7 @@ export class DefaultQuestionService {
         if (this.questionRepository.getByTitle(title) !== undefined) {
             throw new ConflictError();
         }
+
         const base: BaseQuestion = {
             id: this.uuidGenerator.generate(),
             theme_id: input.theme_id,
@@ -59,5 +64,11 @@ export class DefaultQuestionService {
             throw new ValidationError();
         }
         return title;
+    }
+
+    private validateChoices(choices: string[]): void {
+        if (choices.length !== 4 || choices.some(c => c.length < 1 || c.length > 40)) {
+            throw new ValidationError();
+        }
     }
 }

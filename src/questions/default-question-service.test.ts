@@ -224,3 +224,51 @@ describe("US-005/CA-007 - When the service creates a question whose theme_id doe
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(InvalidThemeError);
     });
 });
+
+describe("US-005/CA-009 - When the service creates a MCQ question whose choices count is not exactly 4", () => {
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    it("should reject a MCQ with a choices count other than 4 with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-009 - When the service creates a MCQ question with an empty choice", () => {
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    it("should reject a MCQ with an empty choice with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-009 - When the service creates a MCQ question with a choice longer than 40 characters", () => {
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "A".repeat(41)],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    it("should reject a MCQ with a choice longer than 40 characters with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
