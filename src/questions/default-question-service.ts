@@ -21,6 +21,10 @@ export class DefaultQuestionService {
 
         if (input.type === "MCQ") {
             this.validateChoices(input.choices.map(c => c.trim()));
+
+            if (!input.choices.map(c => c.trim().toLowerCase()).includes(input.correct_answer.toLowerCase())) {
+                throw new ValidationError();
+            }
         }
 
         if (!this.themeExistenceChecker.exists(input.theme_id)) {

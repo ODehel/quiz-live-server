@@ -339,3 +339,40 @@ describe("US-005/CA-009 - When the service creates a MCQ question with two choic
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
     });
 });
+
+describe("US-005/CA-010 - When the service creates a MCQ question whose correct_answer matches none of the choices", () => {
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Berlin",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    it("should reject a correct_answer absent from the choices with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-010 - When the service creates a MCQ question whose correct_answer matches a choice only by case", () => {
+    let question: Question;
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    beforeEach(() => {
+        question = defaultQuestionService.createQuestion(input);
+    });
+    it("should accept a correct_answer that matches a choice case-insensitively", () => {
+        if (question.type !== "MCQ") throw new Error("expected MCQ");
+        expect(question.correct_answer).toBe("paris");
+    });
+});
