@@ -22,11 +22,12 @@ export class DefaultQuestionService {
         if (this.isInvalidShortTextLength(input.correct_answer)) {
             throw new ValidationError();
         }
-
+        
         if (input.type === "MCQ") {
-            this.validateChoices(input.choices.map(c => c.trim()));
+            const trimmedChoices = input.choices.map(c => c.trim());
+            this.validateChoices(trimmedChoices);
 
-            if (!input.choices.map(c => c.trim().toLowerCase()).includes(input.correct_answer.toLowerCase())) {
+            if (trimmedChoices.every(c => c.toLowerCase() !== input.correct_answer.toLowerCase())) {
                 throw new ValidationError();
             }
         }
