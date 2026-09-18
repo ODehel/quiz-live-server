@@ -19,7 +19,7 @@ export class DefaultQuestionService {
     createQuestion(input: CreateQuestionInput): Question {
         const title = this.validateTitle(this.normalizeTitle(input.title));
 
-        if (input.correct_answer.length < 1 || input.correct_answer.length > 40) {
+        if (this.isInvalidShortTextLength(input.correct_answer)) {
             throw new ValidationError();
         }
 
@@ -75,11 +75,15 @@ export class DefaultQuestionService {
     }
 
     private validateChoices(choices: string[]): void {
-        if (choices.length !== 4 || choices.some(c => c.length < 1 || c.length > 40)) {
+        if (choices.length !== 4 || choices.some(c => this.isInvalidShortTextLength(c))) {
             throw new ValidationError();
         }
         if (new Set(choices.map(c => c.toLowerCase())).size !== choices.length) {
             throw new ValidationError();
         }
+    }
+
+    private isInvalidShortTextLength(value: string): boolean {
+        return value.length < 1 || value.length > 40;
     }
 }
