@@ -376,3 +376,33 @@ describe("US-005/CA-010 - When the service creates a MCQ question whose correct_
         expect(question.correct_answer).toBe("paris");
     });
 });
+
+describe("US-005/CA-012 - When the service creates a SPEED question with an empty correct_answer", () => {
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "",
+        level: 2,
+        time_limit: 15,
+        points: 20,
+    };
+    it("should reject a SPEED with an empty correct_answer with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-012 - When the service creates a SPEED question with a correct_answer longer than 40 characters", () => {
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "A".repeat(41),
+        level: 2,
+        time_limit: 15,
+        points: 20,
+    };
+    it("should reject a SPEED with a correct_answer longer than 40 characters with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});

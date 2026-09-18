@@ -19,6 +19,10 @@ export class DefaultQuestionService {
     createQuestion(input: CreateQuestionInput): Question {
         const title = this.validateTitle(this.normalizeTitle(input.title));
 
+        if (input.correct_answer.length < 1 || input.correct_answer.length > 40) {
+            throw new ValidationError();
+        }
+
         if (input.type === "MCQ") {
             this.validateChoices(input.choices.map(c => c.trim()));
 
