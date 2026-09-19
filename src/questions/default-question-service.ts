@@ -33,6 +33,10 @@ export class DefaultQuestionService {
             }
         }
 
+        if (input.level < 1 || input.level > 5 || !Number.isInteger(input.level)) {
+            throw new ValidationError();
+        }
+
         if (!this.themeExistenceChecker.exists(input.theme_id)) {
             throw new InvalidThemeError();
         }

@@ -456,3 +456,48 @@ describe("US-005/CA-012 - When the service creates a SPEED question whose correc
         expect(question.correct_answer).toBe("Pacifique");
     });
 });
+
+describe("US-005/CA-013 - When the service creates a question whose level is greater than 5", () => {
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 6,
+        time_limit: 15,
+        points: 20,
+    };
+    it("should reject a level greater than 5 with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-013 - When the service creates a question whose level is less than 1", () => {
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 0,
+        time_limit: 15,
+        points: 20,
+    };
+    it("should reject a level less than 1 with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-013 - When the service creates a question whose level is not an integer", () => {
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 2.5,
+        time_limit: 15,
+        points: 20,
+    };
+    it("should reject a non-integer level with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
