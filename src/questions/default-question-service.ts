@@ -33,11 +33,11 @@ export class DefaultQuestionService {
             }
         }
 
-        if (input.level < 1 || input.level > 5 || !Number.isInteger(input.level)) {
+        if (this.isOutOfRangeOrNotInteger(input.level, 1, 5)) {
             throw new ValidationError();
         }
 
-        if (input.time_limit < 5 || input.time_limit > 60 || !Number.isInteger(input.time_limit)) {
+        if (this.isOutOfRangeOrNotInteger(input.time_limit, 5, 60)) {
             throw new ValidationError();
         }
 
@@ -95,5 +95,9 @@ export class DefaultQuestionService {
 
     private isInvalidShortTextLength(value: string): boolean {
         return value.length < 1 || value.length > 40;
+    }
+
+    private isOutOfRangeOrNotInteger(value: number, min: number, max: number): boolean {
+        return !Number.isInteger(value) || value < min || value > max;
     }
 }
