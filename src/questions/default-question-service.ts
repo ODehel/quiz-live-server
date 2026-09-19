@@ -18,8 +18,9 @@ export class DefaultQuestionService {
 
     createQuestion(input: CreateQuestionInput): Question {
         const title = this.validateTitle(this.normalizeTitle(input.title));
+        const trimmedCorrectAnswer = input.correct_answer.trim();
 
-        if (this.isInvalidShortTextLength(input.correct_answer)) {
+        if (this.isInvalidShortTextLength(trimmedCorrectAnswer)) {
             throw new ValidationError();
         }
         
@@ -27,7 +28,7 @@ export class DefaultQuestionService {
             const trimmedChoices = input.choices.map(c => c.trim());
             this.validateChoices(trimmedChoices);
 
-            if (trimmedChoices.every(c => c.toLowerCase() !== input.correct_answer.toLowerCase())) {
+            if (trimmedChoices.every(c => c.toLowerCase() !== trimmedCorrectAnswer.toLowerCase())) {
                 throw new ValidationError();
             }
         }
@@ -44,7 +45,7 @@ export class DefaultQuestionService {
             id: this.uuidGenerator.generate(),
             theme_id: input.theme_id,
             title: title,
-            correct_answer: input.correct_answer,
+            correct_answer: trimmedCorrectAnswer,
             level: input.level,
             time_limit: input.time_limit,
             points: input.points,

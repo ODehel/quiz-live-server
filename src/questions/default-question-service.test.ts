@@ -377,6 +377,22 @@ describe("US-005/CA-010 - When the service creates a MCQ question whose correct_
     });
 });
 
+describe("US-005/CA-010 - When the service creates a MCQ question whose correct_answer matches a choice apart from surrounding whitespace", () => {
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "  Paris  ",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    it("should accept a correct_answer that matches a choice once surrounding whitespace is trimmed", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).not.toThrow();
+    });
+});
+
 describe("US-005/CA-012 - When the service creates a SPEED question with an empty correct_answer", () => {
     const input: CreateSpeedInput = {
         type: "SPEED",
@@ -404,5 +420,39 @@ describe("US-005/CA-012 - When the service creates a SPEED question with a corre
     };
     it("should reject a SPEED with a correct_answer longer than 40 characters with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-012 - When the service creates a SPEED question whose correct_answer is only whitespace", () => {
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "   ",
+        level: 2,
+        time_limit: 15,
+        points: 20,
+    };
+    it("should reject a SPEED whose correct_answer is only whitespace with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-012 - When the service creates a SPEED question whose correct_answer has surrounding whitespace", () => {
+    let question: Question;
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "  Pacifique  ",
+        level: 2,
+        time_limit: 15,
+        points: 20,
+    };
+    beforeEach(() => {
+        question = defaultQuestionService.createQuestion(input);
+    });
+    it("should persist the correct_answer trimmed of its surrounding whitespace", () => {
+        expect(question.correct_answer).toBe("Pacifique");
     });
 });
