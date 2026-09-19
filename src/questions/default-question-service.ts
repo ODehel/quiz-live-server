@@ -41,6 +41,10 @@ export class DefaultQuestionService {
             throw new ValidationError();
         }
 
+        if (this.isOutOfRangeOrNotInteger(input.points, 1, 50)) {
+            throw new ValidationError();
+        }
+
         if (!this.themeExistenceChecker.exists(input.theme_id)) {
             throw new InvalidThemeError();
         }
