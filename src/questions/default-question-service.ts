@@ -23,7 +23,7 @@ export class DefaultQuestionService {
         if (this.isInvalidShortTextLength(trimmedCorrectAnswer)) {
             throw new ValidationError();
         }
-        
+
         if (input.type === "MCQ") {
             const trimmedChoices = input.choices.map(c => c.trim());
             this.validateChoices(trimmedChoices);
@@ -34,6 +34,10 @@ export class DefaultQuestionService {
         }
 
         if (input.level < 1 || input.level > 5 || !Number.isInteger(input.level)) {
+            throw new ValidationError();
+        }
+
+        if (input.time_limit < 5 || input.time_limit > 60 || !Number.isInteger(input.time_limit)) {
             throw new ValidationError();
         }
 
