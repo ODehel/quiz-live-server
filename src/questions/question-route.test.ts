@@ -4,6 +4,7 @@ import questionRoute from './question-route';
 import { QuestionService } from './question-service.interface';
 import { Question } from './question.interface';
 import { InvalidThemeError } from './invalid-theme-error';
+import { ValidationError } from './validation-error';
 
 let app: FastifyInstance;
 let mockQuestionService: QuestionService;
@@ -186,5 +187,30 @@ describe('US-005/CA-7 - Reject a question referencing a non-existent theme', () 
             error: 'INVALID_THEME',
             message: 'The provided theme_id does not reference an existing theme.'
         });
+    });
+});
+
+describe('US-005/CA-15 - Reject a question with an invalid points', () => {
+    it('should translate a ValidationError into a 400 VALIDATION_ERROR response', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new ValidationError();
+        });
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la vitesse de la lumière ?',
+                correct_answer: '300 000 km/s',
+                level: 3,
+                time_limit: 30,
+                points: 100
+            }
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json().error).toBe('VALIDATION_ERROR');
     });
 });

@@ -4,6 +4,7 @@ import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
 import { Uuidv7Validator } from "../infrastructure/uuidv7-validator";
 import { InvalidThemeError } from "./invalid-theme-error";
+import { ValidationError } from "./validation-error";
 
 export default async function questionRoute(app: FastifyInstance, options: QuestionRouteConfiguration) {
     const { questionService } = options;
@@ -18,7 +19,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             reply.status(400).send();
             return;
         }
-        
+
         try {
             const created = questionService.createQuestion(input);
             reply.status(201).send(created);
@@ -28,6 +29,14 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                     status: 400,
                     error: 'INVALID_THEME',
                     message: 'The provided theme_id does not reference an existing theme.'
+                });
+                return;
+            }
+
+            if (error instanceof ValidationError) {
+                reply.status(400).send({
+                    status: 400,
+                    error: 'VALIDATION_ERROR'
                 });
                 return;
             }
