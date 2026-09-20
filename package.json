@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "start": "tsx src/index.ts",
     "seed": "tsx src/seed.ts",
     "test": "vitest run",
