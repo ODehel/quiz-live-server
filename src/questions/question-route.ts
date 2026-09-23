@@ -7,7 +7,9 @@ import { InvalidThemeError } from "./invalid-theme-error";
 import { ValidationError } from "./validation-error";
 
 export default async function questionRoute(app: FastifyInstance, options: QuestionRouteConfiguration) {
-    const { questionService } = options;
+    const { questionService, tokenValidator, tokenDecoder, middleware } = options;
+
+    await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 
     app.post('/api/v1/questions', async (request, reply) => {
         const input = request.body as CreateMcqInput | CreateSpeedInput;

@@ -5,9 +5,14 @@ import { QuestionService } from './question-service.interface';
 import { Question } from './question.interface';
 import { InvalidThemeError } from './invalid-theme-error';
 import { ValidationError } from './validation-error';
+import authenticationMiddleware from '../authentication/authentication-middleware';
+import { TokenValidator } from '../authentication/token-validator.interface';
+import { TokenDecoder } from '../authentication/token-decoder.interface';
 
 let app: FastifyInstance;
 let mockQuestionService: QuestionService;
+let mockTokenValidator: TokenValidator;
+let mockTokenDecoder: TokenDecoder;
 
 beforeEach(() => {
     mockQuestionService = {
@@ -27,8 +32,11 @@ beforeEach(() => {
             last_updated_at: null
         } as Question)
     };
+    mockTokenValidator = { validateToken: vi.fn(), inspectToken: vi.fn() };
+    mockTokenDecoder = { decode: vi.fn() };
+    const mockMiddleware = async () => { };
     app = Fastify();
-    app.register(questionRoute, { questionService: mockQuestionService });
+    app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware });
 });
 
 describe('US-005/CA-1 - Create an MCQ question', () => {
@@ -212,5 +220,31 @@ describe('US-005/CA-15 - Reject a question with an invalid points', () => {
 
         expect(response.statusCode).toBe(400);
         expect(response.json().error).toBe('VALIDATION_ERROR');
+    });
+});
+
+describe('US-005/CA-50 - Create a question without authorization', () => {
+    beforeEach(() => {
+        app = Fastify();
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
+    });
+    it('should reject the creation with a 401 error', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(401);
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
     });
 });
