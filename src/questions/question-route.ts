@@ -7,6 +7,12 @@ import { InvalidThemeError } from "./invalid-theme-error";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 
+interface ErrorBody {
+    status: number;
+    error: string;
+    message?: string;
+}
+
 export default async function questionRoute(app: FastifyInstance, options: QuestionRouteConfiguration) {
     const { questionService, tokenValidator, tokenDecoder, middleware } = options;
 
@@ -35,24 +41,33 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
 
     function sendError(error: unknown, reply: FastifyReply) {
         if (error instanceof ConflictError) {
-            reply.status(409).send({
+            sendErrorBody(reply, {
                 status: 409,
                 error: 'QUESTION_ALREADY_EXISTS',
                 message: 'A question with this title already exists.'
             });
         } else if (error instanceof InvalidThemeError) {
-            reply.status(400).send({
+            sendErrorBody(reply, {
                 status: 400,
                 error: 'INVALID_THEME',
                 message: 'The provided theme_id does not reference an existing theme.'
             });
         } else if (error instanceof ValidationError) {
-            reply.status(400).send({
+            sendErrorBody(reply, {
                 status: 400,
                 error: 'VALIDATION_ERROR'
             });
         } else {
-            throw error;
+            reply.log.error(error);
+            sendErrorBody(reply, {
+                status: 500,
+                error: 'INTERNAL_SERVER_ERROR',
+                message: 'An unexpected error occurred. Please try again later.'
+            });
         }
+    }
+
+    function sendErrorBody(reply: FastifyReply, body: ErrorBody) {
+        reply.status(body.status).send(body);
     }
 }

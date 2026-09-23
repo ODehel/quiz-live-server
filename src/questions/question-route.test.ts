@@ -279,3 +279,73 @@ describe('US-005/CA-50 - Create a question without authorization', () => {
         expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
     });
 });
+
+describe('US-005/CA-54 - Hide technical details of an unexpected error', () => {
+    it('should translate an unexpected error into a 500 INTERNAL_SERVER_ERROR response without technical details', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new Error('SQLITE_BUSY: database is locked');
+        });
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Qui a peint la Joconde ?',
+                correct_answer: 'Léonard de Vinci',
+                level: 3,
+                time_limit: 20,
+                points: 15
+            }
+        });
+
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual({
+            status: 500,
+            error: 'INTERNAL_SERVER_ERROR',
+            message: 'An unexpected error occurred. Please try again later.'
+        });
+    });
+});
+
+describe('US-005/CA-54 - Log the technical details of an unexpected error', () => {
+    let logLines: string[];
+
+    beforeEach(() => {
+        logLines = [];
+        app = Fastify({
+            logger: {
+                level: 'error',
+                stream: { write: (line: string) => { logLines.push(line); } }
+            }
+        });
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { } });
+    });
+
+    it('should log the unexpected error with its technical message at error level', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new Error('SQLITE_BUSY: database is locked');
+        });
+
+        await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Qui a peint la Joconde ?',
+                correct_answer: 'Léonard de Vinci',
+                level: 3,
+                time_limit: 20,
+                points: 15
+            }
+        });
+
+        const logs = logLines.map(line => JSON.parse(line));
+        expect(logs).toContainEqual(expect.objectContaining({
+            level: 50,
+            err: expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' })
+        }));
+    });
+});
