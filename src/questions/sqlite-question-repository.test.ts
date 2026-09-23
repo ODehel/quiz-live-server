@@ -1,23 +1,25 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { unlinkSync } from "node:fs";
 import { Question } from "./question.interface";
+import { McqQuestion } from "./mcq-question.interface";
 import { Theme } from "../themes/theme.interface";
 import { SqliteThemeRepository } from "../themes/sqlite-theme-repository";
 import { SqliteQuestionRepository } from "./sqlite-question-repository";
-import { McqQuestion } from "./mcq-question.interface";
 
 let repository: SqliteQuestionRepository;
+let databaseFilePath: string;
 let speedQuestion: Question;
+
 beforeEach(() => {
-    const sharedDatabaseName = `file:${randomUUID()}?mode=memory&cache=shared`;
-    const parentTheme: Theme = {
-        id: "019d6c17-1c08-7161-9358-fe4a116fa000",
-        name: "Theme parent",
-        created_at: new Date().toISOString(),
-        last_updated_at: null
-    };
-    new SqliteThemeRepository(sharedDatabaseName).insert(parentTheme);
-    repository = new SqliteQuestionRepository(sharedDatabaseName);
+    databaseFilePath = join(tmpdir(), `quiz-question-repo-${randomUUID()}.db`);
+    const parentTheme: Theme = { id: "019d6c17-1c08-7161-9358-fe4a116fa000", name: "Theme parent", created_at: new Date().toISOString(), last_updated_at: null };
+    const themeRepository = new SqliteThemeRepository(databaseFilePath);
+    themeRepository.insert(parentTheme);
+    themeRepository.close();
+    repository = new SqliteQuestionRepository(databaseFilePath);
     speedQuestion = {
         id: "019d6c17-1c08-7161-9358-fe4a116fa388",
         type: "SPEED",
@@ -32,6 +34,10 @@ beforeEach(() => {
         created_at: new Date().toISOString(),
         last_updated_at: null
     };
+});
+afterEach(() => {
+    repository.close();
+    unlinkSync(databaseFilePath);
 });
 
 describe("US-005 - SqliteQuestionRepository persists and retrieves a SPEED question by title", () => {

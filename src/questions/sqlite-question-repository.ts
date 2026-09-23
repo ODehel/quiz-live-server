@@ -25,6 +25,10 @@ export class SqliteQuestionRepository implements QuestionRepository {
         this.createTableIfNotExists();
     }
 
+    close(): void {
+        this.db.close();
+    }
+
     insert(question: Question): void {
         const choices = question.type === 'MCQ' ? JSON.stringify(question.choices) : null;
         const stmt = this.db.prepare(`INSERT INTO T_QUESTION_QST (QST_ID, QST_TYPE, QST_THEME_ID, QST_TITLE, QST_CHOICES,
