@@ -1,4 +1,4 @@
-import Fastify, { FastifyInstance, LightMyRequestResponse } from 'fastify';
+import Fastify, { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
 import { QuizServerConfiguration } from './quiz-server-configuration.interface';
 import healthRoute from './routes/health-route';
@@ -8,39 +8,44 @@ import themeRoute from './themes/theme-route';
 import { TokenRouteConfiguration } from './authentication/token-route-configuration.interface';
 import { ThemeRouteConfiguration } from './themes/theme-route-configuration.interface';
 import { WsRouteConfiguration } from './websocket/ws-route-configuration.interface';
+import { QuestionRouteConfiguration } from './questions/question-route-configuration.interface';
+import questionRoute from './questions/question-route';
 
 export class QuizServer {
     private app: FastifyInstance;
-    private configuration : QuizServerConfiguration;
+    private configuration: QuizServerConfiguration;
     private tokenRouteConfiguration: TokenRouteConfiguration;
     private themeRouteConfiguration: ThemeRouteConfiguration;
     private wsRouteConfiguration: WsRouteConfiguration;
+    private questionRouteConfiguration: QuestionRouteConfiguration;
 
-    constructor(configuration : QuizServerConfiguration, 
+    constructor(configuration: QuizServerConfiguration,
         tokenRouteConfiguration: TokenRouteConfiguration,
         themeRouteConfiguration: ThemeRouteConfiguration,
-        wsRouteConfiguration: WsRouteConfiguration) {
+        wsRouteConfiguration: WsRouteConfiguration,
+        questionRouteConfiguration: QuestionRouteConfiguration) {
         this.app = Fastify({ logger: true });
         this.configuration = configuration;
         this.tokenRouteConfiguration = tokenRouteConfiguration;
         this.themeRouteConfiguration = themeRouteConfiguration;
         this.wsRouteConfiguration = wsRouteConfiguration;
+        this.questionRouteConfiguration = questionRouteConfiguration;
     }
 
-	async start() : Promise<void> {
+    async start(): Promise<void> {
         this.registerRoutes();
         await this.app.listen({ port: this.configuration.port, host: '0.0.0.0' });
         console.log("🚀 Server started at " + this.formatDateNow());
         console.log(this.formatMessageWithIpAndPort());
-	}
+    }
 
-	async inject(endpoint : string) : Promise<LightMyRequestResponse> {
-        return await this.app.inject(endpoint);
-	}
+    async inject(options: InjectOptions | string): Promise<LightMyRequestResponse> {
+        return await this.app.inject(options);
+    }
 
-	async stop() : Promise<void> {
+    async stop(): Promise<void> {
         await this.app.close();
-	}
+    }
 
     private registerRoutes() {
         this.app.register(fastifyWebsocket);
@@ -48,6 +53,7 @@ export class QuizServer {
         this.app.register(wsRoute, this.wsRouteConfiguration);
         this.app.register(tokenRoute, this.tokenRouteConfiguration);
         this.app.register(themeRoute, this.themeRouteConfiguration);
+        this.app.register(questionRoute, this.questionRouteConfiguration);
     }
 
     private formatDateNow() {
@@ -63,7 +69,7 @@ export class QuizServer {
         const allInterfaces = Object.values(this.configuration.network.networkInterfaces()).flat();
         const firstInterface = allInterfaces.find(iface => iface?.family === 'IPv4' && !iface.internal);
         if (!firstInterface) return `⚠️ No network interface found, listening on http://localhost:${this.configuration.port}`;
-        
+
         return `📡 Listening on http://${firstInterface.address}:${this.configuration.port}`;
     }
 }

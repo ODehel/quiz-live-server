@@ -6,13 +6,14 @@ import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
 import { InvalidThemeError } from "./invalid-theme-error";
 import { QuestionRepository } from "./question-repository.interface";
+import { QuestionService } from "./question-service.interface";
 import { Question } from "./question.interface";
 import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
 import { ValidationError } from "./validation-error";
 
 type CreateQuestionInput = CreateMcqInput | CreateSpeedInput;
 
-export class DefaultQuestionService {
+export class DefaultQuestionService implements QuestionService {
     constructor(private clock: Clock, private uuidGenerator: UuidGenerator, private questionRepository: QuestionRepository, private themeExistenceChecker: ThemeExistenceChecker) {
     }
 

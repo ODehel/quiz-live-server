@@ -24,6 +24,8 @@ import { AuthenticationService } from "../authentication/authentication-service.
 import { ExpirationExtractor } from "../authentication/expiration-extractor";
 import { WsEventReporter } from "./ws-event-reporter.interface";
 import { WsConnectionPolicy } from "./ws-connection-policy";
+import { QuestionRouteConfiguration } from "../questions/question-route-configuration.interface";
+import { QuestionService } from "../questions/question-service.interface";
 
 describe("WebSocket", () => {
     let mockClock: Clock;
@@ -40,6 +42,7 @@ describe("WebSocket", () => {
     let mockTokenGenerator: TokenGenerator;
     let mockTokenDecoder: TokenDecoder;
     let mockThemeService: ThemeService;
+    let mockQuestionService: QuestionService;
     let mockUuidValidator: UuidValidator;
     let mockTokenValidator: TokenValidator;
     let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout' | 'serverFull' | 'authenticated' | 'disconnected' | 'internalError' | 'rateLimited'>;
@@ -48,6 +51,7 @@ describe("WebSocket", () => {
     let mockTokenRouteConfiguration: TokenRouteConfiguration;
     let mockThemeRouteConfiguration: ThemeRouteConfiguration;
     let mockWsRouteConfiguration: WsRouteConfiguration;
+    let mockQuestionRouteConfiguration: QuestionRouteConfiguration;
     let server: QuizServer;
 
     beforeEach(async () => {
@@ -112,6 +116,9 @@ describe("WebSocket", () => {
             getById: vi.fn(),
             updateTheme: vi.fn()
         };
+        mockQuestionService = {
+            createQuestion: vi.fn()
+        };
         mockUuidValidator = {
             validate: vi.fn()
         };
@@ -143,7 +150,13 @@ describe("WebSocket", () => {
             wsConnectionPolicy: new WsConnectionPolicy(),
             maxConnections: maxConnections
         };
-        server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
+        mockQuestionRouteConfiguration = {
+            tokenValidator: mockTokenValidator,
+            tokenDecoder: mockTokenDecoder,
+            questionService: mockQuestionService,
+            middleware: mockMiddleware
+        };
+        server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
         await server.start();
     });
     it("can connect to web socket", async () => {

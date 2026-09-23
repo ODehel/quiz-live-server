@@ -26,6 +26,10 @@ import { JwtExpirationExtractor } from './authentication/jwt-expiration-extracto
 import { PinoWsEventReporter } from './websocket/pino-ws-event-reporter';
 import pino from 'pino';
 import { WsConnectionPolicy } from './websocket/ws-connection-policy';
+import { QuestionRouteConfiguration } from './questions/question-route-configuration.interface';
+import { DefaultQuestionService } from './questions/default-question-service';
+import { ThemeRepositoryExistenceChecker } from './questions/theme-repository-existence-checker';
+import { SqliteQuestionRepository } from './questions/sqlite-question-repository';
 
 const clock = new SystemClock();
 
@@ -38,6 +42,7 @@ const quizServerConfiguration: QuizServerConfiguration = {
 };
 
 const userRepository = new SqliteUserRepository(processEnvironment.sqliteDbPath);
+const themeRepository = new SqliteThemeRepository(processEnvironment.sqliteDbPath);
 const hasher = new BcryptHasher();
 const tokenRouteConfiguration: TokenRouteConfiguration = {
     authenticationService: new JwtAuthenticationService(userRepository, hasher),
@@ -45,7 +50,7 @@ const tokenRouteConfiguration: TokenRouteConfiguration = {
     rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 const themeRouteConfiguration: ThemeRouteConfiguration = {
-    themeService: new DefaultThemeService(clock, new Uuidv7Generator(), new SqliteThemeRepository(processEnvironment.sqliteDbPath)),
+    themeService: new DefaultThemeService(clock, new Uuidv7Generator(), themeRepository),
     uuidValidator: new Uuidv7Validator(),
     tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
     tokenDecoder: new JwtDecoder(),
@@ -63,5 +68,11 @@ const wsRouteConfiguration: WsRouteConfiguration = {
     wsConnectionPolicy: new WsConnectionPolicy(),
     maxConnections: 10
 };
-const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration);
+const questionRouteConfiguration: QuestionRouteConfiguration = {
+    tokenDecoder: new JwtDecoder(),
+    tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
+    questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), new SqliteQuestionRepository(processEnvironment.sqliteDbPath), new ThemeRepositoryExistenceChecker(themeRepository)),
+    middleware: authenticationMiddleware
+};
+const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration, questionRouteConfiguration);
 server.start();

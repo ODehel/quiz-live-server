@@ -21,6 +21,9 @@ import { ParticipantResolver } from './authentication/participant-resolver.inter
 import { ExpirationExtractor } from './authentication/expiration-extractor'
 import { WsEventReporter } from './websocket/ws-event-reporter.interface'
 import { WsConnectionPolicy } from './websocket/ws-connection-policy'
+import { QuestionService } from './questions/question-service.interface'
+import { QuestionRouteConfiguration } from './questions/question-route-configuration.interface'
+import { Question } from './questions/question.interface'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -77,6 +80,9 @@ const mockThemeService: ThemeService = {
 	getById: vi.fn(),
 	updateTheme: vi.fn()
 };
+const mockQuestionService: QuestionService = {
+	createQuestion: vi.fn()
+};
 const mockUuidValidator: UuidValidator = {
 	validate: vi.fn()
 };
@@ -125,10 +131,17 @@ const mockWsRouteConfiguration: WsRouteConfiguration = {
 	maxConnections: 10
 };
 
+const mockQuestionRouteConfiguration: QuestionRouteConfiguration = {
+	tokenValidator: mockTokenValidator,
+	tokenDecoder: mockTokenDecoder,
+	questionService: mockQuestionService,
+	middleware: mockMiddleware
+}
+
 describe('CA-1 - Le serveur démarre sans erreur', () => {
 	let server: QuizServer
 	beforeEach(() => {
-		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
 	})
 	it('should start and remain listening without error', async () => {
 		await server.start()
@@ -145,7 +158,7 @@ describe('CA-2 - La console affiche l`heure de lancement', () => {
 	let spy: any
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
 	})
 	it('should display a message with current hour within console', async () => {
 		await server.start()
@@ -161,7 +174,7 @@ describe('CA-3 - La console affiche l`adresse IP et le port', () => {
 	let spy: any
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
 	})
 	it('should display a message with current hour within console', async () => {
 		await server.start()
@@ -184,7 +197,7 @@ describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 			...mockQuizServerConfiguration,
 			network: mockNetworkNoIP
 		}
-		server = new QuizServer(configWithNoIP, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration);
+		server = new QuizServer(configWithNoIP, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
 	})
 	it('should display a fallback message if no IP address is found', async () => {
 		await server.start()
@@ -193,4 +206,45 @@ describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 	afterEach(async () => {
 		await server.stop()
 	})
-})
+});
+
+describe('US-005/CA-1 - Question creation reachable on the assembled server', () => {
+	let server: QuizServer
+	let creationQuestionService: QuestionService
+	beforeEach(() => {
+		creationQuestionService = {
+			createQuestion: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416' } as Question) // corps prouvé au niveau route, pas ici
+		};
+		const creationRouteConfiguration: QuestionRouteConfiguration = {
+			questionService: creationQuestionService,
+			tokenValidator: mockTokenValidator,
+			tokenDecoder: mockTokenDecoder,
+			middleware: mockMiddleware // no-op : l'authentification n'est pas l'objet de ce test
+		};
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, creationRouteConfiguration);
+	});
+	it('creates a question through the running server', async () => {
+		const input = {
+			type: 'MCQ',
+			theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+			title: 'Quelle est la capitale de la France ?',
+			choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+			correct_answer: 'Paris',
+			level: 1,
+			time_limit: 30,
+			points: 10
+		};
+		await server.start()
+		const response = await server.inject({
+			method: 'POST',
+			url: '/api/v1/questions',
+			headers: { 'Content-Type': 'application/json' },
+			payload: JSON.stringify(input)
+		})
+		expect(response.statusCode).toBe(201)
+		expect(creationQuestionService.createQuestion).toHaveBeenCalledWith(input) // la config transmise est bien celle de la route
+	})
+	afterEach(async () => {
+		await server.stop()
+	});
+});
