@@ -5,6 +5,7 @@ import { QuestionService } from './question-service.interface';
 import { Question } from './question.interface';
 import { InvalidThemeError } from './invalid-theme-error';
 import { ValidationError } from './validation-error';
+import { ConflictError } from './conflict-error';
 import authenticationMiddleware from '../authentication/authentication-middleware';
 import { TokenValidator } from '../authentication/token-validator.interface';
 import { TokenDecoder } from '../authentication/token-decoder.interface';
@@ -124,6 +125,36 @@ describe('US-005/CA-2 - Create a SPEED question', () => {
             last_updated_at: null
         });
         expect(mockQuestionService.createQuestion).toHaveBeenCalledWith(input);
+    });
+});
+
+describe('US-005/CA-5 - Reject a question whose title is already taken', () => {
+    it('should translate a ConflictError into a 409 QUESTION_ALREADY_EXISTS response', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new ConflictError();
+        });
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'QUELLE EST LA CAPITALE DE LA FRANCE ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            }
+        });
+
+        expect(response.statusCode).toBe(409);
+        expect(response.json()).toEqual({
+            status: 409,
+            error: 'QUESTION_ALREADY_EXISTS',
+            message: 'A question with this title already exists.'
+        });
     });
 });
 
