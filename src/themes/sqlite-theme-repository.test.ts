@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { Theme } from "./theme.interface";
 import { SqliteThemeRepository } from "./sqlite-theme-repository";
+import Database from "better-sqlite3";
 
 let repository: SqliteThemeRepository;
 let theme: Theme;
 beforeEach(() => {
-    repository = new SqliteThemeRepository(":memory:");
+    repository = new SqliteThemeRepository(new Database(":memory:"));
     theme = {
             id: "019d6c17-1c08-7161-9358-fe4a116fa388",
             name: "Theme test",
@@ -18,7 +19,7 @@ describe("US-004/CA-001 - SqliteThemeRepository.getById(theme)", () => {
     it("should return the theme with the specified ID", async () => {
         // Arrange
         repository.insert(theme);
-        // Act  
+        // Act
         const searchedTheme = repository.getById(theme.id);
         // Assert
         expect(searchedTheme?.id).toBe(theme.id);

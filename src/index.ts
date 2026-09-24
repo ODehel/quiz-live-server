@@ -30,19 +30,21 @@ import { QuestionRouteConfiguration } from './questions/question-route-configura
 import { DefaultQuestionService } from './questions/default-question-service';
 import { ThemeRepositoryExistenceChecker } from './questions/theme-repository-existence-checker';
 import { SqliteQuestionRepository } from './questions/sqlite-question-repository';
+import Database from 'better-sqlite3';
 
 const clock = new SystemClock();
 
 const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
 
+const database = new Database(processEnvironment.sqliteDbPath);
 const quizServerConfiguration: QuizServerConfiguration = {
     clock: clock,
     network: new OsNetwork(),
     port: processEnvironment.port
 };
 
-const userRepository = new SqliteUserRepository(processEnvironment.sqliteDbPath);
-const themeRepository = new SqliteThemeRepository(processEnvironment.sqliteDbPath);
+const userRepository = new SqliteUserRepository(database);
+const themeRepository = new SqliteThemeRepository(database);
 const hasher = new BcryptHasher();
 const tokenRouteConfiguration: TokenRouteConfiguration = {
     authenticationService: new JwtAuthenticationService(userRepository, hasher),
@@ -71,7 +73,7 @@ const wsRouteConfiguration: WsRouteConfiguration = {
 const questionRouteConfiguration: QuestionRouteConfiguration = {
     tokenDecoder: new JwtDecoder(),
     tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
-    questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), new SqliteQuestionRepository(processEnvironment.sqliteDbPath), new ThemeRepositoryExistenceChecker(themeRepository)),
+    questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), new SqliteQuestionRepository(database), new ThemeRepositoryExistenceChecker(themeRepository)),
     middleware: authenticationMiddleware
 };
 const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration, questionRouteConfiguration);

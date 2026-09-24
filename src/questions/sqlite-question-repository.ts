@@ -1,6 +1,6 @@
 import { QuestionRepository } from "./question-repository.interface";
 import { Question } from "./question.interface";
-import Database, { Database as DatabaseType } from 'better-sqlite3'
+import { Database } from 'better-sqlite3'
 
 type QuestionRow = {
     id: string;
@@ -19,14 +19,11 @@ type QuestionRow = {
 };
 
 export class SqliteQuestionRepository implements QuestionRepository {
-    private db: DatabaseType;
-    constructor(databaseFilePath: string) {
-        this.db = new Database(databaseFilePath);
-        this.createTableIfNotExists();
-    }
+    private db: Database;
 
-    close(): void {
-        this.db.close();
+    constructor(db: Database) {
+        this.db = db;
+        this.createTableIfNotExists();
     }
 
     insert(question: Question): void {

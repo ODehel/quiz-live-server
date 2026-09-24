@@ -1,17 +1,13 @@
 import { ThemeRepository } from "./theme-repository.interface";
 import { Theme } from "./theme.interface";
-import Database, { Database as DatabaseType } from 'better-sqlite3'
+import { Database } from 'better-sqlite3'
 
 export class SqliteThemeRepository implements ThemeRepository {
-    private db: DatabaseType;
+    private db: Database;
 
-    constructor(databaseFilePath: string) {
-        this.db = new Database(databaseFilePath);
+    constructor(db: Database) {
+        this.db = db;
         this.createTableIfNotExists();
-    }
-
-    close(): void {
-        this.db.close();
     }
 
     getAll(page: number, limit: number): Theme[] {

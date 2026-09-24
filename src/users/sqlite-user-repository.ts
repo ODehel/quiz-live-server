@@ -1,13 +1,15 @@
 import { UserRepository } from "./user-repository.interface";
 import { User } from "./user.interface";
-import Database, { Database as DatabaseType } from 'better-sqlite3'
+import { Database } from 'better-sqlite3'
 
 export class SqliteUserRepository implements UserRepository {
-    private db: DatabaseType;
-    constructor(databaseFilePath: string) {
-        this.db = new Database(databaseFilePath);
+    private db: Database;
+
+    constructor(db: Database) {
+        this.db = db;
         this.createTableIfNotExists();
     }
+
     count(): Promise<number> {
         const row = this.db.prepare("SELECT COUNT(USR_LOGIN) as count FROM T_USER_USR").get() as { count: number };
         return Promise.resolve(row.count);

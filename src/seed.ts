@@ -5,9 +5,10 @@ import { BcryptHasher } from './infrastructure/bcrypt-hasher';
 import { OwaspPasswordValidator } from './users/owasp-password-validator';
 import { ProcessEnvironment } from './common/process-environment';
 import { SeedUserConfiguration } from './users/seed-user-configuration.interface';
+import Database from 'better-sqlite3';
 
 const environment: ProcessEnvironment = new ProcessEnvironment();
-const userRepository: SqliteUserRepository = new SqliteUserRepository(environment.sqliteDbPath);
+const userRepository: SqliteUserRepository = new SqliteUserRepository(new Database(environment.sqliteDbPath));
 const hasher = new BcryptHasher();
 const passwordValidator = new OwaspPasswordValidator();
 const seedUsers: SeedUsers = new SeedUsers(userRepository, hasher, passwordValidator);

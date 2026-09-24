@@ -1,25 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { randomUUID } from "node:crypto";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { unlinkSync } from "node:fs";
 import { Question } from "./question.interface";
 import { McqQuestion } from "./mcq-question.interface";
 import { Theme } from "../themes/theme.interface";
 import { SqliteThemeRepository } from "../themes/sqlite-theme-repository";
 import { SqliteQuestionRepository } from "./sqlite-question-repository";
+import SqliteDatabase, { Database } from "better-sqlite3";
 
 let repository: SqliteQuestionRepository;
-let databaseFilePath: string;
 let speedQuestion: Question;
+let database: Database;
 
 beforeEach(() => {
-    databaseFilePath = join(tmpdir(), `quiz-question-repo-${randomUUID()}.db`);
+    database = new SqliteDatabase(":memory:");
     const parentTheme: Theme = { id: "019d6c17-1c08-7161-9358-fe4a116fa000", name: "Theme parent", created_at: new Date().toISOString(), last_updated_at: null };
-    const themeRepository = new SqliteThemeRepository(databaseFilePath);
+    const themeRepository = new SqliteThemeRepository(database);
     themeRepository.insert(parentTheme);
-    themeRepository.close();
-    repository = new SqliteQuestionRepository(databaseFilePath);
+    repository = new SqliteQuestionRepository(database);
     speedQuestion = {
         id: "019d6c17-1c08-7161-9358-fe4a116fa388",
         type: "SPEED",
@@ -36,8 +32,7 @@ beforeEach(() => {
     };
 });
 afterEach(() => {
-    repository.close();
-    unlinkSync(databaseFilePath);
+    database.close();
 });
 
 describe("US-005 - SqliteQuestionRepository persists and retrieves a SPEED question by title", () => {

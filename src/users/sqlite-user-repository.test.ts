@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { SqliteUserRepository } from "./sqlite-user-repository";
 import { User } from "./user.interface";
 import { UserRole } from "./user-role";
+import Database from "better-sqlite3";
 
 let repository: SqliteUserRepository;
 let user: User;
 
 beforeEach(() => {
-    repository = new SqliteUserRepository(":memory:");
+    repository = new SqliteUserRepository(new Database(":memory:"));
     user = {
         id: "019f751c-5d8b-76ab-bafb-2c0d589846ed",
         username: "any-login",
