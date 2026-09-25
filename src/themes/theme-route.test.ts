@@ -508,7 +508,11 @@ describe("US-004/CA-30 - Delete theme with questions", () => {
             url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416'
         });
         expect(response.statusCode).toBe(409);
-        expect(response.json()).toEqual({ error: 'THEME_HAS_QUESTIONS' });
+        expect(response.json()).toEqual({
+            status: 409,
+            error: 'THEME_HAS_QUESTIONS',
+            message: 'Cannot delete this theme: questions are still associated with it.'
+        });
     });
 });
 
@@ -528,7 +532,7 @@ describe("US-004/CA-32 - Request without authorization", () => {
 });
 
 describe('US-004/CA-34: When rate limit is exceeded', () => {
-    let lowRateLimitMiddleware: (app : FastifyInstance) => Promise<void>;
+    let lowRateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
     beforeEach(() => {
         app = Fastify();
         lowRateLimitMiddleware = (app) => rateLimitMiddleware(app, { maxRequestsPerMinute: 5 });
