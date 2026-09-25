@@ -46,8 +46,8 @@ export class SqliteThemeRepository implements ThemeRepository {
     }
 
     isUsedInQuestions(id: string): boolean {
-        // TODO: implémenter quand QuestionRepository sera disponible
-        return false;
+        const count = this.db.prepare("SELECT COUNT(QST_ID) FROM T_QUESTION_QST WHERE QST_THEME_ID = ?").pluck().get(id) as number;
+        return count > 0;
     }
 
     private createTableIfNotExists() {

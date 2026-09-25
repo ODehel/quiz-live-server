@@ -1,18 +1,24 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { Theme } from "./theme.interface";
+import { SpeedQuestion } from "../questions/speed-question.interface";
 import { SqliteThemeRepository } from "./sqlite-theme-repository";
+import { SqliteQuestionRepository } from "../questions/sqlite-question-repository";
 import Database from "better-sqlite3";
 
+let database: Database.Database;
 let repository: SqliteThemeRepository;
+let questionRepository: SqliteQuestionRepository;
 let theme: Theme;
 beforeEach(() => {
-    repository = new SqliteThemeRepository(new Database(":memory:"));
+    database = new Database(":memory:");
+    repository = new SqliteThemeRepository(database);
+    questionRepository = new SqliteQuestionRepository(database);
     theme = {
-            id: "019d6c17-1c08-7161-9358-fe4a116fa388",
-            name: "Theme test",
-            created_at: new Date().toISOString(),
-            last_updated_at: null
-        };
+        id: "019d6c17-1c08-7161-9358-fe4a116fa388",
+        name: "Theme test",
+        created_at: new Date().toISOString(),
+        last_updated_at: null
+    };
 });
 
 describe("US-004/CA-001 - SqliteThemeRepository.getById(theme)", () => {
@@ -143,5 +149,39 @@ describe("US-004/CA-28 - Delete a theme without associated questions", () => {
         repository.insert(theme);
         repository.delete("019d6c17-1c08-7161-9358-fe4a116fa388");
         expect(repository.count()).toBe(0);
+    });
+});
+
+describe("US-005/CA-48 - Tell whether a theme is used in questions", () => {
+    it("should report the theme as used when a question references it", async () => {
+        // Arrange : une question liée au thème, dans la même base que le repository thème
+        repository.insert(theme);
+        const question: SpeedQuestion = {
+            id: "019d6c17-1c08-7161-9358-fe4a116fa001",
+            type: "SPEED",
+            theme_id: theme.id,
+            title: "Quelle est la capitale de la France",
+            correct_answer: "Paris",
+            level: 3,
+            time_limit: 30,
+            points: 10,
+            image_path: null,
+            audio_path: null,
+            created_at: new Date().toISOString(),
+            last_updated_at: null
+        };
+        new SqliteQuestionRepository(database).insert(question);
+        // Act
+        const used = repository.isUsedInQuestions(theme.id);
+        // Assert
+        expect(used).toBe(true);
+    });
+    it("should report the theme as unused when no question references it", async () => {
+        // Arrange
+        repository.insert(theme);
+        // Act
+        const used = repository.isUsedInQuestions(theme.id);
+        // Assert
+        expect(used).toBe(false);
     });
 });
