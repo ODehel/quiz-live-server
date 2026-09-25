@@ -154,7 +154,8 @@ describe("WebSocket", () => {
             tokenValidator: mockTokenValidator,
             tokenDecoder: mockTokenDecoder,
             questionService: mockQuestionService,
-            middleware: mockMiddleware
+            middleware: mockMiddleware,
+            rateLimitMiddleware: mockRateLimitMiddleware
         };
         server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
         await server.start();

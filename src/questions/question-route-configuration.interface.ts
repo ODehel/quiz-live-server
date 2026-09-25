@@ -8,4 +8,5 @@ export interface QuestionRouteConfiguration {
     tokenValidator: TokenValidator;
     tokenDecoder: TokenDecoder;
     middleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator, tokenDecoder: TokenDecoder }) => Promise<void>;
+    rateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
 }

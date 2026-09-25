@@ -74,7 +74,8 @@ const questionRouteConfiguration: QuestionRouteConfiguration = {
     tokenDecoder: new JwtDecoder(),
     tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
     questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), new SqliteQuestionRepository(database), new ThemeRepositoryExistenceChecker(themeRepository)),
-    middleware: authenticationMiddleware
+    middleware: authenticationMiddleware,
+    rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration, questionRouteConfiguration);
 server.start();

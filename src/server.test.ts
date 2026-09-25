@@ -135,7 +135,8 @@ const mockQuestionRouteConfiguration: QuestionRouteConfiguration = {
 	tokenValidator: mockTokenValidator,
 	tokenDecoder: mockTokenDecoder,
 	questionService: mockQuestionService,
-	middleware: mockMiddleware
+	middleware: mockMiddleware,
+	rateLimitMiddleware: mockRateLimitMiddleware
 }
 
 describe('CA-1 - Le serveur démarre sans erreur', () => {
@@ -219,7 +220,8 @@ describe('US-005/CA-1 - Question creation reachable on the assembled server', ()
 			questionService: creationQuestionService,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,
-			middleware: mockMiddleware // no-op : l'authentification n'est pas l'objet de ce test
+			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
+			rateLimitMiddleware: mockRateLimitMiddleware
 		};
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, creationRouteConfiguration);
 	});

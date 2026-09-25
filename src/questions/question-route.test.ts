@@ -9,6 +9,7 @@ import { ConflictError } from './conflict-error';
 import authenticationMiddleware from '../authentication/authentication-middleware';
 import { TokenValidator } from '../authentication/token-validator.interface';
 import { TokenDecoder } from '../authentication/token-decoder.interface';
+import rateLimitMiddleware from '../infrastructure/rate-limit-middleware';
 
 let app: FastifyInstance;
 let mockQuestionService: QuestionService;
@@ -36,8 +37,9 @@ beforeEach(() => {
     mockTokenValidator = { validateToken: vi.fn(), inspectToken: vi.fn() };
     mockTokenDecoder = { decode: vi.fn() };
     const mockMiddleware = async () => { };
+    const mockRateLimitMiddleware = async () => { };
     app = Fastify();
-    app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware });
+    app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, rateLimitMiddleware: mockRateLimitMiddleware });
 });
 
 describe('US-005/CA-1 - Create an MCQ question', () => {
@@ -257,7 +259,7 @@ describe('US-005/CA-15 - Reject a question with an invalid points', () => {
 describe('US-005/CA-50 - Create a question without authorization', () => {
     beforeEach(() => {
         app = Fastify();
-        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware, rateLimitMiddleware: async () => { } });
     });
     it('should reject the creation with a 401 error', async () => {
         const response = await app.inject({
@@ -320,7 +322,7 @@ describe('US-005/CA-54 - Log the technical details of an unexpected error', () =
                 stream: { write: (line: string) => { logLines.push(line); } }
             }
         });
-        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { } });
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { }, rateLimitMiddleware: async () => { } });
     });
 
     it('should log the unexpected error with its technical message at error level', async () => {
@@ -347,5 +349,32 @@ describe('US-005/CA-54 - Log the technical details of an unexpected error', () =
             level: 50,
             err: expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' })
         }));
+    });
+});
+
+describe('US-005/CA-52 - Rate limiting on the questions route', () => {
+    const limit = 5;
+    const postQuestion = () => app.inject({ method: 'POST', url: '/api/v1/questions', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'MCQ' }) });
+    const exhaustTheLimit = async () => { for (let i = 0; i < limit; i++) { await postQuestion(); } };
+
+    beforeEach(() => {
+        const lowRateLimitMiddleware = (app: FastifyInstance) => rateLimitMiddleware(app, { maxRequestsPerMinute: limit });
+        app = Fastify();
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { }, rateLimitMiddleware: lowRateLimitMiddleware });
+    });
+    it('should reject the request exceeding the limit with a 429', async () => {
+        await exhaustTheLimit();
+        const response = await postQuestion();
+        expect(response.statusCode).toBe(429);
+    });
+    it('should tell the client to retry after 60 seconds', async () => {
+        await exhaustTheLimit();
+        const response = await postQuestion();
+        expect(response.headers['retry-after']).toBe('60');
+    });
+    it('should explain the refusal with the standard error body', async () => {
+        await exhaustTheLimit();
+        const response = await postQuestion();
+        expect(response.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' });
     });
 });

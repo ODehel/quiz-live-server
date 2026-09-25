@@ -14,7 +14,9 @@ interface ErrorBody {
 }
 
 export default async function questionRoute(app: FastifyInstance, options: QuestionRouteConfiguration) {
-    const { questionService, tokenValidator, tokenDecoder, middleware } = options;
+    const { questionService, tokenValidator, tokenDecoder, middleware, rateLimitMiddleware } = options;
+
+    await rateLimitMiddleware(app);
 
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 
