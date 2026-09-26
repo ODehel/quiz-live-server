@@ -2,7 +2,6 @@ import { FastifyInstance, FastifyReply } from "fastify";
 import { QuestionRouteConfiguration } from "./question-route-configuration.interface";
 import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
-import { Uuidv7Validator } from "../infrastructure/uuidv7-validator";
 import { InvalidThemeError } from "./invalid-theme-error";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
@@ -30,8 +29,8 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             return;
         }
 
-        if (!new Uuidv7Validator().validate(input.theme_id)) {
-            reply.status(400).send();
+        if (!new UuidFormatValidator().validate(input.theme_id)) {
+            sendInvalidUuid(reply);
             return;
         }
 
@@ -47,11 +46,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         const { id } = request.params as { id: string };
 
         if (!new UuidFormatValidator().validate(id)) {
-            sendErrorBody(reply, {
-                status: 400,
-                error: 'INVALID_UUID',
-                message: 'The provided ID is not a valid UUID.'
-            });
+            sendInvalidUuid(reply);
             return;
         }
 
@@ -97,6 +92,14 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                 message: 'An unexpected error occurred. Please try again later.'
             });
         }
+    }
+
+    function sendInvalidUuid(reply: FastifyReply) {
+        sendErrorBody(reply, {
+            status: 400,
+            error: 'INVALID_UUID',
+            message: 'The provided ID is not a valid UUID.'
+        });
     }
 
     function sendErrorBody(reply: FastifyReply, body: ErrorBody) {

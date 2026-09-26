@@ -184,7 +184,7 @@ describe('US-005/CA-6 - Reject a question with an invalid type', () => {
 });
 
 describe('US-005/CA-8 - Reject a question with a malformed theme_id', () => {
-    it('should reject a question whose theme_id is not a valid UUIDv7', async () => {
+    it('should reject a question whose theme_id is not a valid UUID with a 400 INVALID_UUID response', async () => {
         const response = await app.inject({
             method: 'POST',
             url: '/api/v1/questions',
@@ -200,6 +200,11 @@ describe('US-005/CA-8 - Reject a question with a malformed theme_id', () => {
         });
 
         expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_UUID',
+            message: 'The provided ID is not a valid UUID.'
+        });
         expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
     });
 });
@@ -215,7 +220,7 @@ describe('US-005/CA-7 - Reject a question referencing a non-existent theme', () 
             url: '/api/v1/questions',
             payload: {
                 type: 'SPEED',
-                theme_id: '019d92d2-e1f6-7d05-9803-3948dbc4c416',
+                theme_id: '018e4f5a-0000-0000-0000-000000000000',
                 title: 'Qui a peint la Joconde ?',
                 correct_answer: 'Léonard de Vinci',
                 level: 3,
