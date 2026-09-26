@@ -415,3 +415,17 @@ describe('US-005/CA-23 - Get a question by an unknown id', () => {
         });
     });
 });
+
+describe('US-005/CA-24 - Get a question by a malformed id', () => {
+    it('should reply 400 INVALID_UUID with the standard error body without calling the service', async () => {
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions/not-a-valid-uuid' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_UUID',
+            message: 'The provided ID is not a valid UUID.'
+        });
+        expect(mockQuestionService.getQuestionById).not.toHaveBeenCalled();
+    });
+});

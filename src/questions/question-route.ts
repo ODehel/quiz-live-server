@@ -7,6 +7,7 @@ import { InvalidThemeError } from "./invalid-theme-error";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { NotFoundError } from "../common/not-found-error";
+import { UuidFormatValidator } from "../infrastructure/uuid-format-validator";
 
 interface ErrorBody {
     status: number;
@@ -44,6 +45,16 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
 
     app.get('/api/v1/questions/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
+
+        if (!new UuidFormatValidator().validate(id)) {
+            sendErrorBody(reply, {
+                status: 400,
+                error: 'INVALID_UUID',
+                message: 'The provided ID is not a valid UUID.'
+            });
+            return;
+        }
+
         try {
             const question = questionService.getQuestionById(id);
             reply.status(200).send(question);
