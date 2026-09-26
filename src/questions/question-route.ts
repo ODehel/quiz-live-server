@@ -41,6 +41,12 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         }
     });
 
+    app.get('/api/v1/questions/:id', async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const question = questionService.getQuestionById(id);
+        reply.status(200).send(question);
+    });
+
     function sendError(error: unknown, reply: FastifyReply) {
         if (error instanceof ConflictError) {
             sendErrorBody(reply, {

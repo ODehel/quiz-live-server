@@ -44,23 +44,19 @@ export class SqliteQuestionRepository implements QuestionRepository {
         if (row === undefined)
             return undefined;
 
-        const base = {
-            id: row.id,
-            theme_id: row.theme_id,
-            title: row.title,
-            correct_answer: row.correct_answer,
-            level: row.level,
-            time_limit: row.time_limit,
-            points: row.points,
-            image_path: row.image_path,
-            audio_path: row.audio_path,
-            created_at: row.created_at,
-            last_updated_at: row.last_updated_at
-        };
-        if (row.type === "MCQ")
-            return { ...base, type: "MCQ", choices: JSON.parse(row.choices!) as string[] };
+        return this.rowToQuestion(row);
+    }
 
-        return { ...base, type: "SPEED" };
+    getById(id: string): Question | undefined {
+        const row = this.db.prepare(`SELECT QST_ID as id, QST_TYPE as type, QST_THEME_ID as theme_id, QST_TITLE as title, QST_CHOICES as choices, QST_CORRECT_ANSWER as correct_answer, QST_LEVEL as level,
+            QST_TIME_LIMIT as time_limit, QST_POINTS as points, QST_IMAGE_PATH as image_path, QST_AUDIO_PATH as audio_path, QST_CREATED_AT as created_at, QST_LAST_UPDATED_AT as last_updated_at
+            FROM T_QUESTION_QST
+            WHERE QST_ID = ?`).get(id) as QuestionRow | undefined;
+
+        if (row === undefined)
+            return undefined;
+
+        return this.rowToQuestion(row);
     }
 
     private createTableIfNotExists() {
@@ -80,5 +76,25 @@ export class SqliteQuestionRepository implements QuestionRepository {
     QST_CREATED_AT      TEXT NOT NULL,
     QST_LAST_UPDATED_AT TEXT DEFAULT NULL
 );`).run();
+    }
+
+    private rowToQuestion(row: QuestionRow): Question {
+        const base = {
+            id: row.id,
+            theme_id: row.theme_id,
+            title: row.title,
+            correct_answer: row.correct_answer,
+            level: row.level,
+            time_limit: row.time_limit,
+            points: row.points,
+            image_path: row.image_path,
+            audio_path: row.audio_path,
+            created_at: row.created_at,
+            last_updated_at: row.last_updated_at
+        };
+        if (row.type === "MCQ")
+            return { ...base, type: "MCQ", choices: JSON.parse(row.choices!) as string[] };
+
+        return { ...base, type: "SPEED" };
     }
 }

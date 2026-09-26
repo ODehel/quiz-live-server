@@ -32,7 +32,8 @@ beforeEach(() => {
             audio_path: null,
             created_at: new Date().toISOString(),
             last_updated_at: null
-        } as Question)
+        } as Question),
+        getQuestionById: vi.fn()
     };
     mockTokenValidator = { validateToken: vi.fn(), inspectToken: vi.fn() };
     mockTokenDecoder = { decode: vi.fn() };
@@ -376,5 +377,23 @@ describe('US-005/CA-52 - Rate limiting on the questions route', () => {
         await exhaustTheLimit();
         const response = await postQuestion();
         expect(response.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' });
+    });
+});
+
+describe('US-005/CA-21 - Get an MCQ question by its id', () => {
+    it('should return the MCQ question with its choices', async () => {
+        const id = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+        const mcqQuestion = {
+            id: id, type: 'MCQ', theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a', title: 'Quelle est la capitale de la France ?',
+            choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'], correct_answer: 'Paris', level: 1, time_limit: 30, points: 10,
+            image_path: null, audio_path: null, created_at: '2026-09-26T09:00:00.000Z', last_updated_at: null
+        } as Question;
+        mockQuestionService.getQuestionById = vi.fn().mockReturnValue(mcqQuestion);
+
+        const response = await app.inject({ method: 'GET', url: `/api/v1/questions/${id}` });
+
+        expect(mockQuestionService.getQuestionById).toHaveBeenCalledWith(id);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(mcqQuestion);
     });
 });

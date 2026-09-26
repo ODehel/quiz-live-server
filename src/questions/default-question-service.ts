@@ -78,6 +78,10 @@ export class DefaultQuestionService implements QuestionService {
         return question;
     }
 
+    getQuestionById(id: string): Question | undefined {
+        return this.questionRepository.getById(id);
+    }
+
     private normalizeTitle(title: string): string {
         return title.trim().replace(/ +/g, " ");
     }

@@ -117,7 +117,8 @@ describe("WebSocket", () => {
             updateTheme: vi.fn()
         };
         mockQuestionService = {
-            createQuestion: vi.fn()
+            createQuestion: vi.fn(),
+            getQuestionById: vi.fn()
         };
         mockUuidValidator = {
             validate: vi.fn()

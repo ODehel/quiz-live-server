@@ -81,3 +81,20 @@ describe("US-005 - SqliteQuestionRepository persists and retrieves the choices o
         expect((found as McqQuestion).choices).toEqual(mcqQuestion.choices);
     });
 });
+
+describe("US-005/CA-21 - SqliteQuestionRepository retrieves a question by its id", () => {
+    it("should return the inserted SPEED question when searched by its id", () => {
+        repository.insert(speedQuestion);
+        const found = repository.getById(speedQuestion.id);
+        expect(found).toEqual(speedQuestion);
+    });
+});
+
+describe("US-005/CA-21 - SqliteQuestionRepository retrieves an MCQ question with its choices by its id", () => {
+    it("should return the inserted MCQ question with its choices when searched by its id", () => {
+        const mcqQuestion: McqQuestion = { ...speedQuestion, type: "MCQ", choices: ['Madrid', 'Paris', 'Lisbonne', 'Berlin'] };
+        repository.insert(mcqQuestion);
+        const found = repository.getById(mcqQuestion.id);
+        expect(found).toEqual(mcqQuestion);
+    });
+});

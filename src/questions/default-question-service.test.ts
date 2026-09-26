@@ -22,7 +22,8 @@ beforeEach(() => {
     uuidGenerator = { generate: vi.fn().mockReturnValue("019d6cdd-30db-7437-ac57-5826c0695222") };
     questionRepository = {
         insert: vi.fn(),
-        getByTitle: vi.fn()
+        getByTitle: vi.fn(),
+        getById: vi.fn()
     };
     themeExistenceChecker = { exists: vi.fn().mockReturnValue(true) };
     defaultQuestionService = new DefaultQuestionService(
@@ -589,5 +590,18 @@ describe("US-005/CA-015 - When the service creates a question whose points is no
     };
     it("should reject a non-integer points with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-21 - When the service is asked for a question by its id", () => {
+    it("should return the question found by the repository", () => {
+        const id = "019d6cdd-30db-7437-ac57-5826c0695222";
+        const storedQuestion = { id: id, type: "SPEED" } as Question;
+        questionRepository.getById = vi.fn().mockReturnValue(storedQuestion);
+
+        const found = defaultQuestionService.getQuestionById(id);
+
+        expect(questionRepository.getById).toHaveBeenCalledWith(id);
+        expect(found).toBe(storedQuestion);
     });
 });
