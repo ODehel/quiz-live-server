@@ -1,4 +1,5 @@
 import { Clock } from "../common/clock.interface";
+import { NotFoundError } from "../common/not-found-error";
 import { UuidGenerator } from "../common/uuid-generator.interface";
 import { BaseQuestion } from "./base-question.interface";
 import { ConflictError } from "./conflict-error";
@@ -78,8 +79,14 @@ export class DefaultQuestionService implements QuestionService {
         return question;
     }
 
-    getQuestionById(id: string): Question | undefined {
-        return this.questionRepository.getById(id);
+    getQuestionById(id: string): Question {
+        const question = this.questionRepository.getById(id);
+
+        if (question === undefined) {
+            throw new NotFoundError();
+        }
+
+        return question;
     }
 
     private normalizeTitle(title: string): string {

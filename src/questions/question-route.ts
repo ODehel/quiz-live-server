@@ -6,6 +6,7 @@ import { Uuidv7Validator } from "../infrastructure/uuidv7-validator";
 import { InvalidThemeError } from "./invalid-theme-error";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
+import { NotFoundError } from "../common/not-found-error";
 
 interface ErrorBody {
     status: number;
@@ -43,8 +44,20 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
 
     app.get('/api/v1/questions/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
-        const question = questionService.getQuestionById(id);
-        reply.status(200).send(question);
+        try {
+            const question = questionService.getQuestionById(id);
+            reply.status(200).send(question);
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                sendErrorBody(reply, {
+                    status: 404,
+                    error: 'NOT_FOUND',
+                    message: 'The requested question was not found.'
+                });
+            } else {
+                throw error;
+            }
+        }
     });
 
     function sendError(error: unknown, reply: FastifyReply) {

@@ -10,6 +10,7 @@ import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { InvalidThemeError } from "./invalid-theme-error";
 import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
+import { NotFoundError } from "../common/not-found-error";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
@@ -603,5 +604,14 @@ describe("US-005/CA-21 - When the service is asked for a question by its id", ()
 
         expect(questionRepository.getById).toHaveBeenCalledWith(id);
         expect(found).toBe(storedQuestion);
+    });
+});
+
+describe("US-005/CA-23 - When the service is asked for a question by an unknown id", () => {
+    it("should reject with a NotFoundError", () => {
+        const id = "018e4f5a-0000-0000-0000-000000000000";
+        questionRepository.getById = vi.fn().mockReturnValue(undefined);
+
+        expect(() => defaultQuestionService.getQuestionById(id)).toThrow(NotFoundError);
     });
 });

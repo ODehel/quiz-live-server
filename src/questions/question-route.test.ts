@@ -6,6 +6,7 @@ import { Question } from './question.interface';
 import { InvalidThemeError } from './invalid-theme-error';
 import { ValidationError } from './validation-error';
 import { ConflictError } from './conflict-error';
+import { NotFoundError } from '../common/not-found-error';
 import authenticationMiddleware from '../authentication/authentication-middleware';
 import { TokenValidator } from '../authentication/token-validator.interface';
 import { TokenDecoder } from '../authentication/token-decoder.interface';
@@ -395,5 +396,22 @@ describe('US-005/CA-21 - Get an MCQ question by its id', () => {
         expect(mockQuestionService.getQuestionById).toHaveBeenCalledWith(id);
         expect(response.statusCode).toBe(200);
         expect(response.json()).toEqual(mcqQuestion);
+    });
+});
+
+describe('US-005/CA-23 - Get a question by an unknown id', () => {
+    it('should reply 404 NOT_FOUND with the standard error body', async () => {
+        mockQuestionService.getQuestionById = vi.fn(() => {
+            throw new NotFoundError();
+        });
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions/018e4f5a-0000-0000-0000-000000000000' });
+
+        expect(response.statusCode).toBe(404);
+        expect(response.json()).toEqual({
+            status: 404,
+            error: 'NOT_FOUND',
+            message: 'The requested question was not found.'
+        });
     });
 });

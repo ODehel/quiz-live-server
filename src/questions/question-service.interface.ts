@@ -4,5 +4,5 @@ import { Question } from "./question.interface";
 
 export interface QuestionService {
     createQuestion(input: CreateMcqInput | CreateSpeedInput): Question;
-    getQuestionById(id: string): Question | undefined;
+    getQuestionById(id: string): Question;
 }
