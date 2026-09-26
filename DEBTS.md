@@ -4,7 +4,6 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 
 ## questions/
 
-- **`GET /:id` relance brut toute erreur autre que `NotFoundError`** — CA-54 non traduit sur le `GET` (choix (b), cf. `DECISIONS.md` #3). *Pas séparé* : `test(questions)`, rouge `mockImplementation(() => { throw new Error('SQLITE_BUSY') })` → `500` standard, réutilisation de `sendError`.
 - **Validateur instancié en dur dans la route** (DIP) — `new UuidFormatValidator()` dans le `POST` et le `GET` : deux occurrences. Injection via `QuestionRouteConfiguration` à la troisième (touche `question-route.test`, `server.test` ×2, `index.ts`).
 - **Codes d'erreur en littéraux** — `'NOT_FOUND'`, `'INVALID_UUID'` dans `question-route.ts` ; aucune constante correspondante dans `error-codes.ts`.
 - **Codes d'erreur absents** — CA-6 `VALIDATION_ERROR` (`400` nu), body `UNAUTHORIZED` du `401`.

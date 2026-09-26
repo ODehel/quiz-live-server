@@ -54,26 +54,12 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             const question = questionService.getQuestionById(id);
             reply.status(200).send(question);
         } catch (error) {
-            if (error instanceof NotFoundError) {
-                sendErrorBody(reply, {
-                    status: 404,
-                    error: 'NOT_FOUND',
-                    message: 'The requested question was not found.'
-                });
-            } else {
-                throw error;
-            }
+            sendError(error, reply);
         }
     });
 
     function sendError(error: unknown, reply: FastifyReply) {
-        if (error instanceof ConflictError) {
-            sendErrorBody(reply, {
-                status: 409,
-                error: 'QUESTION_ALREADY_EXISTS',
-                message: 'A question with this title already exists.'
-            });
-        } else if (error instanceof InvalidThemeError) {
+        if (error instanceof InvalidThemeError) {
             sendErrorBody(reply, {
                 status: 400,
                 error: 'INVALID_THEME',
@@ -83,6 +69,18 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             sendErrorBody(reply, {
                 status: 400,
                 error: 'VALIDATION_ERROR'
+            });
+        } else if (error instanceof NotFoundError) {
+            sendErrorBody(reply, {
+                status: 404,
+                error: 'NOT_FOUND',
+                message: 'The requested question was not found.'
+            });
+        } else if (error instanceof ConflictError) {
+            sendErrorBody(reply, {
+                status: 409,
+                error: 'QUESTION_ALREADY_EXISTS',
+                message: 'A question with this title already exists.'
             });
         } else {
             reply.log.error(error);

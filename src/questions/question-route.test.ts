@@ -434,3 +434,20 @@ describe('US-005/CA-24 - Get a question by a malformed id', () => {
         expect(mockQuestionService.getQuestionById).not.toHaveBeenCalled();
     });
 });
+
+describe('US-005/CA-54 - Hide technical details of an unexpected error on GET /:id', () => {
+    it('should translate an unexpected error into a 500 INTERNAL_SERVER_ERROR response without technical details', async () => {
+        mockQuestionService.getQuestionById = vi.fn(() => {
+            throw new Error('SQLITE_BUSY: database is locked');
+        });
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions/018e4f5a-0000-0000-0000-000000000000' });
+
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual({
+            status: 500,
+            error: 'INTERNAL_SERVER_ERROR',
+            message: 'An unexpected error occurred. Please try again later.'
+        });
+    });
+});
