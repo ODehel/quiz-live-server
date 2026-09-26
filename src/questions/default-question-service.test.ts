@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Clock } from "../common/clock.interface";
 import { UuidGenerator } from "../common/uuid-generator.interface";
-import { DefaultQuestionService } from "./default-question-service";
+import { CreateQuestionInput, DefaultQuestionService } from "./default-question-service";
 import { QuestionRepository } from "./question-repository.interface";
 import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
@@ -206,6 +206,26 @@ describe("US-005/CA-005 - When the service creates a question whose title alread
     });
     it("should reject a title that already exists with a ConflictError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ConflictError);
+    });
+});
+
+describe("US-005/CA-006 - When the service creates a question with a type other than MCQ or SPEED", () => {
+    const input = {
+        type: "OPEN",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Qui a peint la Joconde ?",
+        correct_answer: "Léonard de Vinci",
+        level: 3,
+        time_limit: 30,
+        points: 10,
+    } as unknown as CreateQuestionInput;
+
+    it("should reject the question with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+
+    it("should explain that the type must be MCQ or SPEED", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question type must be MCQ or SPEED.");
     });
 });
 

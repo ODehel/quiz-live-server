@@ -163,7 +163,11 @@ describe('US-005/CA-5 - Reject a question whose title is already taken', () => {
 });
 
 describe('US-005/CA-6 - Reject a question with an invalid type', () => {
-    it('should reject a question whose type is neither MCQ nor SPEED', async () => {
+    it('should translate the ValidationError into a 400 VALIDATION_ERROR response carrying its message', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new ValidationError('Question type must be MCQ or SPEED.');
+        });
+
         const response = await app.inject({
             method: 'POST',
             url: '/api/v1/questions',
@@ -179,7 +183,11 @@ describe('US-005/CA-6 - Reject a question with an invalid type', () => {
         });
 
         expect(response.statusCode).toBe(400);
-        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question type must be MCQ or SPEED.'
+        });
     });
 });
 

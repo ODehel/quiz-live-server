@@ -24,11 +24,6 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     app.post('/api/v1/questions', async (request, reply) => {
         const input = request.body as CreateMcqInput | CreateSpeedInput;
 
-        if (input.type !== 'MCQ' && input.type !== 'SPEED') {
-            reply.status(400).send();
-            return;
-        }
-
         if (!new UuidFormatValidator().validate(input.theme_id)) {
             sendInvalidUuid(reply);
             return;
@@ -68,7 +63,8 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         } else if (error instanceof ValidationError) {
             sendErrorBody(reply, {
                 status: 400,
-                error: 'VALIDATION_ERROR'
+                error: 'VALIDATION_ERROR',
+                message: error.message
             });
         } else if (error instanceof NotFoundError) {
             sendErrorBody(reply, {

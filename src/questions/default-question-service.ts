@@ -12,13 +12,17 @@ import { Question } from "./question.interface";
 import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
 import { ValidationError } from "./validation-error";
 
-type CreateQuestionInput = CreateMcqInput | CreateSpeedInput;
+export type CreateQuestionInput = CreateMcqInput | CreateSpeedInput;
 
 export class DefaultQuestionService implements QuestionService {
     constructor(private clock: Clock, private uuidGenerator: UuidGenerator, private questionRepository: QuestionRepository, private themeExistenceChecker: ThemeExistenceChecker) {
     }
 
     createQuestion(input: CreateQuestionInput): Question {
+        if (input.type !== "MCQ" && input.type !== "SPEED") {
+            throw new ValidationError("Question type must be MCQ or SPEED.");
+        }
+
         const title = this.validateTitle(this.normalizeTitle(input.title));
         const trimmedCorrectAnswer = input.correct_answer.trim();
 
