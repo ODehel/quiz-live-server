@@ -98,9 +98,16 @@ export class DefaultQuestionService implements QuestionService {
     }
 
     private validateTitle(title: string): string {
-        if (title.length < 10 || title.length > 250 || !/^\p{Lu}/u.test(title)) {
-            throw new ValidationError();
+        if (title.length < 10) {
+            throw new ValidationError("Question title must be at least 10 characters long.");
         }
+        if (title.length > 250) {
+            throw new ValidationError("Question title must be at most 250 characters long.");
+        }
+        if (!/^\p{Lu}/u.test(title)) {
+            throw new ValidationError("Question title must start with an uppercase letter.");
+        }
+
         return title;
     }
 

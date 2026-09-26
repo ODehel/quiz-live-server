@@ -158,6 +158,9 @@ describe("US-005/CA-004 - When the service creates a question with a title short
     it("should reject a title shorter than 10 characters with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
     });
+    it("should explain that the title must be at least 10 characters long", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question title must be at least 10 characters long.");
+    });
 });
 
 describe("US-005/CA-004 - When the service creates a question with a title longer than 250 characters", () => {
@@ -173,6 +176,9 @@ describe("US-005/CA-004 - When the service creates a question with a title longe
     it("should reject a title longer than 250 characters with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
     });
+    it("should explain that the title must be at most 250 characters long", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question title must be at most 250 characters long.");
+    });
 });
 
 describe("US-005/CA-004 - When the service creates a question whose title does not start with an uppercase letter", () => {
@@ -187,6 +193,9 @@ describe("US-005/CA-004 - When the service creates a question whose title does n
     };
     it("should reject a title that does not start with an uppercase letter with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+    it("should explain that the title must start with an uppercase letter", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question title must start with an uppercase letter.");
     });
 });
 
