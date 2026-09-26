@@ -6,7 +6,8 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 
 - **Validateur instancié en dur dans la route** (DIP) — `new UuidFormatValidator()` dans le `POST` et le `GET` : deux occurrences. Injection via `QuestionRouteConfiguration` à la troisième (touche `question-route.test`, `server.test` ×2, `index.ts`).
 - **Codes d'erreur en littéraux** — `'NOT_FOUND'`, `'INVALID_UUID'` dans `question-route.ts` ; aucune constante correspondante dans `error-codes.ts`.
-- **Codes d'erreur absents** — CA-6 `VALIDATION_ERROR` (`400` nu), body `UNAUTHORIZED` du `401`.
+- **Codes d'erreur absents** — body `UNAUTHORIZED` du `401`.
+- **`ValidationError` levée sans message** sur les règles CA-4, 9, 10, 12, 13, 14, 15 → body `VALIDATION_ERROR` avec `message: ""` (spec : message dynamique). *Pas séparé* : un `feat(questions)` par règle, ou une série.
 - **Messages d'erreur en dur** — « The requested question was not found. » (→ `NotFoundError(resource)` à la 2ᵉ ressource : quiz, partie) ; « The provided ID is not a valid UUID. » dans `sendInvalidUuid` (→ `common/` avec `sendErrorBody`, à la 3ᵉ route).
 - **`sendErrorBody` / `ErrorBody` locaux à `question-route.ts`** — extraction vers `common/` à la 3ᵉ occurrence.
 - **`ConflictError` en double** (`themes/`, `questions/`) — `NotFoundError` est déjà dans `common/` ; migration des autres erreurs génériques à la 3ᵉ occurrence.
