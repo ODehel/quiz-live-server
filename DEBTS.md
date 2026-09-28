@@ -7,7 +7,7 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **Validateur instancié en dur dans la route** (DIP) — `new UuidFormatValidator()` dans le `POST` et le `GET` : deux occurrences. Injection via `QuestionRouteConfiguration` à la troisième (touche `question-route.test`, `server.test` ×2, `index.ts`).
 - **Codes d'erreur en littéraux** — `'NOT_FOUND'`, `'INVALID_UUID'` dans `question-route.ts` ; aucune constante correspondante dans `error-codes.ts`.
 - **Codes d'erreur absents** — body `UNAUTHORIZED` du `401`.
-- **`ValidationError` levée sans message** sur les règles CA-10, 12 → body `VALIDATION_ERROR` avec `message: ""` (spec : message dynamique). CA-4, 9, 13, 14, 15 soldés (un message par règle). *Pas séparé* : un `feat(questions)` par règle, ou une série.
+- **Champs obligatoires non vérifiés à la route** — `request.body as …` sans schéma : `title` ou `choices` absents → `TypeError` dans le service → `500` au lieu de `400 VALIDATION_ERROR`. `correct_answer` seul est gardé au service (`== null`). *Pas séparé* : schéma JSON de route avec CA-18/19 (`UNKNOWN_FIELDS`), formateur d'erreur vers le body standard.
 - **Messages d'erreur en dur** — « The requested question was not found. » (→ `NotFoundError(resource)` à la 2ᵉ ressource : quiz, partie) ; « The provided ID is not a valid UUID. » dans `sendInvalidUuid` (→ `common/` avec `sendErrorBody`, à la 3ᵉ route).
 - **`sendErrorBody` / `ErrorBody` locaux à `question-route.ts`** — extraction vers `common/` à la 3ᵉ occurrence.
 - **`ConflictError` en double** (`themes/`, `questions/`) — `NotFoundError` est déjà dans `common/` ; migration des autres erreurs génériques à la 3ᵉ occurrence.

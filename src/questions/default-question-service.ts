@@ -28,18 +28,21 @@ export class DefaultQuestionService implements QuestionService {
         }
 
         const title = this.validateTitle(this.normalizeTitle(input.title));
-        const trimmedCorrectAnswer = input.correct_answer.trim();
 
-        if (this.isInvalidShortTextLength(trimmedCorrectAnswer)) {
-            throw new ValidationError();
+        if (input.correct_answer == null) {
+            throw new ValidationError("Question correct_answer is required.");
         }
-
-        if (input.type === "MCQ") {
+        const trimmedCorrectAnswer = input.correct_answer.trim();
+        if (input.type === "SPEED") {
+            if (this.isInvalidShortTextLength(trimmedCorrectAnswer)) {
+                throw new ValidationError(`Question correct_answer must be between ${SHORT_TEXT_MIN_LENGTH} and ${SHORT_TEXT_MAX_LENGTH} characters.`);
+            }
+        } else {
             const trimmedChoices = input.choices.map(c => c.trim());
             this.validateChoices(trimmedChoices);
 
             if (trimmedChoices.every(c => c.toLowerCase() !== trimmedCorrectAnswer.toLowerCase())) {
-                throw new ValidationError();
+                throw new ValidationError("Question correct_answer must match one of the choices (case-insensitive).");
             }
         }
 

@@ -394,6 +394,9 @@ describe("US-005/CA-010 - When the service creates a MCQ question whose correct_
     it("should reject a correct_answer absent from the choices with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
     });
+    it("should explain that the correct_answer must be one of the choices", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question correct_answer must match one of the choices (case-insensitive).");
+    });
 });
 
 describe("US-005/CA-010 - When the service creates a MCQ question whose correct_answer matches a choice only by case", () => {
@@ -430,6 +433,39 @@ describe("US-005/CA-010 - When the service creates a MCQ question whose correct_
     };
     it("should accept a correct_answer that matches a choice once surrounding whitespace is trimmed", () => {
         expect(() => defaultQuestionService.createQuestion(input)).not.toThrow();
+    });
+});
+
+describe("US-005/CA-010 - When the service creates a MCQ question whose correct_answer is only whitespace", () => {
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "   ",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    it("should explain that the correct_answer must be one of the choices, not its length", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question correct_answer must match one of the choices (case-insensitive).");
+    });
+});
+
+describe("US-005/CA-012 - When the service creates a SPEED question without a correct_answer", () => {
+    const input = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        level: 2,
+        time_limit: 15,
+        points: 20,
+    } as unknown as CreateQuestionInput;
+    it("should reject a SPEED without a correct_answer with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+    it("should explain that correct_answer is required", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question correct_answer is required.");
     });
 });
 
@@ -475,6 +511,9 @@ describe("US-005/CA-012 - When the service creates a SPEED question whose correc
     };
     it("should reject a SPEED whose correct_answer is only whitespace with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+    it("should explain the correct_answer length rule", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question correct_answer must be between 1 and 40 characters.");
     });
 });
 
