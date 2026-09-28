@@ -501,6 +501,9 @@ describe("US-005/CA-013 - When the service creates a question whose level is gre
     it("should reject a level greater than 5 with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
     });
+    it("should explain that the level must be an integer between 1 and 5", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question level must be an integer between 1 and 5.");
+    });
 });
 
 describe("US-005/CA-013 - When the service creates a question whose level is less than 1", () => {
@@ -546,6 +549,9 @@ describe("US-005/CA-014 - When the service creates a question whose time_limit i
     it("should reject a time_limit greater than 60 with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
     });
+    it("should explain that the time_limit must be an integer between 5 and 60 seconds", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question time_limit must be an integer between 5 and 60 seconds.");
+    });
 });
 
 describe("US-005/CA-014 - When the service creates a question whose time_limit is less than 5", () => {
@@ -590,6 +596,9 @@ describe("US-005/CA-015 - When the service creates a question whose points is gr
     };
     it("should reject points greater than 50 with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+    it("should explain that the points must be an integer between 1 and 50", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question points must be an integer between 1 and 50.");
     });
 });
 

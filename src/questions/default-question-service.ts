@@ -39,17 +39,20 @@ export class DefaultQuestionService implements QuestionService {
             }
         }
 
-        if (this.isOutOfRangeOrNotInteger(input.level, 1, 5)) {
-            throw new ValidationError();
-        }
+        this.validateIntegerRange("level", input.level, 1, 5);
+        this.validateIntegerRange("time_limit", input.time_limit, 5, 60, " seconds");
+        this.validateIntegerRange("points", input.points, 1, 50);
+        // if (this.isOutOfRangeOrNotInteger(input.level, 1, 5)) {
+        //     throw new ValidationError("Question level must be an integer between 1 and 5.");
+        // }
 
-        if (this.isOutOfRangeOrNotInteger(input.time_limit, 5, 60)) {
-            throw new ValidationError();
-        }
+        // if (this.isOutOfRangeOrNotInteger(input.time_limit, 5, 60)) {
+        //     throw new ValidationError("Question time_limit must be an integer between 5 and 60 seconds.");
+        // }
 
-        if (this.isOutOfRangeOrNotInteger(input.points, 1, 50)) {
-            throw new ValidationError();
-        }
+        // if (this.isOutOfRangeOrNotInteger(input.points, 1, 50)) {
+        //     throw new ValidationError("Question points must be an integer between 1 and 50.");
+        // }
 
         if (!this.themeExistenceChecker.exists(input.theme_id)) {
             throw new InvalidThemeError();
@@ -126,5 +129,11 @@ export class DefaultQuestionService implements QuestionService {
 
     private isOutOfRangeOrNotInteger(value: number, min: number, max: number): boolean {
         return !Number.isInteger(value) || value < min || value > max;
+    }
+
+    private validateIntegerRange(field: string, value: number, low: number, high: number, suffix: string = ""): void {
+        if (this.isOutOfRangeOrNotInteger(value, low, high)) {
+            throw new ValidationError("Question " + field + " must be an integer between " + low + " and " + high + suffix + ".");
+        }
     }
 }
