@@ -270,6 +270,9 @@ describe("US-005/CA-009 - When the service creates a MCQ question whose choices 
     it("should reject a MCQ with a choices count other than 4 with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
     });
+    it("should explain that the choices must contain exactly 4 entries", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question choices must contain exactly 4 entries.");
+    });
 });
 
 describe("US-005/CA-009 - When the service creates a MCQ question with an empty choice", () => {
@@ -285,6 +288,9 @@ describe("US-005/CA-009 - When the service creates a MCQ question with an empty 
     };
     it("should reject a MCQ with an empty choice with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+    it("should explain that each choice must be between 1 and 40 characters", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question choices must each be between 1 and 40 characters.");
     });
 });
 
@@ -352,6 +358,9 @@ describe("US-005/CA-009 - When the service creates a MCQ question with two choic
     };
     it("should reject a MCQ with case-insensitive duplicate choices with a ValidationError", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+    it("should explain that the choices must be distinct regardless of case", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question choices must be distinct (case-insensitive).");
     });
 });
 

@@ -12,6 +12,10 @@ import { Question } from "./question.interface";
 import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
 import { ValidationError } from "./validation-error";
 
+const CHOICES_COUNT = 4;
+const SHORT_TEXT_MIN_LENGTH = 1;
+const SHORT_TEXT_MAX_LENGTH = 40;
+
 export type CreateQuestionInput = CreateMcqInput | CreateSpeedInput;
 
 export class DefaultQuestionService implements QuestionService {
@@ -104,16 +108,19 @@ export class DefaultQuestionService implements QuestionService {
     }
 
     private validateChoices(choices: string[]): void {
-        if (choices.length !== 4 || choices.some(c => this.isInvalidShortTextLength(c))) {
-            throw new ValidationError();
+        if (choices.length !== CHOICES_COUNT) {
+            throw new ValidationError(`Question choices must contain exactly ${CHOICES_COUNT} entries.`);
+        }
+        if (choices.some(c => this.isInvalidShortTextLength(c))) {
+            throw new ValidationError(`Question choices must each be between ${SHORT_TEXT_MIN_LENGTH} and ${SHORT_TEXT_MAX_LENGTH} characters.`);
         }
         if (new Set(choices.map(c => c.toLowerCase())).size !== choices.length) {
-            throw new ValidationError();
+            throw new ValidationError("Question choices must be distinct (case-insensitive).");
         }
     }
 
     private isInvalidShortTextLength(value: string): boolean {
-        return value.length < 1 || value.length > 40;
+        return value.length < SHORT_TEXT_MIN_LENGTH || value.length > SHORT_TEXT_MAX_LENGTH;
     }
 
     private isOutOfRangeOrNotInteger(value: number, min: number, max: number): boolean {
