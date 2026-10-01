@@ -67,6 +67,10 @@ describe("US-004/CA-003 - When the service is called to create a theme with a na
     it("should throw a validation error", () => {
         expect(() => defaultThemeService.createTheme("Invalid@Name!")).toThrow(ValidationError);
     });
+    it("should explain the theme name rules", () => {
+        expect(() => defaultThemeService.createTheme("Invalid@Name!"))
+            .toThrow("Theme name must be 3 to 40 characters, start with an uppercase letter, end with a letter or digit, and contain only letters, digits, spaces, apostrophes and hyphens.");
+    });
 });
 
 describe("US-004/CA-004 - When the service is called to create a theme with a name that already exists", () => {

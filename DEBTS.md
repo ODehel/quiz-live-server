@@ -10,7 +10,7 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **Champs obligatoires non vérifiés à la route** — `request.body as …` sans schéma : `title` ou `choices` absents → `TypeError` dans le service → `500` au lieu de `400 VALIDATION_ERROR`. `correct_answer` seul est gardé au service (`== null`). *Pas séparé* : schéma JSON de route avec CA-18/19 (`UNKNOWN_FIELDS`), formateur d'erreur vers le body standard.
 - **Messages d'erreur en dur** — « The requested question was not found. » (→ `NotFoundError(resource)` à la 2ᵉ ressource : quiz, partie) ; « The provided ID is not a valid UUID. » dans `sendInvalidUuid` (→ `common/` avec `sendErrorBody`, à la 3ᵉ route).
 - **`sendErrorBody` / `ErrorBody` locaux à `question-route.ts`** — extraction vers `common/` à la 3ᵉ occurrence.
-- **`ConflictError` en double** (`themes/`, `questions/`) — `NotFoundError` est déjà dans `common/` ; migration des autres erreurs génériques à la 3ᵉ occurrence.
+- **`ConflictError` et `ValidationError` en double** (`themes/`, `questions/`, classes identiques) — `NotFoundError` est déjà dans `common/` ; migration des autres erreurs génériques à la 3ᵉ occurrence.
 - **`SELECT` de 3 lignes dupliqué** entre `getByTitle` et `getById` dans `SqliteQuestionRepository` — attend `getAll` (CA-26).
 - **`row.choices!`** dans `rowToQuestion`.
 - **`UNIQUE` sur le titre en base** = 2ᵉ source de vérité vis-à-vis de CA-5 (unicité insensible à la casse portée par le service).
@@ -21,9 +21,8 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 
 ## themes/
 
-- **Format court sur 10 branches de `theme-route.ts`** (`{ error: … }` au lieu du body standard) — `ThemeNotFoundError` porte un code non standard (`THEME_NOT_FOUND`). *Pas séparé* : série `feat(themes)`, migration vers `common/NotFoundError` incluse.
+- **Format court sur 10 branches de `theme-route.ts`** (`{ error: … }` au lieu du body standard, le `message` de `ValidationError` n'est donc pas transmis) — `ThemeNotFoundError` porte un code non standard (`THEME_NOT_FOUND`). *Pas séparé* : série `feat(themes)`, migration vers `common/NotFoundError` incluse.
 - **`500` des thèmes non conforme**, log non vérifié.
-- **`ValidationError` levée sans message** dans `default-theme-service.ts` (nom de thème) → body `VALIDATION_ERROR` avec `message: ""` ; `error-codes.md` prend justement ce cas en exemple. *Pas séparé* : `feat(themes)`, même schéma que CA-4 questions.
 - **`429` des thèmes non re-testé** (`theme-route.test.ts:534`, statut seul). *Pas séparé* : `test(themes)` CA-34.
 - **Couplage temporel `SqliteThemeRepository` → `T_QUESTION_QST`** (`isUsedInQuestions` suppose la table créée).
 - **`count()` du repository thème** en `as { count: number }`.
