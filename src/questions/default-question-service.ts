@@ -27,6 +27,10 @@ export class DefaultQuestionService implements QuestionService {
             throw new ValidationError("Question type must be MCQ or SPEED.");
         }
 
+        if (input.type === "SPEED" && "choices" in input) {
+            throw new ValidationError("Question choices must be absent for a SPEED question.");
+        }
+
         const title = this.validateTitle(this.normalizeTitle(input.title));
 
         if (input.correct_answer == null) {

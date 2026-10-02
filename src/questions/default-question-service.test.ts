@@ -701,3 +701,38 @@ describe("US-005/CA-23 - When the service is asked for a question by an unknown 
         expect(() => defaultQuestionService.getQuestionById(id)).toThrow(NotFoundError);
     });
 });
+
+describe("US-005/CA-011 - When the service creates a SPEED question with choices", () => {
+    const input = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Dans quel pays se trouve la Tour Eiffel ?",
+        choices: ["France", "Italie", "Espagne", "Portugal"],
+        correct_answer: "France",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    } as unknown as CreateQuestionInput;
+    it("should reject a SPEED with choices with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+    it("should explain that choices must be absent for a SPEED question", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question choices must be absent for a SPEED question.");
+    });
+});
+
+describe("US-005/CA-011 - When the service creates a SPEED question with null choices", () => {
+    const input = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Dans quel pays se trouve la Tour Eiffel ?",
+        choices: null,
+        correct_answer: "France",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    } as unknown as CreateQuestionInput;
+    it("should reject null choices as present, with the same explanation", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question choices must be absent for a SPEED question.");
+    });
+});
