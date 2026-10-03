@@ -271,6 +271,62 @@ describe('US-005/CA-15 - Reject a question with an invalid points', () => {
     });
 });
 
+describe('US-005/CA-18 - Reject a question carrying a media path', () => {
+    it.each(['image_path', 'audio_path'])('should reject a body containing %s with a 400 UNKNOWN_FIELDS response naming the field', async (mediaField) => {
+        const input = {
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: "Quel est le symbole chimique de l'argent ?",
+            correct_answer: 'Ag',
+            level: 2,
+            time_limit: 15,
+            points: 10,
+            [mediaField]: '/media/argent'
+        };
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'UNKNOWN_FIELDS',
+            message: `Unknown field(s): ${mediaField}.`
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-19 - Reject a question carrying a field outside the allowed ones', () => {
+    it('should reject a body containing difficulty with a 400 UNKNOWN_FIELDS response naming the field', async () => {
+        const input = {
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: "Quel est le symbole chimique de l'argent ?",
+            correct_answer: 'Ag',
+            level: 2,
+            time_limit: 15,
+            points: 10,
+            difficulty: 'hard'
+        };
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'UNKNOWN_FIELDS',
+            message: 'Unknown field(s): difficulty.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
 describe('US-005/CA-50 - Create a question without authorization', () => {
     beforeEach(() => {
         app = Fastify();

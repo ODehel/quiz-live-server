@@ -7,6 +7,7 @@ import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { NotFoundError } from "../common/not-found-error";
 import { UuidFormatValidator } from "../infrastructure/uuid-format-validator";
+import Ajv from "ajv";
 
 interface ErrorBody {
     status: number;
@@ -21,7 +22,34 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
 
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 
-    app.post('/api/v1/questions', async (request, reply) => {
+    const ajv = new Ajv();
+    app.setValidatorCompiler(({ schema }) => ajv.compile(schema));
+
+    app.post('/api/v1/questions', {
+        attachValidation: true,
+        schema: {
+            body: {
+                type: 'object',
+                properties: {
+                    type: {},
+                    theme_id: {},
+                    title: {},
+                    correct_answer: {},
+                    choices: {},
+                    level: {},
+                    time_limit: {},
+                    points: {}
+                },
+                additionalProperties: false
+            }
+        }
+    }, async (request, reply) => {
+
+        if (request.validationError) {
+            sendUnknownFields(reply, request.validationError.validation[0].params.additionalProperty);
+            return;
+        }
+
         const input = request.body as CreateMcqInput | CreateSpeedInput;
 
         if (!new UuidFormatValidator().validate(input.theme_id)) {
@@ -93,6 +121,14 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             status: 400,
             error: 'INVALID_UUID',
             message: 'The provided ID is not a valid UUID.'
+        });
+    }
+
+    function sendUnknownFields(reply: FastifyReply, additionalProperty: string) {
+        sendErrorBody(reply, {
+            status: 400,
+            error: 'UNKNOWN_FIELDS',
+            message: `Unknown field(s): ${additionalProperty}.`
         });
     }
 
