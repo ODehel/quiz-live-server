@@ -22,7 +22,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
 
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 
-    const ajv = new Ajv();
+    const ajv = new Ajv({ allErrors: true });
     app.setValidatorCompiler(({ schema }) => ajv.compile(schema));
 
     app.post('/api/v1/questions', {
@@ -46,7 +46,8 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     }, async (request, reply) => {
 
         if (request.validationError) {
-            sendUnknownFields(reply, request.validationError.validation[0].params.additionalProperty);
+            const unknownFields = request.validationError.validation.map((v: { params: { additionalProperty: string } }) => v.params.additionalProperty).join(', ');
+            sendUnknownFields(reply, unknownFields);
             return;
         }
 
@@ -124,11 +125,11 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         });
     }
 
-    function sendUnknownFields(reply: FastifyReply, additionalProperty: string) {
+    function sendUnknownFields(reply: FastifyReply, unknownFields: string) {
         sendErrorBody(reply, {
             status: 400,
             error: 'UNKNOWN_FIELDS',
-            message: `Unknown field(s): ${additionalProperty}.`
+            message: `Unknown field(s): ${unknownFields}.`
         });
     }
 

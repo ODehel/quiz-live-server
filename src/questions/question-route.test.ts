@@ -325,6 +325,33 @@ describe('US-005/CA-19 - Reject a question carrying a field outside the allowed 
         });
         expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
     });
+
+    it('should name every unknown field in the 400 UNKNOWN_FIELDS response', async () => {
+        const input = {
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: "Quel est le symbole chimique de l'argent ?",
+            correct_answer: 'Ag',
+            level: 2,
+            time_limit: 15,
+            points: 10,
+            difficulty: 'hard',
+            hint: 'Argentum'
+        };
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'UNKNOWN_FIELDS',
+            message: 'Unknown field(s): difficulty, hint.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
 });
 
 describe('US-005/CA-50 - Create a question without authorization', () => {
