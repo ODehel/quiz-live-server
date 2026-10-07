@@ -354,6 +354,24 @@ describe('US-005/CA-19 - Reject a question carrying a field outside the allowed 
     });
 });
 
+describe('error-codes/INVALID_BODY - Reject a question whose body is not a JSON object', () => {
+    it('should reject an array body with a 400 INVALID_BODY response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify([])
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_BODY',
+            message: 'Request body must be a JSON object.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
 describe('US-005/CA-50 - Create a question without authorization', () => {
     beforeEach(() => {
         app = Fastify();

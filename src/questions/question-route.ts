@@ -46,6 +46,11 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     }, async (request, reply) => {
 
         if (request.validationError) {
+            if (request.validationError.validation.some((v: { keyword: string }) => v.keyword === 'type')) {
+                sendInvalidBody(reply);
+                return;
+            }
+
             const unknownFields = request.validationError.validation.map((v: { params: { additionalProperty: string } }) => v.params.additionalProperty).join(', ');
             sendUnknownFields(reply, unknownFields);
             return;
@@ -81,6 +86,14 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             sendError(error, reply);
         }
     });
+
+    function sendInvalidBody(reply: FastifyReply) {
+        sendErrorBody(reply, {
+            status: 400,
+            error: 'INVALID_BODY',
+            message: 'Request body must be a JSON object.'
+        });
+    }
 
     function sendError(error: unknown, reply: FastifyReply) {
         if (error instanceof InvalidThemeError) {
