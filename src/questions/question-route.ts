@@ -40,6 +40,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                     time_limit: {},
                     points: {}
                 },
+                required: ['title'],
                 additionalProperties: false
             }
         }
@@ -48,6 +49,11 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         if (request.validationError) {
             if (request.validationError.validation.some((v: { keyword: string }) => v.keyword === 'type')) {
                 sendInvalidBody(reply);
+                return;
+            }
+
+            if (request.validationError.validation.some((v: { keyword: string, params: { missingProperty: string } }) => v.keyword === 'required' && v.params.missingProperty === 'title')) {
+                sendMissingTitle(reply);
                 return;
             }
 
@@ -86,6 +92,14 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             sendError(error, reply);
         }
     });
+
+    function sendMissingTitle(reply: FastifyReply) {
+        sendErrorBody(reply, {
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title is required.'
+        });
+    }
 
     function sendInvalidBody(reply: FastifyReply) {
         sendErrorBody(reply, {
