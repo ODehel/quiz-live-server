@@ -15,6 +15,8 @@ interface ErrorBody {
     message?: string;
 }
 
+type SchemaViolation = { keyword: string, params: { missingProperty?: string, additionalProperty?: string } };
+
 export default async function questionRoute(app: FastifyInstance, options: QuestionRouteConfiguration) {
     const { questionService, tokenValidator, tokenDecoder, middleware, rateLimitMiddleware } = options;
 
@@ -40,24 +42,26 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                     time_limit: {},
                     points: {}
                 },
-                required: ['title'],
+                required: ['theme_id', 'title'],
                 additionalProperties: false
             }
         }
     }, async (request, reply) => {
 
         if (request.validationError) {
-            if (request.validationError.validation.some((v: { keyword: string }) => v.keyword === 'type')) {
+            const violations: SchemaViolation[] = request.validationError.validation;
+            if (violations.some(v => v.keyword === 'type')) {
                 sendInvalidBody(reply);
                 return;
             }
 
-            if (request.validationError.validation.some((v: { keyword: string, params: { missingProperty: string } }) => v.keyword === 'required' && v.params.missingProperty === 'title')) {
-                sendMissingTitle(reply);
+            const missing = violations.find(v => v.keyword === 'required');
+            if (missing?.params.missingProperty !== undefined) {
+                sendMissingField(reply, missing.params.missingProperty);
                 return;
             }
 
-            const unknownFields = request.validationError.validation.map((v: { params: { additionalProperty: string } }) => v.params.additionalProperty).join(', ');
+            const unknownFields = violations.map(v => v.params.additionalProperty).join(', ');
             sendUnknownFields(reply, unknownFields);
             return;
         }
@@ -93,11 +97,11 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         }
     });
 
-    function sendMissingTitle(reply: FastifyReply) {
+    function sendMissingField(reply: FastifyReply, missingField: string) {
         sendErrorBody(reply, {
             status: 400,
             error: 'VALIDATION_ERROR',
-            message: 'Question title is required.'
+            message: `Question ${missingField} is required.`
         });
     }
 
