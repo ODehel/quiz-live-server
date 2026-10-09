@@ -33,9 +33,6 @@ export class DefaultQuestionService implements QuestionService {
 
         const title = this.validateTitle(this.normalizeTitle(input.title));
 
-        if (input.correct_answer == null) {
-            throw new ValidationError("Question correct_answer is required.");
-        }
         const trimmedCorrectAnswer = input.correct_answer.trim();
         if (input.type === "SPEED") {
             if (this.isInvalidShortTextLength(trimmedCorrectAnswer)) {
