@@ -467,6 +467,30 @@ describe('error-codes/VALIDATION_ERROR - Reject a question missing a required fi
         });
         expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
     });
+
+    it('should reject an MCQ body without choices with a 400 VALIDATION_ERROR response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question choices is required.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
 });
 
 describe('US-005/CA-50 - Create a question without authorization', () => {

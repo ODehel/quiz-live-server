@@ -42,6 +42,8 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                     time_limit: {},
                     points: {}
                 },
+                if: { properties: { type: { const: 'MCQ' } }, required: ['type'] },
+                then: { required: ['choices'] },
                 required: ['theme_id', 'title', 'type', 'level', 'time_limit', 'points', 'correct_answer'],
                 additionalProperties: false
             }
