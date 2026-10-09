@@ -42,7 +42,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                     time_limit: {},
                     points: {}
                 },
-                required: ['theme_id', 'title', 'type', 'level', 'time_limit', 'points'],
+                required: ['theme_id', 'title', 'type', 'level', 'time_limit', 'points', 'correct_answer'],
                 additionalProperties: false
             }
         }
