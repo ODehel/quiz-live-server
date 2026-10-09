@@ -55,9 +55,13 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                 return;
             }
 
-            const missing = violations.find(v => v.keyword === 'required');
-            if (missing?.params.missingProperty !== undefined) {
-                sendMissingField(reply, missing.params.missingProperty);
+            const missingFields = violations
+                .filter(v => v.keyword === 'required')
+                .map(v => v.params.missingProperty)
+                .filter((f): f is string => f !== undefined);
+
+            if (missingFields.length > 0) {
+                sendMissingFields(reply, missingFields);
                 return;
             }
 
@@ -97,11 +101,14 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         }
     });
 
-    function sendMissingField(reply: FastifyReply, missingField: string) {
+    function sendMissingFields(reply: FastifyReply, missingFields: string[]) {
+        const missingFieldsList = missingFields.join(', ');
+        const verb = missingFields.length > 1 ? 'are' : 'is';
+
         sendErrorBody(reply, {
             status: 400,
             error: 'VALIDATION_ERROR',
-            message: `Question ${missingField} is required.`
+            message: `Question ${missingFieldsList} ${verb} required.`
         });
     }
 

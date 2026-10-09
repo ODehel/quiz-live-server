@@ -373,53 +373,7 @@ describe('error-codes/INVALID_BODY - Reject a question whose body is not a JSON 
 });
 
 describe('error-codes/VALIDATION_ERROR - Reject a question missing a required field', () => {
-    it('should reject a body without title with a 400 VALIDATION_ERROR response without calling the service', async () => {
-        const response = await app.inject({
-            method: 'POST',
-            url: '/api/v1/questions',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'SPEED',
-                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
-                correct_answer: 'Paris',
-                level: 1,
-                time_limit: 30,
-                points: 10
-            })
-        });
-        expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({
-            status: 400,
-            error: 'VALIDATION_ERROR',
-            message: 'Question title is required.'
-        });
-        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
-    });
-
-    it('should reject a body without theme_id with a 400 VALIDATION_ERROR response without calling the service', async () => {
-        const response = await app.inject({
-            method: 'POST',
-            url: '/api/v1/questions',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'SPEED',
-                title: 'Quelle est la capitale de la France ?',
-                correct_answer: 'Paris',
-                level: 1,
-                time_limit: 30,
-                points: 10
-            })
-        });
-        expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({
-            status: 400,
-            error: 'VALIDATION_ERROR',
-            message: 'Question theme_id is required.'
-        });
-        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
-    });
-
-    it.each(['type', 'level', 'time_limit', 'points'])('should reject a body without %s with a 400 VALIDATION_ERROR response without calling the service', async (missingField) => {
+    it.each(['theme_id', 'title', 'type', 'level', 'time_limit', 'points'])('should reject a body without %s with a 400 VALIDATION_ERROR response without calling the service', async (missingField) => {
         const body: Record<string, unknown> = {
             type: 'SPEED',
             theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
@@ -442,6 +396,28 @@ describe('error-codes/VALIDATION_ERROR - Reject a question missing a required fi
             status: 400,
             error: 'VALIDATION_ERROR',
             message: `Question ${missingField} is required.`
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+
+    it('should name every missing field in a single 400 VALIDATION_ERROR response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                points: 10,
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                correct_answer: 'Paris',
+                level: 1
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title, time_limit are required.'
         });
         expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
     });
