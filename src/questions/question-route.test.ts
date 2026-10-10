@@ -11,6 +11,7 @@ import authenticationMiddleware from '../authentication/authentication-middlewar
 import { TokenValidator } from '../authentication/token-validator.interface';
 import { TokenDecoder } from '../authentication/token-decoder.interface';
 import rateLimitMiddleware from '../infrastructure/rate-limit-middleware';
+import { DefaultQuestionService } from './default-question-service';
 
 let app: FastifyInstance;
 let mockQuestionService: QuestionService;
@@ -678,6 +679,43 @@ describe('US-005/CA-54 - Hide technical details of an unexpected error on GET /:
             status: 500,
             error: 'INTERNAL_SERVER_ERROR',
             message: 'An unexpected error occurred. Please try again later.'
+        });
+    });
+});
+
+describe('US-005/CA-9 - Reject an MCQ question whose choices is not an array, with the real service behind the route', () => {
+    beforeEach(() => {
+        const realQuestionService = new DefaultQuestionService(
+            { now: vi.fn().mockReturnValue(new Date('2026-04-08T13:32:00Z')) },
+            { generate: vi.fn().mockReturnValue('019d6cdd-30db-7437-ac57-5826c0695222') },
+            { insert: vi.fn(), getByTitle: vi.fn(), getById: vi.fn() },
+            { exists: vi.fn().mockReturnValue(true) }
+        );
+        app = Fastify();
+        app.register(questionRoute, { questionService: realQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { }, rateLimitMiddleware: async () => { } });
+    });
+
+    it('should reject null choices with a 400 VALIDATION_ERROR response explaining that choices must be an array', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: null,
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question choices must be an array.'
         });
     });
 });
