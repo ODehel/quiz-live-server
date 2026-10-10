@@ -39,6 +39,10 @@ export class DefaultQuestionService implements QuestionService {
                 throw new ValidationError(`Question correct_answer must be between ${SHORT_TEXT_MIN_LENGTH} and ${SHORT_TEXT_MAX_LENGTH} characters.`);
             }
         } else {
+            if (!Array.isArray(input.choices)) {
+                throw new ValidationError("Question choices must be an array.");
+            }
+
             const trimmedChoices = input.choices.map(c => c.trim());
             this.validateChoices(trimmedChoices);
 

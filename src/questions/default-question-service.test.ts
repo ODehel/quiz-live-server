@@ -256,6 +256,44 @@ describe("US-005/CA-007 - When the service creates a question whose theme_id doe
     });
 });
 
+describe("US-005/CA-009 - When the service creates a MCQ question whose choices is null", () => {
+    const input = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: null,
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    } as unknown as CreateQuestionInput;
+    it("should reject a MCQ with null choices with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+    it("should explain that the choices must be an array", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question choices must be an array.");
+    });
+});
+
+describe("US-005/CA-009 - When the service creates a MCQ question whose choices is not an array", () => {
+    const input = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: "Paris",
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    } as unknown as CreateQuestionInput;
+    it("should reject a MCQ with choices that is not an array with a ValidationError", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(ValidationError);
+    });
+    it("should explain that the choices must be an array", () => {
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question choices must be an array.");
+    });
+});
+
 describe("US-005/CA-009 - When the service creates a MCQ question whose choices count is not exactly 4", () => {
     const input: CreateMcqInput = {
         type: "MCQ",
