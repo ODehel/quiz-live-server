@@ -15,7 +15,7 @@ interface ErrorBody {
     message?: string;
 }
 
-type SchemaViolation = { keyword: string, params: { missingProperty?: string, additionalProperty?: string } };
+type SchemaViolation = { keyword: string, instancePath: string, params: { missingProperty?: string, additionalProperty?: string } };
 
 export default async function questionRoute(app: FastifyInstance, options: QuestionRouteConfiguration) {
     const { questionService, tokenValidator, tokenDecoder, middleware, rateLimitMiddleware } = options;
@@ -43,7 +43,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                     points: {}
                 },
                 if: { properties: { type: { const: 'MCQ' } }, required: ['type'] },
-                then: { required: ['choices'] },
+                then: { required: ['choices'], properties: { choices: { type: 'array', items: { type: 'string' } } } },
                 required: ['theme_id', 'title', 'type', 'level', 'time_limit', 'points', 'correct_answer'],
                 additionalProperties: false
             }
@@ -53,7 +53,13 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         if (request.validationError) {
             const violations: SchemaViolation[] = request.validationError.validation;
             if (violations.some(v => v.keyword === 'type')) {
-                sendInvalidBody(reply);
+                if (violations.some(v => v.instancePath.startsWith('/choices/'))) {
+                    sendChoicesNotOnlyStrings(reply);
+                } else if (violations.some(v => v.instancePath === '/choices')) {
+                    sendChoicesNotAnArray(reply);
+                } else {
+                    sendInvalidBody(reply);
+                }
                 return;
             }
 
@@ -111,6 +117,22 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             status: 400,
             error: 'VALIDATION_ERROR',
             message: `Question ${missingFieldsList} ${verb} required.`
+        });
+    }
+
+    function sendChoicesNotOnlyStrings(reply: FastifyReply) {
+        sendErrorBody(reply, {
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question choices must contain only strings.'
+        });
+    }
+
+    function sendChoicesNotAnArray(reply: FastifyReply) {
+        sendErrorBody(reply, {
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question choices must be an array.'
         });
     }
 
