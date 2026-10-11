@@ -454,6 +454,144 @@ describe('US-005/CA-11 - Leave the entries of SPEED choices to the service', () 
     });
 });
 
+describe('US-005/CA-4 - Reject a question whose title is not a string', () => {
+    it.each([
+        ['a number', 42],
+        ['null', null],
+        ['a boolean', true],
+        ['an array', []],
+        ['an object', {}]
+    ])('should reject a title that is %s with a 400 VALIDATION_ERROR response without calling the service', async (_label, title) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title,
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-4 - Reject a SPEED question whose title is not a string', () => {
+    it('should reject a SPEED question whose title is a number with a 400 VALIDATION_ERROR response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 42,
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('error-codes/VALIDATION_ERROR - Report a mistyped title before a missing or an unknown field', () => {
+    it('should report the mistyped title only when points is also missing', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 42,
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+
+    it('should report the mistyped title only when the body also contains an unknown field', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 42,
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10,
+                difficulty: 1
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('error-codes/VALIDATION_ERROR - Report mistyped choices before a mistyped title', () => {
+    it('should report the choices only when choices is not an array and the title is not a string', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 42,
+                choices: null,
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question choices must be an array.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
 describe('error-codes/VALIDATION_ERROR - Reject a question missing a required field', () => {
     it.each(['theme_id', 'title', 'type', 'level', 'time_limit', 'points', 'correct_answer'])('should reject a body without %s with a 400 VALIDATION_ERROR response without calling the service', async (missingField) => {
         const body: Record<string, unknown> = {

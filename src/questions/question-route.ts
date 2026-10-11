@@ -35,7 +35,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                 properties: {
                     type: {},
                     theme_id: {},
-                    title: {},
+                    title: { type: 'string' },
                     correct_answer: {},
                     choices: {},
                     level: {},
@@ -53,12 +53,17 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         if (request.validationError) {
             const violations: SchemaViolation[] = request.validationError.validation;
             if (violations.some(v => v.keyword === 'type')) {
-                if (violations.some(v => v.instancePath.startsWith('/choices/'))) {
+                if (violations.some(v => v.keyword === 'type' && v.instancePath.startsWith('/choices/'))) {
                     sendChoicesNotOnlyStrings(reply);
-                } else if (violations.some(v => v.instancePath === '/choices')) {
+                } else if (violations.some(v => v.keyword === 'type' && v.instancePath === '/choices')) {
                     sendChoicesNotAnArray(reply);
-                } else {
+                } else if (violations.some(v => v.keyword === 'type' && v.instancePath === '/title')) {
+                    sendTitleNotAString(reply);
+                } else if (violations.some(v => v.keyword === 'type' && v.instancePath === '')) {
                     sendInvalidBody(reply);
+                } else {
+                    const uncaughtViolations = violations.filter(v => v.keyword === 'type').map(v => v.instancePath);
+                    throw new Error(`No branch handles the type violation at: ${uncaughtViolations.join(', ')}`);
                 }
                 return;
             }
@@ -133,6 +138,14 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             status: 400,
             error: 'VALIDATION_ERROR',
             message: 'Question choices must be an array.'
+        });
+    }
+
+    function sendTitleNotAString(reply: FastifyReply) {
+        sendErrorBody(reply, {
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title must be a string.'
         });
     }
 
