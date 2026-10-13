@@ -36,7 +36,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                     type: {},
                     theme_id: {},
                     title: { type: 'string' },
-                    correct_answer: {},
+                    correct_answer: { type: 'string' },
                     choices: {},
                     level: {},
                     time_limit: {},
@@ -53,7 +53,9 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         if (request.validationError) {
             const violations: SchemaViolation[] = request.validationError.validation;
             if (violations.some(v => v.keyword === 'type')) {
-                if (violations.some(v => v.keyword === 'type' && v.instancePath.startsWith('/choices/'))) {
+                if (violations.some(v => v.keyword === 'type' && v.instancePath === '/correct_answer')) {
+                    sendCorrectAnswerNotAString(reply);
+                } else if (violations.some(v => v.keyword === 'type' && v.instancePath.startsWith('/choices/'))) {
                     sendChoicesNotOnlyStrings(reply);
                 } else if (violations.some(v => v.keyword === 'type' && v.instancePath === '/choices')) {
                     sendChoicesNotAnArray(reply);
@@ -138,6 +140,14 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             status: 400,
             error: 'VALIDATION_ERROR',
             message: 'Question choices must be an array.'
+        });
+    }
+
+    function sendCorrectAnswerNotAString(reply: FastifyReply) {
+        sendErrorBody(reply, {
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question correct_answer must be a string.'
         });
     }
 

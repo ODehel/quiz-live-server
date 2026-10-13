@@ -513,6 +513,65 @@ describe('US-005/CA-4 - Reject a SPEED question whose title is not a string', ()
     });
 });
 
+describe('US-005/CA-10 - Reject a question whose correct_answer is not a string', () => {
+    it.each([
+        ['a number', 42],
+        ['null', null],
+        ['a boolean', true],
+        ['an array', []],
+        ['an object', {}]
+    ])('should reject a correct_answer that is %s with a 400 VALIDATION_ERROR response without calling the service', async (_label, correctAnswer) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: correctAnswer,
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question correct_answer must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-12 - Reject a SPEED question whose correct_answer is not a string', () => {
+    it('should reject a SPEED question whose correct_answer is a number with a 400 VALIDATION_ERROR response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                correct_answer: 42,
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question correct_answer must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
 describe('error-codes/VALIDATION_ERROR - Report a mistyped title before a missing or an unknown field', () => {
     it('should report the mistyped title only when points is also missing', async () => {
         const response = await app.inject({
