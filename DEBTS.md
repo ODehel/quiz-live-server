@@ -54,5 +54,6 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 ## spec (`quiz-buzzer-docs`)
 
 - **Divergence sur le body `500`** entre la spec et l'implémentation.
+- **`error-codes.md` décrit un `415` que le hub ne rend pas** — `UNSUPPORTED_MEDIA_TYPE` (« Content-Type must be 'application/json'. », l. 27 et l. 251) ; le hub rend le corps natif de Fastify (`FST_ERR_CTP_INVALID_MEDIA_TYPE`, « Unsupported Media Type »), décision #11. US-005/CA-20 n'est testé sur aucune route de questions. *Pas séparé* : corriger `error-codes.md` (code et message) dans `quiz-buzzer-docs`, en session dédiée.
 - **CA-11 et CA-19 se contredisent sur `choices` d'un SPEED** — CA-11 exige `VALIDATION_ERROR`, CA-19 (« champs autorisés selon le type ») implique `UNKNOWN_FIELDS`. Arbitrage retenu : CA-19 prime. Non implémenté : le `POST` répond encore `VALIDATION_ERROR`. *Pas séparé* : schéma par type, décision à tracer, CA-11 à corriger dans la spec.
 - **`correlation_id`** (US-022 CA-19), hors périmètre pour l'instant.
