@@ -98,3 +98,14 @@ describe("US-005/CA-21 - SqliteQuestionRepository retrieves an MCQ question with
         expect(found).toEqual(mcqQuestion);
     });
 });
+
+describe("US-005/CA-26 - SqliteQuestionRepository lists the stored questions", () => {
+    it("should return the inserted question when a single question is stored", () => {
+        // Arrange
+        repository.insert(speedQuestion);
+        // Act
+        const questions = repository.getAll(1, 20);
+        // Assert
+        expect(questions.map(q => q.id)).toEqual([speedQuestion.id]);
+    });
+});

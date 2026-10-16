@@ -20,6 +20,9 @@ type QuestionRow = {
 
 export class SqliteQuestionRepository implements QuestionRepository {
     private db: Database;
+    private static readonly selectFrom: string = `SELECT QST_ID as id, QST_TYPE as type, QST_THEME_ID as theme_id, QST_TITLE as title, QST_CHOICES as choices, QST_CORRECT_ANSWER as correct_answer, QST_LEVEL as level,
+            QST_TIME_LIMIT as time_limit, QST_POINTS as points, QST_IMAGE_PATH as image_path, QST_AUDIO_PATH as audio_path, QST_CREATED_AT as created_at, QST_LAST_UPDATED_AT as last_updated_at
+            FROM T_QUESTION_QST`;
 
     constructor(db: Database) {
         this.db = db;
@@ -36,10 +39,7 @@ export class SqliteQuestionRepository implements QuestionRepository {
     }
 
     getByTitle(title: string): Question | undefined {
-        const row = this.db.prepare(`SELECT QST_ID as id, QST_TYPE as type, QST_THEME_ID as theme_id, QST_TITLE as title, QST_CHOICES as choices, QST_CORRECT_ANSWER as correct_answer, QST_LEVEL as level,
-            QST_TIME_LIMIT as time_limit, QST_POINTS as points, QST_IMAGE_PATH as image_path, QST_AUDIO_PATH as audio_path, QST_CREATED_AT as created_at, QST_LAST_UPDATED_AT as last_updated_at
-            FROM T_QUESTION_QST
-            WHERE QST_TITLE = ? COLLATE NOCASE`).get(title) as QuestionRow | undefined;
+        const row = this.db.prepare(`${SqliteQuestionRepository.selectFrom} WHERE QST_TITLE = ? COLLATE NOCASE`).get(title) as QuestionRow | undefined;
 
         if (row === undefined)
             return undefined;
@@ -48,15 +48,18 @@ export class SqliteQuestionRepository implements QuestionRepository {
     }
 
     getById(id: string): Question | undefined {
-        const row = this.db.prepare(`SELECT QST_ID as id, QST_TYPE as type, QST_THEME_ID as theme_id, QST_TITLE as title, QST_CHOICES as choices, QST_CORRECT_ANSWER as correct_answer, QST_LEVEL as level,
-            QST_TIME_LIMIT as time_limit, QST_POINTS as points, QST_IMAGE_PATH as image_path, QST_AUDIO_PATH as audio_path, QST_CREATED_AT as created_at, QST_LAST_UPDATED_AT as last_updated_at
-            FROM T_QUESTION_QST
-            WHERE QST_ID = ?`).get(id) as QuestionRow | undefined;
+        const row = this.db.prepare(`${SqliteQuestionRepository.selectFrom} WHERE QST_ID = ?`).get(id) as QuestionRow | undefined;
 
         if (row === undefined)
             return undefined;
 
         return this.rowToQuestion(row);
+    }
+
+    getAll(page: number, limit: number): Question[] {
+        const rows = this.db.prepare(SqliteQuestionRepository.selectFrom).all() as QuestionRow[];
+
+        return rows.map(r => this.rowToQuestion(r));
     }
 
     private createTableIfNotExists() {

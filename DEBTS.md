@@ -16,7 +16,9 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **Messages d'erreur en dur** — « The requested question was not found. » (→ `NotFoundError(resource)` à la 2ᵉ ressource : quiz, partie) ; « The provided ID is not a valid UUID. » dans `sendInvalidUuid` (→ `common/` avec `sendErrorBody`, à la 3ᵉ route).
 - **`sendErrorBody` / `ErrorBody` locaux à `question-route.ts`** — extraction vers `common/` à la 3ᵉ occurrence.
 - **`ConflictError` et `ValidationError` en double** (`themes/`, `questions/`, classes identiques) — `NotFoundError` est déjà dans `common/` ; migration des autres erreurs génériques à la 3ᵉ occurrence.
-- **`SELECT` de 3 lignes dupliqué** entre `getByTitle` et `getById` dans `SqliteQuestionRepository` — attend `getAll` (CA-26).
+- **`getAll` du repository ignore `page`, `limit` et le tri** — `SELECT` sans `ORDER BY`, `LIMIT` ni `OFFSET` ; signature calquée sur les thèmes, paramètres inutilisés, un seul test (une question). *Pas séparé* : le rouge de CA-27 (tri `created_at` décroissant, test à deux questions), puis ceux de la pagination (CA-28 à CA-32).
+- **`getAll` absent de l'interface `QuestionRepository`** — posé sur `SqliteQuestionRepository` seule, aucun appelant. *Pas séparé* : l'interface, le service et le mock de `default-question-service.test.ts` suivent avec le service de liste (CA-26).
+- **CA-3 non asserté à la route** — la normalisation du titre (trim + collapse) n'est testée qu'au service (CA-003) ; `question-route.test.ts` mocke le service et ne contient ni `trim` ni `normali`. *Pas séparé* : un test de route monté avec le vrai `DefaultQuestionService` (mutation : retirer `normalizeTitle`), montage que ni `question-route.test.ts` ni `server.test.ts` n'ont aujourd'hui.
 - **`row.choices!`** dans `rowToQuestion`.
 - **`UNIQUE` sur le titre en base** = 2ᵉ source de vérité vis-à-vis de CA-5 (unicité insensible à la casse portée par le service).
 - **Test `getByTitle` SPEED champ par champ** (13 `expect`). Cosmétique.
