@@ -57,7 +57,7 @@ export class SqliteQuestionRepository implements QuestionRepository {
     }
 
     getAll(page: number, limit: number): Question[] {
-        const rows = this.db.prepare(SqliteQuestionRepository.selectFrom).all() as QuestionRow[];
+        const rows = this.db.prepare(`${SqliteQuestionRepository.selectFrom} ORDER BY created_at DESC`).all() as QuestionRow[];
 
         return rows.map(r => this.rowToQuestion(r));
     }

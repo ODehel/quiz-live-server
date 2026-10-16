@@ -109,3 +109,39 @@ describe("US-005/CA-26 - SqliteQuestionRepository lists the stored questions", (
         expect(questions.map(q => q.id)).toEqual([speedQuestion.id]);
     });
 });
+
+describe("US-005/CA-27 - SqliteQuestionRepository lists the most recent questions first", () => {
+    let olderQuestion: Question;
+    let newerQuestion: Question;
+
+    beforeEach(() => {
+        olderQuestion = { ...speedQuestion, created_at: "2026-01-01T10:00:00.000Z" };
+        newerQuestion = {
+            ...speedQuestion,
+            id: "019d6c17-1c08-7161-9358-fe4a116fa389",
+            title: "Quelle est la capitale du Portugal",
+            correct_answer: "Lisbonne",
+            created_at: "2026-01-02T10:00:00.000Z"
+        };
+    });
+
+    it("should return the most recent question first when two questions are stored from the oldest to the newest", () => {
+        // Arrange
+        repository.insert(olderQuestion);
+        repository.insert(newerQuestion);
+        // Act
+        const questions = repository.getAll(1, 20);
+        // Assert
+        expect(questions.map(q => q.id)).toEqual([newerQuestion.id, olderQuestion.id]);
+    });
+
+    it("should return the most recent question first when two questions are stored from the newest to the oldest", () => {
+        // Arrange
+        repository.insert(newerQuestion);
+        repository.insert(olderQuestion);
+        // Act
+        const questions = repository.getAll(1, 20);
+        // Assert
+        expect(questions.map(q => q.id)).toEqual([newerQuestion.id, olderQuestion.id]);
+    });
+});
