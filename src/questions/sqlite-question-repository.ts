@@ -62,6 +62,11 @@ export class SqliteQuestionRepository implements QuestionRepository {
         return rows.map(r => this.rowToQuestion(r));
     }
 
+    count(): number {
+        const row = this.db.prepare("SELECT COUNT(QST_ID) as count FROM T_QUESTION_QST").get() as { count: number };
+        return row.count;
+    }
+
     private createTableIfNotExists() {
         this.db.prepare(`CREATE TABLE IF NOT EXISTS T_QUESTION_QST
 (

@@ -110,6 +110,32 @@ describe("US-005/CA-26 - SqliteQuestionRepository lists the stored questions", (
     });
 });
 
+describe("US-005/CA-26 - SqliteQuestionRepository counts the stored questions", () => {
+    it("should return 1 when a single question is stored", () => {
+        // Arrange
+        repository.insert(speedQuestion);
+        // Act
+        const total = repository.count();
+        // Assert
+        expect(total).toBe(1);
+    });
+
+    it("should return the total of stored questions even when it exceeds the default page size", () => {
+        // Arrange
+        for (let index = 0; index < 21; index++) {
+            repository.insert({
+                ...speedQuestion,
+                id: `019d6c17-1c08-7161-9358-fe4a116fb${index.toString().padStart(3, "0")}`,
+                title: `Quelle est la question numero ${index}`
+            });
+        }
+        // Act
+        const total = repository.count();
+        // Assert
+        expect(total).toBe(21);
+    });
+});
+
 describe("US-005/CA-27 - SqliteQuestionRepository lists the most recent questions first", () => {
     let olderQuestion: Question;
     let newerQuestion: Question;
