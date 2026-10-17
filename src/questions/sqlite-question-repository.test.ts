@@ -145,3 +145,49 @@ describe("US-005/CA-27 - SqliteQuestionRepository lists the most recent question
         expect(questions.map(q => q.id)).toEqual([newerQuestion.id, olderQuestion.id]);
     });
 });
+
+describe("US-005/CA-26 - SqliteQuestionRepository limits the number of listed questions", () => {
+    let oldestQuestion: Question;
+    let middleQuestion: Question;
+    let newestQuestion: Question;
+
+    beforeEach(() => {
+        oldestQuestion = { ...speedQuestion, created_at: "2026-01-01T10:00:00.000Z" };
+        newestQuestion = {
+            ...speedQuestion,
+            id: "019d6c17-1c08-7161-9358-fe4a116fa389",
+            title: "Quelle est la capitale du Portugal",
+            correct_answer: "Lisbonne",
+            created_at: "2026-01-03T10:00:00.000Z"
+        };
+        middleQuestion = {
+            ...speedQuestion,
+            id: "019d6c17-1c08-7161-9358-fe4a116fa38a",
+            title: "Quelle est la capitale de l'Espagne",
+            correct_answer: "Madrid",
+            created_at: "2026-01-02T10:00:00.000Z"
+        };
+    });
+
+    it("should return only the most recent questions up to the limit when more questions are stored", () => {
+        // Arrange
+        repository.insert(oldestQuestion);
+        repository.insert(newestQuestion);
+        repository.insert(middleQuestion);
+        // Act
+        const questions = repository.getAll(1, 2);
+        // Assert
+        expect(questions.map(q => q.id)).toEqual([newestQuestion.id, middleQuestion.id]);
+    });
+
+    it("should return only the most recent question when the limit is one", () => {
+        // Arrange
+        repository.insert(oldestQuestion);
+        repository.insert(newestQuestion);
+        repository.insert(middleQuestion);
+        // Act
+        const questions = repository.getAll(1, 1);
+        // Assert
+        expect(questions.map(q => q.id)).toEqual([newestQuestion.id]);
+    });
+});
