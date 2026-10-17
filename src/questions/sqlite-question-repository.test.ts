@@ -146,7 +146,7 @@ describe("US-005/CA-27 - SqliteQuestionRepository lists the most recent question
     });
 });
 
-describe("US-005/CA-26 - SqliteQuestionRepository limits the number of listed questions", () => {
+describe("US-005/CA-26 - SqliteQuestionRepository paginates the listed questions", () => {
     let oldestQuestion: Question;
     let middleQuestion: Question;
     let newestQuestion: Question;
@@ -189,5 +189,27 @@ describe("US-005/CA-26 - SqliteQuestionRepository limits the number of listed qu
         const questions = repository.getAll(1, 1);
         // Assert
         expect(questions.map(q => q.id)).toEqual([newestQuestion.id]);
+    });
+
+    it("should return the questions of the requested page, skipping those of the previous pages", () => {
+        // Arrange
+        repository.insert(oldestQuestion);
+        repository.insert(newestQuestion);
+        repository.insert(middleQuestion);
+        // Act
+        const questions = repository.getAll(2, 2);
+        // Assert
+        expect(questions.map(q => q.id)).toEqual([oldestQuestion.id]);
+    });
+
+    it("should skip only the questions of the previous pages when the limit is one", () => {
+        // Arrange
+        repository.insert(oldestQuestion);
+        repository.insert(newestQuestion);
+        repository.insert(middleQuestion);
+        // Act
+        const questions = repository.getAll(2, 1);
+        // Assert
+        expect(questions.map(q => q.id)).toEqual([middleQuestion.id]);
     });
 });
