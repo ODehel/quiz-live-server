@@ -146,6 +146,43 @@ describe("US-005/CA-27 - SqliteQuestionRepository lists the most recent question
     });
 });
 
+describe("US-005/CA-27 - SqliteQuestionRepository breaks the ties on the creation date", () => {
+    let lowerIdQuestion: Question;
+    let higherIdQuestion: Question;
+
+    beforeEach(() => {
+        lowerIdQuestion = { ...speedQuestion, created_at: "2026-01-01T10:00:00.000Z" };
+        higherIdQuestion = {
+            ...speedQuestion,
+            id: "019d6c17-1c08-7161-9358-fe4a116fa389",
+            title: "Quelle est la capitale du Portugal",
+            correct_answer: "Lisbonne",
+            created_at: "2026-01-01T10:00:00.000Z"
+        };
+    });
+
+    it("should return the question with the highest id first when two questions share the same creation date", () => {
+        // Arrange
+        repository.insert(lowerIdQuestion);
+        repository.insert(higherIdQuestion);
+        // Act
+        const questions = repository.getAll(1, 20);
+        // Assert
+        expect(questions.map(q => q.id)).toEqual([higherIdQuestion.id, lowerIdQuestion.id]);
+    });
+
+    it("should return the question with the highest id first regardless of the insertion order and the title", () => {
+        // Arrange
+        const higherIdFirstTitleQuestion = { ...higherIdQuestion, title: "Quelle est la capitale de l'Allemagne", correct_answer: "Berlin" };
+        repository.insert(higherIdFirstTitleQuestion);
+        repository.insert(lowerIdQuestion);
+        // Act
+        const questions = repository.getAll(1, 20);
+        // Assert
+        expect(questions.map(q => q.id)).toEqual([higherIdFirstTitleQuestion.id, lowerIdQuestion.id]);
+    });
+});
+
 describe("US-005/CA-26 - SqliteQuestionRepository paginates the listed questions", () => {
     let oldestQuestion: Question;
     let middleQuestion: Question;

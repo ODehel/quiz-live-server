@@ -57,7 +57,7 @@ export class SqliteQuestionRepository implements QuestionRepository {
     }
 
     getAll(page: number, limit: number): Question[] {
-        const rows = this.db.prepare(`${SqliteQuestionRepository.selectFrom} ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(limit, (page - 1) * limit) as QuestionRow[];
+        const rows = this.db.prepare(`${SqliteQuestionRepository.selectFrom} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`).all(limit, (page - 1) * limit) as QuestionRow[];
 
         return rows.map(r => this.rowToQuestion(r));
     }
