@@ -11,6 +11,7 @@ import { ConflictError } from "./conflict-error";
 import { InvalidThemeError } from "./invalid-theme-error";
 import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
 import { NotFoundError } from "../common/not-found-error";
+import { Pagination } from "../common/pagination.interface";
 
 let clock: Clock;
 let uuidGenerator: UuidGenerator;
@@ -24,7 +25,9 @@ beforeEach(() => {
     questionRepository = {
         insert: vi.fn(),
         getByTitle: vi.fn(),
-        getById: vi.fn()
+        getById: vi.fn(),
+        getAll: vi.fn(),
+        count: vi.fn()
     };
     themeExistenceChecker = { exists: vi.fn().mockReturnValue(true) };
     defaultQuestionService = new DefaultQuestionService(
@@ -717,5 +720,59 @@ describe("US-005/CA-011 - When the service creates a SPEED question with null ch
     } as unknown as CreateQuestionInput;
     it("should reject null choices as present, with the same explanation", () => {
         expect(() => defaultQuestionService.createQuestion(input)).toThrow("Question choices must be absent for a SPEED question.");
+    });
+});
+
+describe("US-005/CA-26 - When the service lists a page of questions", () => {
+    let result: Pagination<Question>;
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695223",
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Dans quel pays se trouve la Tour Eiffel ?",
+        correct_answer: "France",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-08T13:32:00.000Z",
+        last_updated_at: null,
+    };
+    beforeEach(() => {
+        vi.mocked(questionRepository.getAll).mockReturnValue([storedQuestion]);
+        vi.mocked(questionRepository.count).mockReturnValue(12);
+        result = defaultQuestionService.getAll(2, 5);
+    });
+    it("should return the questions of the repository page with the page, the limit, the total and the total of pages", () => {
+        expect(questionRepository.getAll).toHaveBeenCalledWith(2, 5);
+        expect(result).toEqual({ data: [storedQuestion], page: 2, limit: 5, total: 12, total_pages: 3 });
+    });
+});
+
+describe("US-005/CA-26 - When the service lists the first page and the total is an exact multiple of the limit", () => {
+    let result: Pagination<Question>;
+    const firstQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695224",
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de l'Italie ?",
+        correct_answer: "Rome",
+        level: 2,
+        time_limit: 20,
+        points: 5,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-09T08:00:00.000Z",
+        last_updated_at: null,
+    };
+    beforeEach(() => {
+        vi.mocked(questionRepository.getAll).mockReturnValue([firstQuestion]);
+        vi.mocked(questionRepository.count).mockReturnValue(20);
+        result = defaultQuestionService.getAll(1, 10);
+    });
+    it("should return exactly the pages needed to hold the total, without an extra empty page", () => {
+        expect(questionRepository.getAll).toHaveBeenCalledWith(1, 10);
+        expect(result).toEqual({ data: [firstQuestion], page: 1, limit: 10, total: 20, total_pages: 2 });
     });
 });
