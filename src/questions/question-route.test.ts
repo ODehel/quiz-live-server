@@ -1020,6 +1020,49 @@ describe('US-005/CA-28 - Default pagination parameters of the list of questions'
     });
 });
 
+describe('US-005/CA-29 - Cap the limit of the list of questions', () => {
+    it('should reject a limit above 100 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=200' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-29 - Accept the maximum limit of the list of questions', () => {
+    it('should ask the service for a limit of exactly 100', async () => {
+        const pagination = { data: [{ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416' } as Question], page: 1, limit: 100, total: 1, total_pages: 1 };
+        mockQuestionService.getAll = vi.fn().mockReturnValue(pagination);
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=100' });
+
+        expect(mockQuestionService.getAll).toHaveBeenCalledWith(1, 100);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(pagination);
+    });
+
+    it('should reject a limit of 101 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=101' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+});
+
 describe('US-005/CA-54 - Hide technical details of an unexpected error on GET /', () => {
     it('should translate an unexpected error into a 500 INTERNAL_SERVER_ERROR response without technical details', async () => {
         mockQuestionService.getAll = vi.fn(() => {

@@ -119,6 +119,11 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     app.get('/api/v1/questions', async (request, reply) => {
         const { page = 1, limit = 20 } = request.query as { page?: number, limit?: number };
 
+        if (limit > 100) {
+            sendLimitReached(reply);
+            return;
+        }
+
         try {
             const pagination = questionService.getAll(Number(page), Number(limit));
             reply.status(200).send(pagination);
@@ -167,6 +172,14 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             status: 400,
             error: 'VALIDATION_ERROR',
             message: 'Question title must be a string.'
+        });
+    }
+
+    function sendLimitReached(reply: FastifyReply) {
+        sendErrorBody(reply, {
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
         });
     }
 
