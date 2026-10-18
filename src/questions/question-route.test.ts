@@ -34,7 +34,8 @@ beforeEach(() => {
             created_at: new Date().toISOString(),
             last_updated_at: null
         } as Question),
-        getQuestionById: vi.fn()
+        getQuestionById: vi.fn(),
+        getAll: vi.fn()
     };
     mockTokenValidator = { validateToken: vi.fn(), inspectToken: vi.fn() };
     mockTokenDecoder = { decode: vi.fn() };
@@ -866,6 +867,20 @@ describe('US-005/CA-54 - Log the technical details of an unexpected error', () =
             err: expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' })
         }));
     });
+
+    it('should log the unexpected error of the list with its technical message at error level', async () => {
+        mockQuestionService.getAll = vi.fn(() => {
+            throw new Error('SQLITE_BUSY: database is locked');
+        });
+
+        await app.inject({ method: 'GET', url: '/api/v1/questions' });
+
+        const logs = logLines.map(line => JSON.parse(line));
+        expect(logs).toContainEqual(expect.objectContaining({
+            level: 50,
+            err: expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' })
+        }));
+    });
 });
 
 describe('US-005/CA-52 - Rate limiting on the questions route', () => {
@@ -951,6 +966,67 @@ describe('US-005/CA-54 - Hide technical details of an unexpected error on GET /:
         });
 
         const response = await app.inject({ method: 'GET', url: '/api/v1/questions/018e4f5a-0000-0000-0000-000000000000' });
+
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual({
+            status: 500,
+            error: 'INTERNAL_SERVER_ERROR',
+            message: 'An unexpected error occurred. Please try again later.'
+        });
+    });
+});
+
+describe('US-005/CA-26 - List a page of questions', () => {
+    it('should ask the service for the requested page and limit as numbers and reply 200 with its pagination', async () => {
+        const question = {
+            id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', type: 'MCQ', theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a', title: 'Quelle est la capitale de la France ?',
+            choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'], correct_answer: 'Paris', level: 1, time_limit: 30, points: 10,
+            image_path: null, audio_path: null, created_at: '2026-09-26T09:00:00.000Z', last_updated_at: null
+        } as Question;
+        const pagination = { data: [question], page: 2, limit: 5, total: 12, total_pages: 3 };
+        mockQuestionService.getAll = vi.fn().mockReturnValue(pagination);
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=2&limit=5' });
+
+        expect(mockQuestionService.getAll).toHaveBeenCalledWith(2, 5);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(pagination);
+    });
+});
+
+describe('US-005/CA-26 - List another page of questions', () => {
+    it('should forward the requested page and limit whatever their values', async () => {
+        const pagination = { data: [{ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416' } as Question], page: 3, limit: 10, total: 25, total_pages: 3 };
+        mockQuestionService.getAll = vi.fn().mockReturnValue(pagination);
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=3&limit=10' });
+
+        expect(mockQuestionService.getAll).toHaveBeenCalledWith(3, 10);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(pagination);
+    });
+});
+
+describe('US-005/CA-28 - Default pagination parameters of the list of questions', () => {
+    it('should ask the service for the page 1 and the limit 20 when none is given', async () => {
+        const pagination = { data: [{ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416' } as Question], page: 1, limit: 20, total: 1, total_pages: 1 };
+        mockQuestionService.getAll = vi.fn().mockReturnValue(pagination);
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions' });
+
+        expect(mockQuestionService.getAll).toHaveBeenCalledWith(1, 20);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(pagination);
+    });
+});
+
+describe('US-005/CA-54 - Hide technical details of an unexpected error on GET /', () => {
+    it('should translate an unexpected error into a 500 INTERNAL_SERVER_ERROR response without technical details', async () => {
+        mockQuestionService.getAll = vi.fn(() => {
+            throw new Error('SQLITE_BUSY: database is locked');
+        });
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions' });
 
         expect(response.statusCode).toBe(500);
         expect(response.json()).toEqual({

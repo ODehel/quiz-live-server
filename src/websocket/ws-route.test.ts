@@ -118,7 +118,8 @@ describe("WebSocket", () => {
         };
         mockQuestionService = {
             createQuestion: vi.fn(),
-            getQuestionById: vi.fn()
+            getQuestionById: vi.fn(),
+            getAll: vi.fn()
         };
         mockUuidValidator = {
             validate: vi.fn()

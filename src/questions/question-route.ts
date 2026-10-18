@@ -116,6 +116,17 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         }
     });
 
+    app.get('/api/v1/questions', async (request, reply) => {
+        const { page = 1, limit = 20 } = request.query as { page?: number, limit?: number };
+
+        try {
+            const pagination = questionService.getAll(Number(page), Number(limit));
+            reply.status(200).send(pagination);
+        } catch (error) {
+            sendError(error, reply);
+        }
+    });
+
     function sendMissingFields(reply: FastifyReply, missingFields: string[]) {
         const missingFieldsList = missingFields.join(', ');
         const verb = missingFields.length > 1 ? 'are' : 'is';

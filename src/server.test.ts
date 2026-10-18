@@ -82,7 +82,8 @@ const mockThemeService: ThemeService = {
 };
 const mockQuestionService: QuestionService = {
 	createQuestion: vi.fn(),
-	getQuestionById: vi.fn()
+	getQuestionById: vi.fn(),
+	getAll: vi.fn()
 };
 const mockUuidValidator: UuidValidator = {
 	validate: vi.fn()
@@ -216,7 +217,8 @@ describe('US-005/CA-1 - Question creation reachable on the assembled server', ()
 	beforeEach(() => {
 		creationQuestionService = {
 			createQuestion: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416' } as Question), // corps prouvé au niveau route, pas ici
-			getQuestionById: vi.fn()
+			getQuestionById: vi.fn(),
+			getAll: vi.fn()
 		};
 		const creationRouteConfiguration: QuestionRouteConfiguration = {
 			questionService: creationQuestionService,
