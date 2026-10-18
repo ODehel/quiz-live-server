@@ -58,6 +58,7 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 
 - **Specs non type-checkées par Vitest** — `tsc --noEmit` obligatoire avant tout vert.
 - **`noUnusedLocals` off**.
+- **Tests à propriétés (`fast-check`)** — décision du 2026-10-18 : plus tard. Terrain naturel : les familles de valeurs de pagination et les bornes de `level`, `points`, `time_limit`.
 
 ## spec (`quiz-buzzer-docs`)
 
