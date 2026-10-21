@@ -13,4 +13,7 @@ const hasher = new BcryptHasher();
 const passwordValidator = new OwaspPasswordValidator();
 const seedUsers: SeedUsers = new SeedUsers(userRepository, hasher, passwordValidator);
 const seedUserConfiguration: SeedUserConfiguration = { adminPassword: environment.adminPassword, playerDefaultPassword: environment.playerPassword };
-seedUsers.seed(seedUserConfiguration);
+seedUsers.seed(seedUserConfiguration).catch((error: unknown) => {
+    console.error("User seeding failed: " + (error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+});

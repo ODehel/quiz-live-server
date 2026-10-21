@@ -78,4 +78,7 @@ const questionRouteConfiguration: QuestionRouteConfiguration = {
     rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration, questionRouteConfiguration);
-server.start();
+server.start().catch((error: unknown) => {
+    console.error("Server starting failed: " + (error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+});

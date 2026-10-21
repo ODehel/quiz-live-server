@@ -53,11 +53,14 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **Signature `rateLimitMiddleware` / `middleware` dupliquée** entre les configurations de routes. *Pas séparé* : `refactor(infrastructure)`.
 - **Composition `index.ts` non vérifiée à l'exécution** — smoke test (`npm start` + `curl`) jamais fait : `POST`, `GET /:id`, `404`, `400`.
 - **Construction de `QuizServer` répétée** dans 6 `beforeEach`.
+- **Bloc `.catch` + `process.exit(1)` écrit deux fois** (`index.ts`, `seed.ts`) : même journalisation et même sortie en échec. À extraire à la troisième occurrence.
+- **`index.ts` et `seed.ts` sans test** (0 % de couverture) : le message d'échec et le code de sortie 1 ont été vérifiés par sonde manuelle seulement (`npm run seed` avec un mot de passe invalide ; `npm start` avec le port pris).
 
 ## outillage
 
 - **Specs non type-checkées par Vitest** — `tsc --noEmit` obligatoire avant tout vert.
 - **`noUnusedLocals` off**.
+- **Promesse non attendue dans `ws-route.ts`** (`socket.on('message', async …)`) : le corps du handler est déjà dans un `try / catch`, donc pas de `fix`. À trancher avec `no-misused-promises` dans le chantier C (garder, commenter ou réécrire).
 - **Tests à propriétés (`fast-check`)** — décision du 2026-10-18 : plus tard. Terrain naturel : les familles de valeurs de pagination et les bornes de `level`, `points`, `time_limit`.
 
 ## spec (`quiz-buzzer-docs`)
