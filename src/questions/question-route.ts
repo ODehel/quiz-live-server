@@ -119,8 +119,8 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     app.get('/api/v1/questions', async (request, reply) => {
         const { page = 1, limit = 20 } = request.query as { page?: number, limit?: number };
 
-        if (limit > 100) {
-            sendLimitReached(reply);
+        if (!/^[1-9][0-9]*$/.test(String(limit)) || limit > 100 || !/^[1-9][0-9]*$/.test(String(page))) {
+            sendInvalidPaginationParameters(reply);
             return;
         }
 
@@ -175,7 +175,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         });
     }
 
-    function sendLimitReached(reply: FastifyReply) {
+    function sendInvalidPaginationParameters(reply: FastifyReply) {
         sendErrorBody(reply, {
             status: 400,
             error: 'INVALID_PAGINATION',

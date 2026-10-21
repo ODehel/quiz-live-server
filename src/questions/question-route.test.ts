@@ -1063,6 +1063,176 @@ describe('US-005/CA-29 - Accept the maximum limit of the list of questions', () 
     });
 });
 
+describe('US-005/CA-30 - Reject invalid pagination parameters of the list of questions', () => {
+    it('should reject a limit of 0 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=0' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a limit of A with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=A' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a limit of -3 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=-3' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a limit written in scientific notation, such as 1e1, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=1e1' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a limit with a leading zero, such as 007, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=007' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page of 0 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=0' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page of A with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=A' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page written in scientific notation, such as 1e1, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=1e1' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page with a leading zero, such as 007, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=007' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a limit with a decimal part, such as 1.5, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=1.5' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page with a decimal part, such as 1.5, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=1.5' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page of -1 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=-1' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+});
+
 describe('US-005/CA-54 - Hide technical details of an unexpected error on GET /', () => {
     it('should translate an unexpected error into a 500 INTERNAL_SERVER_ERROR response without technical details', async () => {
         mockQuestionService.getAll = vi.fn(() => {
