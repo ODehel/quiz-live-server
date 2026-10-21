@@ -41,7 +41,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
                             const connectedBuzzers = [...registry.values()].filter(e => e.role === UserRole.PLAYER).map(e => ({ username: e.username }));
                             socket.send(JSON.stringify({ type: "game_state_sync", connected_buzzers: connectedBuzzers }));
                         }
-                    } catch { }
+                    } catch { /* a non-json message is ignored */ }
                     return;
                 }
                 authenticated = true;

@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest } from "fastify";
+import { FastifyInstance } from "fastify";
 import { TokenValidator } from "./token-validator.interface";
 import { TokenDecoder } from "./token-decoder.interface";
 import { UserRole } from "../users/user-role";

@@ -1,5 +1,4 @@
 import { uuidv7 } from "uuidv7";
-import { Environment } from "../common/environment.interface"
 import { Hasher } from "../common/hasher.interface";
 import { PasswordValidator } from "./password-validator.interface";
 import { UserRepository } from "./user-repository.interface"

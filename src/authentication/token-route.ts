@@ -1,5 +1,4 @@
 import { FastifyInstance } from "fastify";
-import rateLimit from "@fastify/rate-limit";
 import { TokenRouteConfiguration } from "./token-route-configuration.interface";
 
 export default async function tokenRoute(app: FastifyInstance, options: TokenRouteConfiguration) {
