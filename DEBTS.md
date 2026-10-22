@@ -59,7 +59,8 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 ## outillage
 
 - **Specs non type-checkées par Vitest** — `tsc --noEmit` obligatoire avant tout vert.
-- **ESLint absent** (aucun `eslint.config.*`, aucun script `lint`, ~253 constats à re-mesurer) : session `chore(lint)` du chantier C.
+- **ESLint installé, `npm run lint` rouge et hors CI** — `eslint.config.mjs` (`recommendedTypeChecked`, `projectService`), script `eslint src` ; mesuré le 2026-10-22 : 249 constats, 231 en test et 18 hors test (`unbound-method` 97, `no-unused-vars` 32, `require-await` 28, `no-unnecessary-type-assertion` 21, `no-unsafe-assignment` 20, `prefer-const` 19, `no-base-to-string` 12, six autres règles 20) ; 40 corrigeables par `--fix`. Sans `parserOptions`, ESLint s'arrête (`exit=2`). *Pas séparé* : un commit par famille de règle (corriger ou assouplir), puis `npm run lint` dans la CI en dernier.
+- **11 vulnérabilités `npm audit`** (1 faible, 3 modérées, 7 élevées), déjà présentes à `bf349ac` avant l'installation d'ESLint (mesuré le 2026-10-22) ; avertissement `install-scripts` pour `better-sqlite3` et `esbuild`. Non traité. *Pas séparé* : `chore(deps)`, lire l'audit avant tout `npm audit fix`.
 - **Promesse non attendue dans `ws-route.ts`** (`socket.on('message', async …)`) : le corps du handler est déjà dans un `try / catch`, donc pas de `fix`. À trancher avec `no-misused-promises` dans le chantier C (garder, commenter ou réécrire).
 - **Tests à propriétés (`fast-check`)** — décision du 2026-10-18 : plus tard. Terrain naturel : les familles de valeurs de pagination et les bornes de `level`, `points`, `time_limit`.
 
