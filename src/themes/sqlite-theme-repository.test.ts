@@ -7,12 +7,12 @@ import Database from "better-sqlite3";
 
 let database: Database.Database;
 let repository: SqliteThemeRepository;
-let questionRepository: SqliteQuestionRepository;
 let theme: Theme;
 beforeEach(() => {
     database = new Database(":memory:");
     repository = new SqliteThemeRepository(database);
-    questionRepository = new SqliteQuestionRepository(database);
+    // Le constructeur crée la table des questions, que isUsedInQuestions interroge
+    new SqliteQuestionRepository(database);
     theme = {
         id: "019d6c17-1c08-7161-9358-fe4a116fa388",
         name: "Theme test",
@@ -96,12 +96,12 @@ describe("US-004/CA-14 - Retrieve a list of themes with pagination in the correc
     it("should give a list with the first theme", async () => {
         const themes: Theme[] = repository.getAll(1, 1);
         expect(themes.length).toBe(1);
-        expect(themes[0].name).toBe("Other theme test");
+        expect(themes[0]?.name).toBe("Other theme test");
     });
     it("should give a list with the second theme", async () => {
         const themes: Theme[] = repository.getAll(2, 1);
         expect(themes.length).toBe(1);
-        expect(themes[0].name).toBe("Theme test");
+        expect(themes[0]?.name).toBe("Theme test");
     });
 });
 

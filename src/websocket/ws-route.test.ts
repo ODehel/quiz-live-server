@@ -752,7 +752,7 @@ describe("WebSocket", () => {
         let clientA = new WebSocket(`ws://localhost:${port}/ws`);
         let clientB: WebSocket;
         let authenticated = false;
-        const received = await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
             clientA.on('open', () => clientA.send(JSON.stringify({ type: "auth", token: "token-A" })));
             clientA.on('message', () => {
                 if (!authenticated) {

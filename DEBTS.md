@@ -59,7 +59,7 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 ## outillage
 
 - **Specs non type-checkées par Vitest** — `tsc --noEmit` obligatoire avant tout vert.
-- **`noUnusedLocals` off**.
+- **ESLint absent** (aucun `eslint.config.*`, aucun script `lint`, ~253 constats à re-mesurer) : session `chore(lint)` du chantier C.
 - **Promesse non attendue dans `ws-route.ts`** (`socket.on('message', async …)`) : le corps du handler est déjà dans un `try / catch`, donc pas de `fix`. À trancher avec `no-misused-promises` dans le chantier C (garder, commenter ou réécrire).
 - **Tests à propriétés (`fast-check`)** — décision du 2026-10-18 : plus tard. Terrain naturel : les familles de valeurs de pagination et les bornes de `level`, `points`, `time_limit`.
 

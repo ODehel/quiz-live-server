@@ -29,7 +29,6 @@ const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
 }
 
-let capturedCallback: () => void;
 let mockScheduler: Scheduler = {
 	schedule: vi.fn(() => ({ cancel: () => { } }))
 };

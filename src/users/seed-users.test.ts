@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UserRepository } from "./user-repository.interface";
 import { SeedUsers } from './seed-users';
 import { UserRole } from './user-role';

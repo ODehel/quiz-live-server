@@ -1,5 +1,5 @@
 import Fastify, { FastifyInstance } from "fastify";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthenticationService } from "./authentication-service.interface";
 import { TokenGenerator } from "./token-generator.interface";
 import { User } from "../users/user.interface";
