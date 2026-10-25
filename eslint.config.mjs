@@ -13,4 +13,8 @@ export default tseslint.config(
       },
     },
   },
+  {
+    files: ["**/*.test.ts"],
+    rules: { "@typescript-eslint/unbound-method": "off" }
+  },
 );
