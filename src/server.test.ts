@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from 'vitest'
 import { QuizServer } from './quiz-server'
 import { Clock } from './common/clock.interface'
 import { Network } from './common/network.interface'
@@ -157,7 +157,7 @@ describe('CA-1 - Le serveur démarre sans erreur', () => {
 
 describe('CA-2 - La console affiche l`heure de lancement', () => {
 	let server: QuizServer
-	let spy: any
+	let spy: MockInstance<typeof console.log>
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
@@ -173,7 +173,7 @@ describe('CA-2 - La console affiche l`heure de lancement', () => {
 
 describe('CA-3 - La console affiche l`adresse IP et le port', () => {
 	let server: QuizServer
-	let spy: any
+	let spy: MockInstance<typeof console.log>
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
@@ -189,7 +189,7 @@ describe('CA-3 - La console affiche l`adresse IP et le port', () => {
 
 describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 	let server: QuizServer
-	let spy: any
+	let spy: MockInstance<typeof console.log>
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
 		const mockNetworkNoIP: Network = {
