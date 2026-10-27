@@ -268,7 +268,7 @@ describe('US-005/CA-15 - Reject a question with an invalid points', () => {
         });
 
         expect(response.statusCode).toBe(400);
-        expect(response.json().error).toBe('VALIDATION_ERROR');
+        expect(response.json<{ error: string }>().error).toBe('VALIDATION_ERROR');
     });
 });
 
@@ -861,7 +861,7 @@ describe('US-005/CA-54 - Log the technical details of an unexpected error', () =
             }
         });
 
-        const logs = logLines.map(line => JSON.parse(line));
+        const logs = logLines.map(line => parseJson<Record<string, unknown>>(line));
         expect(logs).toContainEqual(expect.objectContaining({
             level: 50,
             err: expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' })
@@ -875,7 +875,7 @@ describe('US-005/CA-54 - Log the technical details of an unexpected error', () =
 
         await app.inject({ method: 'GET', url: '/api/v1/questions' });
 
-        const logs = logLines.map(line => JSON.parse(line));
+        const logs = logLines.map(line => parseJson<Record<string, unknown>>(line));
         expect(logs).toContainEqual(expect.objectContaining({
             level: 50,
             err: expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' })
@@ -1249,3 +1249,7 @@ describe('US-005/CA-54 - Hide technical details of an unexpected error on GET /'
         });
     });
 });
+
+function parseJson<T>(raw: string): T {
+    return JSON.parse(raw) as T
+}
