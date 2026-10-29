@@ -16,11 +16,11 @@ beforeEach(async () => {
         authenticate: vi.fn().mockResolvedValue({ id: 'user-id', username: 'User Name', password: 'user-password', role: UserRole.PLAYER })
     };
     mockTokenGenerator = {
-        generateToken: (user) => {
+        generateToken: () => {
             return { token: 'generated-token' } as Token;
         }
     };
-    mockRateLimitMiddleware = async (app) => { };
+    mockRateLimitMiddleware = async () => { };
     app = Fastify();
     await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, rateLimitMiddleware: mockRateLimitMiddleware });
 });

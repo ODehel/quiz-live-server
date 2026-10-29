@@ -5,7 +5,6 @@ import { TokenRouteConfiguration } from "../authentication/token-route-configura
 import { Clock } from "../common/clock.interface";
 import { Network } from "../common/network.interface";
 import { QuizServerConfiguration } from "../quiz-server-configuration.interface";
-import { User } from "../users/user.interface";
 import { Token } from "../authentication/token.interface";
 import { TokenDecoder } from "../authentication/token-decoder.interface";
 import { FastifyInstance } from "fastify";
@@ -45,8 +44,8 @@ describe("WebSocket", () => {
     let mockUuidValidator: UuidValidator;
     let mockTokenValidator: TokenValidator;
     let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout' | 'serverFull' | 'authenticated' | 'disconnected' | 'internalError' | 'rateLimited'>;
-    const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
-    const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
+    const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async () => { };
+    const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async () => { };
     let mockTokenRouteConfiguration: TokenRouteConfiguration;
     let mockThemeRouteConfiguration: ThemeRouteConfiguration;
     let mockWsRouteConfiguration: WsRouteConfiguration;
@@ -90,7 +89,7 @@ describe("WebSocket", () => {
             extract: vi.fn()
         };
         mockTokenGenerator = {
-            generateToken: (user: User) => {
+            generateToken: () => {
                 return { token: 'generated-token' } as Token;
             }
         };
@@ -726,7 +725,7 @@ describe("WebSocket", () => {
                 client.send(JSON.stringify({ type: "auth", token: "X" }));
             });
             client.on('error', (err) => reject(err));
-            client.on('message', (data) => {
+            client.on('message', () => {
                 client.close();
                 setTimeout(resolve, 100);
             });
@@ -871,7 +870,7 @@ describe("WebSocket", () => {
                 client.send(JSON.stringify({ type: "auth", token: "X" }));
             });
             client.on('error', (err) => reject(err));
-            client.on('message', (data) => {
+            client.on('message', () => {
                 if (!authenticated) {
                     authenticated = true;
                     client.close();
@@ -925,7 +924,7 @@ describe("WebSocket", () => {
         let authenticated = false;
         await new Promise<void>((resolve, reject) => {
             playerSocket.on('open', () => playerSocket.send(JSON.stringify({ type: "auth", token: "token-B" })));
-            playerSocket.on('message', (data) => {
+            playerSocket.on('message', () => {
                 if (!authenticated) {
                     authenticated = true
                     adminSocket = new WebSocket(`ws://localhost:${port}/ws`);

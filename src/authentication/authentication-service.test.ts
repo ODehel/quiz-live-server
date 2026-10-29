@@ -10,9 +10,9 @@ describe("Login inexistant en base de données", () => {
         // Arrange : Faire un mock de IUserRepository pour qu'il retourne undefined
         mockUserRepository = {
             count: () => Promise.resolve(0),
-            insert: (user) => Promise.resolve(),
-            retrieveByLogin: (login) => Promise.resolve(undefined),
-            retrieveById: (id) => Promise.resolve(undefined)
+            insert: () => Promise.resolve(),
+            retrieveByLogin: () => Promise.resolve(undefined),
+            retrieveById: () => Promise.resolve(undefined)
         };
     });
     it("should return an error", async () => {
@@ -31,14 +31,14 @@ describe("Login with wrong password", () => {
         // Arrange : Faire un mock de IUserRepository pour qu'il retourne un utilisateur avec un mot de passe hashé
         mockUserRepository = {
             count: () => Promise.resolve(1),
-            insert: (user) => Promise.resolve(),
-            retrieveByLogin: (login) => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER }),
-            retrieveById: (id) => Promise.resolve(undefined)
+            insert: () => Promise.resolve(),
+            retrieveByLogin: () => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER }),
+            retrieveById: () => Promise.resolve(undefined)
         };
         // Arrange : Faire un mock de IHasher pour qu'il retourne true lors de la comparaison
         hasher = {
-            hash: (key) => Promise.resolve("$2b$10$..."),
-            compare: (password, hash) => Promise.resolve(false) // Simulate wrong password
+            hash: () => Promise.resolve("$2b$10$..."),
+            compare: () => Promise.resolve(false) // Simulate wrong password
         };
     });
 
@@ -59,14 +59,14 @@ describe("Login with correct credentials", () => {
         // Arrange : Faire un mock de IUserRepository pour qu'il retourne un utilisateur avec un mot de passe hashé
         mockUserRepository = {
             count: () => Promise.resolve(1),
-            insert: (user) => Promise.resolve(),
-            retrieveByLogin: (login) => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER }),
-            retrieveById: (id) => Promise.resolve(undefined)
+            insert: () => Promise.resolve(),
+            retrieveByLogin: () => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER }),
+            retrieveById: () => Promise.resolve(undefined)
         };
         // Arrange : Faire un mock de IHasher pour qu'il retourne true lors de la comparaison
         hasher = {
-            hash: (key) => Promise.resolve("$2b$10$..."),
-            compare: (password, hash) => Promise.resolve(true) // Simulate correct password
+            hash: () => Promise.resolve("$2b$10$..."),
+            compare: () => Promise.resolve(true) // Simulate correct password
         };
     });
     it("should return the user", async () => {

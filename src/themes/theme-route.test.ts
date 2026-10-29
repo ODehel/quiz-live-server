@@ -63,8 +63,8 @@ beforeEach(() => {
     mockTokenDecoder = {
         decode: vi.fn().mockReturnValue({ role: UserRole.ADMIN })
     };
-    mockMiddleware = async (app, options) => { };
-    mockRateLimitMiddleware = async (app) => { };
+    mockMiddleware = async () => { };
+    mockRateLimitMiddleware = async () => { };
     app = Fastify();
     app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, rateLimitMiddleware: mockRateLimitMiddleware });
 });

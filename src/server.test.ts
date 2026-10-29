@@ -4,7 +4,6 @@ import { Clock } from './common/clock.interface'
 import { Network } from './common/network.interface'
 import { QuizServerConfiguration } from './quiz-server-configuration.interface'
 import { Token } from './authentication/token.interface'
-import { User } from './users/user.interface'
 import { ThemeService } from './themes/theme-service.interface'
 import { UuidValidator } from './common/uuid-validator.interface'
 import { TokenValidator } from './authentication/token-validator.interface'
@@ -61,7 +60,7 @@ const mockAuthenticationService = {
 };
 
 const mockTokenGenerator = {
-	generateToken: (user: User) => {
+	generateToken: () => {
 		return { token: 'generated-token' } as Token;
 	}
 };
@@ -100,8 +99,8 @@ const mockWsEventReporter: WsEventReporter = {
 	disconnected: vi.fn(),
 	rateLimited: vi.fn()
 };
-const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
-const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
+const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async () => { };
+const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async () => { };
 
 const mockTokenRouteConfiguration: TokenRouteConfiguration = {
 	authenticationService: mockAuthenticationService,

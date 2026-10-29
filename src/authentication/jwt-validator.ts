@@ -10,7 +10,7 @@ export class JwtValidator implements TokenValidator {
         try {
             jwt.verify(token, this.secretKey);
             return true;
-        } catch (error) {
+        } catch {
             return false;
         }
     }
