@@ -3,7 +3,6 @@ import { TokenValidator } from "./token-validator.interface";
 import Fastify, { FastifyInstance } from "fastify";
 import authenticationMiddleware from "./authentication-middleware";
 import { TokenDecoder } from "./token-decoder.interface";
-import { DecodedToken } from "./decoded-token.interface";
 import { UserRole } from "../users/user-role";
 
 describe("US-004/CA-32 - Test of the middleware", () => {
@@ -16,7 +15,7 @@ describe("US-004/CA-32 - Test of the middleware", () => {
             inspectToken: vi.fn()
         };
         mockTokenDecoder = {
-            decode: vi.fn().mockReturnValue({ role: UserRole.ADMIN } as DecodedToken)
+            decode: vi.fn().mockReturnValue({ role: UserRole.ADMIN })
         };
         app = Fastify();
         await authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
@@ -44,7 +43,7 @@ describe("US-004/CA-32 - No token", () => {
             inspectToken: vi.fn()
         };
         mockTokenDecoder = {
-            decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
+            decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER })
         };
         app = Fastify();
         await authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
@@ -71,7 +70,7 @@ describe("US-004/CA-32 - Invalid token", () => {
             inspectToken: vi.fn()
         };
         mockTokenDecoder = {
-            decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
+            decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER })
         };
         app = Fastify();
         await authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
@@ -99,7 +98,7 @@ describe("US-004/CA-33 - Valid token but wrong role", () => {
             inspectToken: vi.fn()
         };
         mockTokenDecoder = {
-            decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
+            decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER })
         };
         app = Fastify();
         await authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });

@@ -164,7 +164,7 @@ describe("US-004/CA-21 - Update a formatted theme", () => {
         expect(() => defaultThemeService.updateTheme(theme.id, updated_name)).toThrow(ValidationError);
     });
     it("should throw a conflict error", () => {
-        themeRepository.getByName = vi.fn().mockReturnValue({ id: "019d9d6f-eae6-730c-96db-b81da74765e2", name: "An existing theme", created_at: "2026-04-23 10:29:30", last_updated_at: null } as Theme);
+        themeRepository.getByName = vi.fn().mockReturnValue({ id: "019d9d6f-eae6-730c-96db-b81da74765e2", name: "An existing theme", created_at: "2026-04-23 10:29:30", last_updated_at: null });
         const update_name = "An existing theme";
         expect(() => defaultThemeService.updateTheme(theme.id, update_name)).toThrow(ConflictError);
     });
@@ -195,7 +195,7 @@ describe("US-004/CA-22 - Update a theme with the same name", () => {
 
 describe("US-004/CA-28 - Delete a theme without associated questions", () => {
     it("should delete the theme with the id", () => {
-        let theme = defaultThemeService.createTheme("Test Theme");
+        const theme = defaultThemeService.createTheme("Test Theme");
         themeRepository.getById = vi.fn().mockReturnValue(theme);
         defaultThemeService.deleteTheme(theme.id);
         expect(themeRepository.delete).toHaveBeenCalled();
@@ -211,7 +211,7 @@ describe("US-004/CA-29 - Delete a theme with inexisting id", () => {
 
 describe("US-004/CA-30 - Delete a theme used in questions", () => {
     it("should return a ThemeHasQuestionsError", () => {
-        themeRepository.getById = vi.fn().mockReturnValue({ id: "019d6cdd-30db-7437-ac57-5826c0695222", name: "Theme Test", created_at: clock.now().toISOString(), last_updated_at: null } as Theme);
+        themeRepository.getById = vi.fn().mockReturnValue({ id: "019d6cdd-30db-7437-ac57-5826c0695222", name: "Theme Test", created_at: clock.now().toISOString(), last_updated_at: null });
         themeRepository.isUsedInQuestions = vi.fn().mockImplementation(() => { return true });
         expect(() => defaultThemeService.deleteTheme("019d6cdd-30db-7437-ac57-5826c0695222")).toThrow(ThemeHasQuestionsError);
     });

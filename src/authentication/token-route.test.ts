@@ -2,7 +2,6 @@ import Fastify, { FastifyInstance } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthenticationService } from "./authentication-service.interface";
 import { TokenGenerator } from "./token-generator.interface";
-import { User } from "../users/user.interface";
 import { UserRole } from "../users/user-role";
 import { Token } from "./token.interface";
 import tokenRoute from "../authentication/token-route";
@@ -14,7 +13,7 @@ let mockTokenGenerator: TokenGenerator;
 let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
 beforeEach(async () => {
     mockAuthenticationService = {
-        authenticate: vi.fn().mockResolvedValue({ id: 'user-id', username: 'User Name', password: 'user-password', role: UserRole.PLAYER } as User)
+        authenticate: vi.fn().mockResolvedValue({ id: 'user-id', username: 'User Name', password: 'user-password', role: UserRole.PLAYER })
     };
     mockTokenGenerator = {
         generateToken: (user) => {

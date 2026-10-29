@@ -8,7 +8,6 @@ import { QuizServerConfiguration } from "../quiz-server-configuration.interface"
 import { User } from "../users/user.interface";
 import { Token } from "../authentication/token.interface";
 import { TokenDecoder } from "../authentication/token-decoder.interface";
-import { DecodedToken } from "../authentication/decoded-token.interface";
 import { FastifyInstance } from "fastify";
 import { TokenValidator } from "../authentication/token-validator.interface";
 import { UuidValidator } from "../common/uuid-validator.interface";
@@ -46,8 +45,8 @@ describe("WebSocket", () => {
     let mockUuidValidator: UuidValidator;
     let mockTokenValidator: TokenValidator;
     let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout' | 'serverFull' | 'authenticated' | 'disconnected' | 'internalError' | 'rateLimited'>;
-    let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
-    let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
+    const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async (app, options) => { };
+    const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async (app) => { };
     let mockTokenRouteConfiguration: TokenRouteConfiguration;
     let mockThemeRouteConfiguration: ThemeRouteConfiguration;
     let mockWsRouteConfiguration: WsRouteConfiguration;
@@ -96,7 +95,7 @@ describe("WebSocket", () => {
             }
         };
         mockTokenDecoder = {
-            decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
+            decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER })
         };
         mockWsEventReporter = {
             connected: vi.fn(),
@@ -494,7 +493,7 @@ describe("WebSocket", () => {
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
         mockSubjectExtractor.extract = vi.fn().mockReturnValue("sub-01");
         mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01" });
-        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        const clientA = new WebSocket(`ws://localhost:${port}/ws`);
         let clientB: WebSocket;
         let authenticated = false;
         let closeCodeA: number;
@@ -526,7 +525,7 @@ describe("WebSocket", () => {
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
         mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
         mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01" });
-        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        const clientA = new WebSocket(`ws://localhost:${port}/ws`);
         let clientB: WebSocket;
         let authenticated = false;
         const received = await new Promise<{ code: number, reason: string }>((resolve, reject) => {
@@ -551,7 +550,7 @@ describe("WebSocket", () => {
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
         mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
         mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01" });
-        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        const clientA = new WebSocket(`ws://localhost:${port}/ws`);
         let clientB: WebSocket;
         let authenticated = false;
         await new Promise<{ code: number, reason: string }>((resolve, reject) => {
@@ -574,7 +573,7 @@ describe("WebSocket", () => {
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
         mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
         mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01", role: UserRole.ADMIN });
-        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        const clientA = new WebSocket(`ws://localhost:${port}/ws`);
         let clientB: WebSocket;
         let authenticated = false;
         let closeCodeA: number;
@@ -605,7 +604,7 @@ describe("WebSocket", () => {
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
         mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
         mockParticipantResolver.resolve = vi.fn().mockImplementation(sub => sub === "sub-A" ? { username: "quiz_buzzer_01", role: UserRole.PLAYER } : { username: "admin", role: UserRole.ADMIN });
-        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        const clientA = new WebSocket(`ws://localhost:${port}/ws`);
         let clientB: WebSocket;
         let authenticated = false;
         await new Promise<void>((resolve, reject) => {
@@ -669,7 +668,7 @@ describe("WebSocket", () => {
                 return { username: "admin", role: UserRole.ADMIN };
             }
         });
-        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        const clientA = new WebSocket(`ws://localhost:${port}/ws`);
         let clientB: WebSocket;
         let clientC: WebSocket;
         let clientAAuthenticated = false;
@@ -749,7 +748,7 @@ describe("WebSocket", () => {
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
         mockSubjectExtractor.extract = vi.fn().mockImplementation(token => token === "token-A" ? "sub-A" : "sub-B");
         mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01", role: UserRole.PLAYER });
-        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        const clientA = new WebSocket(`ws://localhost:${port}/ws`);
         let clientB: WebSocket;
         let authenticated = false;
         await new Promise<void>((resolve, reject) => {
@@ -782,7 +781,7 @@ describe("WebSocket", () => {
                     return { username: "quiz_buzzer_01", role: UserRole.PLAYER };
                 }
             });
-        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        const clientA = new WebSocket(`ws://localhost:${port}/ws`);
         let clientB: WebSocket;
         let authenticated = false;
         await new Promise<void>((resolve, reject) => {
@@ -838,7 +837,7 @@ describe("WebSocket", () => {
                     return { username: "quiz_buzzer_01", role: UserRole.PLAYER };
                 }
             });
-        let clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        const clientA = new WebSocket(`ws://localhost:${port}/ws`);
         let clientB: WebSocket;
         let authenticated = false;
         await new Promise<void>((resolve, reject) => {

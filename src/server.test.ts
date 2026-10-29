@@ -12,7 +12,6 @@ import { FastifyInstance } from 'fastify'
 import { TokenRouteConfiguration } from './authentication/token-route-configuration.interface'
 import { ThemeRouteConfiguration } from './themes/theme-route-configuration.interface'
 import { TokenDecoder } from './authentication/token-decoder.interface'
-import { DecodedToken } from './authentication/decoded-token.interface'
 import { UserRole } from './users/user-role'
 import { WsRouteConfiguration } from './websocket/ws-route-configuration.interface'
 import { Scheduler } from './common/scheduler.interface'
@@ -23,22 +22,21 @@ import { WsEventReporter } from './websocket/ws-event-reporter.interface'
 import { WsConnectionPolicy } from './websocket/ws-connection-policy'
 import { QuestionService } from './questions/question-service.interface'
 import { QuestionRouteConfiguration } from './questions/question-route-configuration.interface'
-import { Question } from './questions/question.interface'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
 }
 
-let mockScheduler: Scheduler = {
+const mockScheduler: Scheduler = {
 	schedule: vi.fn(() => ({ cancel: () => { } }))
 };
-let mockSubjectExtractor: SubjectExtractor = {
+const mockSubjectExtractor: SubjectExtractor = {
 	extract: vi.fn()
 };
-let mockExpirationExtractor: ExpirationExtractor = {
+const mockExpirationExtractor: ExpirationExtractor = {
 	extract: vi.fn()
 };
-let mockParticipantResolver: ParticipantResolver = {
+const mockParticipantResolver: ParticipantResolver = {
 	resolve: vi.fn()
 };
 
@@ -69,7 +67,7 @@ const mockTokenGenerator = {
 };
 
 const mockTokenDecoder: TokenDecoder = {
-	decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER } as DecodedToken)
+	decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER })
 };
 
 const mockThemeService: ThemeService = {
@@ -215,7 +213,7 @@ describe('US-005/CA-1 - Question creation reachable on the assembled server', ()
 	let creationQuestionService: QuestionService
 	beforeEach(() => {
 		creationQuestionService = {
-			createQuestion: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416' } as Question), // corps prouvé au niveau route, pas ici
+			createQuestion: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416' }), // corps prouvé au niveau route, pas ici
 			getQuestionById: vi.fn(),
 			getAll: vi.fn()
 		};

@@ -19,7 +19,7 @@ export class JwtGenerator implements TokenGenerator {
             };
             const options: jwt.SignOptions = {
                 expiresIn: this.duration,
-                algorithm: "HS256" as jwt.Algorithm
+                algorithm: "HS256"
             };
         const token = jwt.sign(payload, this.secretKey, options);
         return {

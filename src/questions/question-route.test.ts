@@ -33,7 +33,7 @@ beforeEach(() => {
             audio_path: null,
             created_at: new Date().toISOString(),
             last_updated_at: null
-        } as Question),
+        }),
         getQuestionById: vi.fn(),
         getAll: vi.fn()
     };
@@ -98,7 +98,7 @@ describe('US-005/CA-2 - Create a SPEED question', () => {
             audio_path: null,
             created_at: new Date().toISOString(),
             last_updated_at: null
-        } as Question);
+        });
         const input = {
             type: 'SPEED',
             theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',

@@ -12,7 +12,6 @@ import { ThemeHasQuestionsError } from './theme-has-questions-error';
 import { TokenValidator } from '../authentication/token-validator.interface';
 import authenticationMiddleware from '../authentication/authentication-middleware';
 import { TokenDecoder } from '../authentication/token-decoder.interface';
-import { DecodedToken } from '../authentication/decoded-token.interface';
 import { UserRole } from '../users/user-role';
 import rateLimitMiddleware from '../infrastructure/rate-limit-middleware';
 
@@ -25,10 +24,10 @@ let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValid
 let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
 beforeEach(() => {
     mockThemeService = {
-        createTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme),
-        updateTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale 2', created_at: new Date().toISOString(), last_updated_at: new Date().toISOString() } as Theme),
+        createTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null }),
+        updateTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale 2', created_at: new Date().toISOString(), last_updated_at: new Date().toISOString() }),
         deleteTheme: vi.fn(),
-        getById: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null } as Theme),
+        getById: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null }),
         getAll: vi.fn().mockReturnValue({
             data: [{
                 id: "019d9aa3-bfb7-7eaf-af2a-739ed8e0a2a6",
@@ -52,7 +51,7 @@ beforeEach(() => {
             page: 1,
             total: 6,
             total_pages: 2
-        } as Pagination<Theme>)
+        })
     };
     mockUuidValidator = {
         validate: vi.fn().mockReturnValue(true)
@@ -62,7 +61,7 @@ beforeEach(() => {
         inspectToken: vi.fn()
     };
     mockTokenDecoder = {
-        decode: vi.fn().mockReturnValue({ role: UserRole.ADMIN } as DecodedToken)
+        decode: vi.fn().mockReturnValue({ role: UserRole.ADMIN })
     };
     mockMiddleware = async (app, options) => { };
     mockRateLimitMiddleware = async (app) => { };

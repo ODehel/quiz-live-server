@@ -27,7 +27,7 @@ export default async function wsRoute(app: FastifyInstance, config: WsRouteConfi
         let subject: string | undefined;
         let username: string | undefined;
         config.wsEventReporter.connected(request.ip);
-        let schedulerCallback = () => {
+        const schedulerCallback = () => {
             config.wsEventReporter.authenticationTimeout(request.ip);
             socket.close(WS_CLOSE_AUTH_TIMEOUT.code, WS_CLOSE_AUTH_TIMEOUT.reason);
         };

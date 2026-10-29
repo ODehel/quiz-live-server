@@ -5,7 +5,7 @@ import { PinoWsEventReporter } from "./pino-ws-event-reporter";
 describe("Pino websocket event reporter", () => {
     let mockPino: Pick<pino.Logger, 'info' | 'warn' | 'error'>;
     let reporter: PinoWsEventReporter;
-    let clientIp = "127.0.0.1" as const;
+    const clientIp = "127.0.0.1" as const;
 
     beforeEach(() => {
         mockPino = {

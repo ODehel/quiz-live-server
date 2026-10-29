@@ -12,7 +12,7 @@ export class JwtDecoder implements TokenDecoder {
         }
         const themePayLoad: ThemePayload = payLoad as ThemePayload;
         
-        return { role: themePayLoad.role } as DecodedToken;
+        return { role: themePayLoad.role };
     }
 }
 

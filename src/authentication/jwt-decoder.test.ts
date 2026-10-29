@@ -13,7 +13,7 @@ describe("US-004/CA-33 - Decode a valid token", () => {
         generator = new JwtGenerator("mySecretKey", 30);
     });
     it("should return a correct decoded token as PLAYER", () => {
-        user = { id: "019db98c-6680-7848-a417-63e8624a4969", username: "QUIZ_PLAYER_01", password: "asimplepassword", role: UserRole.PLAYER } as User;
+        user = { id: "019db98c-6680-7848-a417-63e8624a4969", username: "QUIZ_PLAYER_01", password: "asimplepassword", role: UserRole.PLAYER };
         token = generator.generateToken(user);
         const decoder: JwtDecoder = new JwtDecoder();
         const decodedToken = decoder.decode(token.token);
@@ -21,7 +21,7 @@ describe("US-004/CA-33 - Decode a valid token", () => {
         expect(decodedToken?.role).toBe(UserRole.PLAYER);
     });
     it("should return a correct decoded token as ADMIN", () => {
-        user = { id: "019db98c-6680-7848-a417-63e8624a4969", username: "QUIZ_PLAYER_01", password: "asimplepassword", role: UserRole.ADMIN } as User;
+        user = { id: "019db98c-6680-7848-a417-63e8624a4969", username: "QUIZ_PLAYER_01", password: "asimplepassword", role: UserRole.ADMIN };
         token = generator.generateToken(user);
         const decoder: JwtDecoder = new JwtDecoder();
         const decodedToken = decoder.decode(token.token);

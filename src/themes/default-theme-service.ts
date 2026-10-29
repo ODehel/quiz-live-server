@@ -60,7 +60,7 @@ export class DefaultThemeService implements ThemeService {
     }
 
     deleteTheme(id: string): void {
-        let theme = this.themeRepository.getById(id);
+        const theme = this.themeRepository.getById(id);
 
         if (theme === undefined) {
             throw new ThemeNotFoundError();
