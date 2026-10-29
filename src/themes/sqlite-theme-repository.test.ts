@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 
 describe("US-004/CA-001 - SqliteThemeRepository.getById(theme)", () => {
-    it("should return the theme with the specified ID", async () => {
+    it("should return the theme with the specified ID", () => {
         // Arrange
         repository.insert(theme);
         // Act
@@ -36,12 +36,12 @@ describe("US-004/CA-001 - SqliteThemeRepository.getById(theme)", () => {
 });
 
 describe("US-004/CA-001 - SqliteThemeRepository.insert(theme)", () => {
-    it("should create the themes table if it does not exist", async () => {
+    it("should create the themes table if it does not exist", () => {
         const count = repository.count();
         // Assert
         expect(count).toBe(0);
     });
-    it("should insert a theme into the database", async () => {
+    it("should insert a theme into the database", () => {
         // Act
         repository.insert(theme);
         // Assert
@@ -51,7 +51,7 @@ describe("US-004/CA-001 - SqliteThemeRepository.insert(theme)", () => {
 });
 
 describe("US-004/CA-04 - Case insensitive for getById", () => {
-    it("should return the theme even if the case is different", async () => {
+    it("should return the theme even if the case is different", () => {
         repository.insert(theme);
         const existingTheme = repository.getByName("ThEmE tEsT");
         // Assert
@@ -71,11 +71,11 @@ describe("US-004/CA-13 - Retrieve a list of themes with pagination", () => {
         repository.insert(theme);
         repository.insert(otherTheme);
     });
-    it("should give a list with the first theme", async () => {
+    it("should give a list with the first theme", () => {
         const themes: Theme[] = repository.getAll(0, 1);
         expect(themes.length).toBe(1);
     });
-    it("should give a list with the second theme", async () => {
+    it("should give a list with the second theme", () => {
         const themes: Theme[] = repository.getAll(0, 2);
         expect(themes.length).toBe(2);
     });
@@ -93,12 +93,12 @@ describe("US-004/CA-14 - Retrieve a list of themes with pagination in the correc
         repository.insert(theme);
         repository.insert(otherTheme);
     });
-    it("should give a list with the first theme", async () => {
+    it("should give a list with the first theme", () => {
         const themes: Theme[] = repository.getAll(1, 1);
         expect(themes.length).toBe(1);
         expect(themes[0]?.name).toBe("Other theme test");
     });
-    it("should give a list with the second theme", async () => {
+    it("should give a list with the second theme", () => {
         const themes: Theme[] = repository.getAll(2, 1);
         expect(themes.length).toBe(1);
         expect(themes[0]?.name).toBe("Theme test");
@@ -117,21 +117,21 @@ describe("US-004/CA-18 - Retrieve an empty list of themes if page is more than t
         repository.insert(theme);
         repository.insert(otherTheme);
     });
-    it("should give an empty list", async () => {
+    it("should give an empty list", () => {
         const themes: Theme[] = repository.getAll(3, 1);
         expect(themes.length).toBe(0);
     });
 });
 
 describe("US-004/CA-18 - Retrieve an empty list of themes if table is emy", () => {
-    it("should give an empty list", async () => {
+    it("should give an empty list", () => {
         const themes: Theme[] = repository.getAll(1, 1);
         expect(themes.length).toBe(0);
     });
 });
 
 describe("US-004/CA-20 - Update the theme", () => {
-    it("should update the last_updated_date and return a 200 HTML code", async () => {
+    it("should update the last_updated_date and return a 200 HTML code", () => {
         repository.insert(theme);
         const updatedName = "Updated name for theme test";
         const date = "2026-04-17 16:33:00";
@@ -145,7 +145,7 @@ describe("US-004/CA-20 - Update the theme", () => {
 });
 
 describe("US-004/CA-28 - Delete a theme without associated questions", () => {
-    it("should delete the theme", async () => {
+    it("should delete the theme", () => {
         repository.insert(theme);
         repository.delete("019d6c17-1c08-7161-9358-fe4a116fa388");
         expect(repository.count()).toBe(0);
@@ -153,7 +153,7 @@ describe("US-004/CA-28 - Delete a theme without associated questions", () => {
 });
 
 describe("US-005/CA-48 - Tell whether a theme is used in questions", () => {
-    it("should report the theme as used when a question references it", async () => {
+    it("should report the theme as used when a question references it", () => {
         // Arrange : une question liée au thème, dans la même base que le repository thème
         repository.insert(theme);
         const question: SpeedQuestion = {
@@ -176,7 +176,7 @@ describe("US-005/CA-48 - Tell whether a theme is used in questions", () => {
         // Assert
         expect(used).toBe(true);
     });
-    it("should report the theme as unused when no question references it", async () => {
+    it("should report the theme as unused when no question references it", () => {
         // Arrange
         repository.insert(theme);
         // Act

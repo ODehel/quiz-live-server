@@ -75,7 +75,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         }
     });
 
-    app.register(async (instance) => {
+    app.register((instance) => {
         instance.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, _body, done) => {
             done(null, null);
         });

@@ -15,9 +15,9 @@ const WS_CLOSE_RATE_LIMITED = { code: 4006, reason: "Rate limit exceeded." } as 
 
 const AUTH_TIMEOUT_WS = 60_000;
 
-export default async function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
+export default function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
     const registry = new Map<string, { ws: WebSocket, role: UserRole, username: string }>();
-    app.get('/ws', { websocket: true }, async (socket, request) => {
+    app.get('/ws', { websocket: true }, (socket, request) => {
         if (!config.wsConnectionPolicy.admit(request.ip, config.clock.now())) {
             config.wsEventReporter.rateLimited(request.ip);
             socket.close(WS_CLOSE_RATE_LIMITED.code, WS_CLOSE_RATE_LIMITED.reason);

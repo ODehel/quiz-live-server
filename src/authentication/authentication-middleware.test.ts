@@ -9,7 +9,7 @@ describe("US-004/CA-32 - Test of the middleware", () => {
     let mockTokenValidator: TokenValidator;
     let mockTokenDecoder: TokenDecoder;
     let app: FastifyInstance;
-    beforeEach(async () => {
+    beforeEach(() => {
         mockTokenValidator = {
             validateToken: vi.fn().mockReturnValue(true),
             inspectToken: vi.fn()
@@ -18,8 +18,8 @@ describe("US-004/CA-32 - Test of the middleware", () => {
             decode: vi.fn().mockReturnValue({ role: UserRole.ADMIN })
         };
         app = Fastify();
-        await authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
-        app.get('/api/v1/themes', async () => {
+        authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
+        app.get('/api/v1/themes', () => {
             return { status: 'ok' };
         });
     });
@@ -37,7 +37,7 @@ describe("US-004/CA-32 - No token", () => {
     let mockTokenValidator: TokenValidator;
     let mockTokenDecoder: TokenDecoder;
     let app: FastifyInstance;
-    beforeEach(async () => {
+    beforeEach(() => {
         mockTokenValidator = {
             validateToken: vi.fn(),
             inspectToken: vi.fn()
@@ -46,8 +46,8 @@ describe("US-004/CA-32 - No token", () => {
             decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER })
         };
         app = Fastify();
-        await authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
-        app.get("/api/v1/themes", async () => {
+        authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
+        app.get("/api/v1/themes", () => {
             return { status: 'Missing token' };
         });
     });
@@ -64,7 +64,7 @@ describe("US-004/CA-32 - Invalid token", () => {
     let mockTokenValidator: TokenValidator;
     let mockTokenDecoder: TokenDecoder;
     let app: FastifyInstance;
-    beforeEach(async () => {
+    beforeEach(() => {
         mockTokenValidator = {
             validateToken: vi.fn().mockReturnValue(false),
             inspectToken: vi.fn()
@@ -73,8 +73,8 @@ describe("US-004/CA-32 - Invalid token", () => {
             decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER })
         };
         app = Fastify();
-        await authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
-        app.get("/api/v1/themes", async () => {
+        authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
+        app.get("/api/v1/themes", () => {
             return { status: 'Invalid token' };
         });
     });
@@ -92,7 +92,7 @@ describe("US-004/CA-33 - Valid token but wrong role", () => {
     let mockTokenValidator: TokenValidator;
     let mockTokenDecoder: TokenDecoder;
     let app: FastifyInstance;
-    beforeEach(async () => {
+    beforeEach(() => {
         mockTokenValidator = {
             validateToken: vi.fn().mockReturnValue(true),
             inspectToken: vi.fn()
@@ -101,8 +101,8 @@ describe("US-004/CA-33 - Valid token but wrong role", () => {
             decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER })
         };
         app = Fastify();
-        await authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
-        app.get("/api/v1/themes", async () => {
+        authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
+        app.get("/api/v1/themes", () => {
             return { status: 'Wrong role' };
         });
     });
