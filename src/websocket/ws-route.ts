@@ -3,6 +3,7 @@ import '@fastify/websocket';
 import { WsRouteConfiguration } from "./ws-route-configuration.interface";
 import { toRoleLabel } from "../users/role-label";
 import { RawData, WebSocket } from "ws";
+import { rawDataToString } from "./raw-data-to-string";
 import { UserRole } from "../users/user-role";
 
 const WS_CLOSE_INTERNAL_ERROR = { code: 1011, reason: "Internal server error." } as const;
@@ -36,7 +37,7 @@ export default function wsRoute(app: FastifyInstance, config: WsRouteConfigurati
             try {
                 if (authenticated) {
                     try {
-                        const syncMessage: { type?: string } = JSON.parse(data.toString());
+                        const syncMessage: { type?: string } = JSON.parse(rawDataToString(data));
                         if (syncMessage.type === "request_game_state") {
                             const connectedBuzzers = [...registry.values()].filter(e => e.role === UserRole.PLAYER).map(e => ({ username: e.username }));
                             socket.send(JSON.stringify({ type: "game_state_sync", connected_buzzers: connectedBuzzers }));
@@ -48,7 +49,7 @@ export default function wsRoute(app: FastifyInstance, config: WsRouteConfigurati
                 handle.cancel();
                 let message: { type?: string, token?: string };
                 try {
-                    message = JSON.parse(data.toString());
+                    message = JSON.parse(rawDataToString(data));
                 } catch {
                     config.wsEventReporter.invalidToken(request.ip);
                     socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);

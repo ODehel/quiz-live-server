@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuizServer } from "../quiz-server";
+import { rawDataToString } from "./raw-data-to-string";
 import { ThemeRouteConfiguration } from "../themes/theme-route-configuration.interface";
 import { TokenRouteConfiguration } from "../authentication/token-route-configuration.interface";
 import { Clock } from "../common/clock.interface";
@@ -315,7 +316,7 @@ describe("WebSocket", () => {
             });
             client.on('error', (err) => reject(err));
             client.on('message', (data) => {
-                resolve(parseJson(data.toString()));
+                resolve(parseJson(rawDataToString(data)));
             });
         });
         expect(received.username).toBe("quiz_buzzer_01");
@@ -335,7 +336,7 @@ describe("WebSocket", () => {
             });
             client.on('error', (err) => reject(err));
             client.on('message', (data) => {
-                resolve(parseJson(data.toString()));
+                resolve(parseJson(rawDataToString(data)));
             });
         });
         expect(received.role).toBe(expectedLabel);
@@ -354,7 +355,7 @@ describe("WebSocket", () => {
             });
             client.on('error', (err) => reject(err));
             client.on('message', (data) => {
-                resolve(parseJson(data.toString()));
+                resolve(parseJson(rawDataToString(data)));
             });
         });
         expect(received.expires_in).toBe(3600);
@@ -641,7 +642,7 @@ describe("WebSocket", () => {
             });
             client.on('error', (err) => reject(err));
             client.on('message', (data) => {
-                resolve(parseJson(data.toString()));
+                resolve(parseJson(rawDataToString(data)));
             });
         });
         expect(mockWsEventReporter.authenticated).toHaveBeenCalled();
@@ -709,7 +710,7 @@ describe("WebSocket", () => {
             });
             client.on('error', (err) => reject(err));
             client.on('message', (data) => {
-                resolve(parseJson(data.toString()));
+                resolve(parseJson(rawDataToString(data)));
             });
         });
         expect(mockWsEventReporter.authenticated).toHaveBeenCalledWith({ buzzersConnected: 1, adminConnected: false, buzzersMax: 5 });
@@ -792,7 +793,7 @@ describe("WebSocket", () => {
                     clientB.on('open', () => clientB.send(JSON.stringify({ type: "auth", token: "token-B" })));
                     clientB.on('error', (err) => reject(err));
                 } else {
-                    receivedType = parseJson<{ type: string }>(data.toString()).type;
+                    receivedType = parseJson<{ type: string }>(rawDataToString(data)).type;
                     resolve();
                 }
             });
@@ -817,7 +818,7 @@ describe("WebSocket", () => {
                     authenticated = true;
                     setTimeout(resolve, 100);
                 } else {
-                    receivedType = parseJson<{ type: string }>(data.toString()).type;
+                    receivedType = parseJson<{ type: string }>(rawDataToString(data)).type;
                 }
             });
         });
@@ -849,7 +850,7 @@ describe("WebSocket", () => {
                     clientB.on('message', () => clientB.close());
                     clientB.on('error', (err) => reject(err));
                 } else {
-                    const type = parseJson<{ type: string }>(data.toString()).type;
+                    const type = parseJson<{ type: string }>(rawDataToString(data)).type;
                     if (type === "buzzer_connected") return;
                     receivedType = type;
                     resolve();
@@ -897,7 +898,7 @@ describe("WebSocket", () => {
                     authenticated = true;
                     client.send(JSON.stringify({ "type": "request_game_state" }));
                 } else {
-                    const type = parseJson<{ type: string }>(data.toString()).type;
+                    const type = parseJson<{ type: string }>(rawDataToString(data)).type;
                     if (type === "buzzer_connected") return;
                     receivedType = type;
                     resolve();
@@ -929,7 +930,7 @@ describe("WebSocket", () => {
                     authenticated = true
                     adminSocket = new WebSocket(`ws://localhost:${port}/ws`);
                     adminSocket.on('message', (raw) => {
-                        const msg = parseJson<{ type: string; connected_buzzers: typeof connectedBuzzers }>(raw.toString());
+                        const msg = parseJson<{ type: string; connected_buzzers: typeof connectedBuzzers }>(rawDataToString(raw));
                         if (msg.type === 'auth_success') {
                             adminSocket.send(JSON.stringify({ type: 'request_game_state' }));
                             return;
