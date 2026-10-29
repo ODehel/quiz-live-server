@@ -79,7 +79,7 @@ export class DefaultThemeService implements ThemeService {
 
     private formatName(name: string) {
         const trimmedName = this.trimBlanks(name);
-        if (!/^[\p{Lu}][\p{L}\p{N} '\-]{1,38}[\p{L}\p{N}]$/u.test(trimmedName)) {
+        if (!/^[\p{Lu}][\p{L}\p{N} '-]{1,38}[\p{L}\p{N}]$/u.test(trimmedName)) {
             throw new ValidationError("Theme name must be 3 to 40 characters, start with an uppercase letter, end with a letter or digit, and contain only letters, digits, spaces, apostrophes and hyphens.");
         }
 

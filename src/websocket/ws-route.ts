@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import '@fastify/websocket';
 import { WsRouteConfiguration } from "./ws-route-configuration.interface";
 import { toRoleLabel } from "../users/role-label";
-import { WebSocket } from "ws";
+import { RawData, WebSocket } from "ws";
 import { UserRole } from "../users/user-role";
 
 const WS_CLOSE_INTERNAL_ERROR = { code: 1011, reason: "Internal server error." } as const;
@@ -32,7 +32,7 @@ export default function wsRoute(app: FastifyInstance, config: WsRouteConfigurati
             socket.close(WS_CLOSE_AUTH_TIMEOUT.code, WS_CLOSE_AUTH_TIMEOUT.reason);
         };
         const handle = config.scheduler.schedule(schedulerCallback, AUTH_TIMEOUT_WS);
-        socket.on('message', async (data) => {
+        const handleMessage = async (data: RawData) => {
             try {
                 if (authenticated) {
                     try {
@@ -119,7 +119,8 @@ export default function wsRoute(app: FastifyInstance, config: WsRouteConfigurati
                 config.wsEventReporter.internalError(request.ip);
                 socket.close(WS_CLOSE_INTERNAL_ERROR.code, WS_CLOSE_INTERNAL_ERROR.reason);
             }
-        });
+        };
+        socket.on('message', (data) => { void handleMessage(data); });
         socket.on('close', () => {
             if (subject !== undefined) {
                 const leaving = registry.get(subject);
