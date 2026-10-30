@@ -15,6 +15,7 @@ export default tseslint.config(
   },
   {
     files: ["**/*.test.ts"],
+    // False alarm on expect(mock.method): the spy is not called with a lost `this`. See DEBTS.md.
     rules: { "@typescript-eslint/unbound-method": "off" }
   },
 );

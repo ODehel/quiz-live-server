@@ -63,6 +63,7 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 
 - **Specs non type-checkées par Vitest** — `tsc --noEmit` obligatoire avant tout vert.
 - **CI déclenchée seulement par un `push` sur `main`** (`ci.yml`) : `tsc`, lint et tests signalent une régression après coup, ils ne bloquent rien. *Pas séparé* : déclencheur `pull_request`, utile si le travail passe par des PR.
+- **`unbound-method` désactivée pour `**/*.test.ts`** (`eslint.config.mjs`) — 97 constats, tous en test (mesuré le 2026-10-29) : fausse alerte sur `expect(mock.methode)`, le mouchard n'est pas exécuté avec un `this` perdu. Règle active sur la production (0 constat). *Pas séparé* : aucun ; à rouvrir si un test appelle, sur un objet réel, une méthode détachée.
 - **`parseJson<T>` affirme un type sans le vérifier** (`as T`, dans `ws-route.test.ts` et `question-route.test.ts`) : le type est déclaré par le test, pas contrôlé contre le message reçu ; `tsc` voit les fautes de frappe sur la propriété, pas un message de forme inattendue. *Pas séparé* : valider la forme du message, seulement si un test doit échouer proprement sur un message mal formé.
 - **Helper `parseJson` écrit deux fois** (`ws-route.test.ts`, `question-route.test.ts`). *Pas séparé* : extraction vers un module de test commun.
 - **Messages WebSocket lus par `JSON.parse(...) as {...}`** (`ws-route.ts`, deux lectures) — le type est affirmé, non vérifié : c'est l'entrée d'un client. Un `token` qui n'est pas une chaîne n'est pas sondé. *Pas séparé* : validation de la forme à la frontière.
