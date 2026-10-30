@@ -269,6 +269,18 @@ describe("US-004/CA-15 - Parameters of pagination set by default", () => {
     });
 });
 
+describe("US-004 - Pagination parameters sent to the service as numbers", () => {
+    it("should send page 2 and limit 5 as numbers", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?page=2&limit=5',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(200);
+        expect(mockThemeService.getAll).toHaveBeenCalledWith(2, 5);
+    });
+});
+
 describe("US-004/CA-16 - Limit must be equal or less than 100", () => {
     it("should send a 400 error code", async () => {
         const response = await app.inject({
