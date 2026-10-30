@@ -51,7 +51,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     }, async (request, reply) => {
 
         if (request.validationError) {
-            const violations: SchemaViolation[] = request.validationError.validation;
+            const violations = request.validationError.validation as SchemaViolation[];
             if (violations.some(v => v.keyword === 'type')) {
                 if (violations.some(v => v.keyword === 'type' && v.instancePath === '/correct_answer')) {
                     sendCorrectAnswerNotAString(reply);

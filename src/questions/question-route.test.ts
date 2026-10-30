@@ -17,6 +17,9 @@ let mockQuestionService: QuestionService;
 let mockTokenValidator: TokenValidator;
 let mockTokenDecoder: TokenDecoder;
 
+const anyString: unknown = expect.any(String);
+const sqliteBusyError: unknown = expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' });
+
 beforeEach(() => {
     mockQuestionService = {
         createQuestion: vi.fn().mockReturnValue({
@@ -76,7 +79,7 @@ describe('US-005/CA-1 - Create an MCQ question', () => {
             points: 10,
             image_path: null,
             audio_path: null,
-            created_at: expect.any(String),
+            created_at: anyString,
             last_updated_at: null
         });
         expect(mockQuestionService.createQuestion).toHaveBeenCalledWith(input);
@@ -126,7 +129,7 @@ describe('US-005/CA-2 - Create a SPEED question', () => {
             points: 20,
             image_path: null,
             audio_path: null,
-            created_at: expect.any(String),
+            created_at: anyString,
             last_updated_at: null
         });
         expect(mockQuestionService.createQuestion).toHaveBeenCalledWith(input);
@@ -864,7 +867,7 @@ describe('US-005/CA-54 - Log the technical details of an unexpected error', () =
         const logs = logLines.map(line => parseJson<Record<string, unknown>>(line));
         expect(logs).toContainEqual(expect.objectContaining({
             level: 50,
-            err: expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' })
+            err: sqliteBusyError
         }));
     });
 
@@ -878,7 +881,7 @@ describe('US-005/CA-54 - Log the technical details of an unexpected error', () =
         const logs = logLines.map(line => parseJson<Record<string, unknown>>(line));
         expect(logs).toContainEqual(expect.objectContaining({
             level: 50,
-            err: expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' })
+            err: sqliteBusyError
         }));
     });
 });

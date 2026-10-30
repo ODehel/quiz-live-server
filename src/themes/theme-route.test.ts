@@ -15,6 +15,8 @@ import { TokenDecoder } from '../authentication/token-decoder.interface';
 import { UserRole } from '../users/user-role';
 import rateLimitMiddleware from '../infrastructure/rate-limit-middleware';
 
+const anyString: unknown = expect.any(String);
+
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
 let mockUuidValidator: UuidValidator;
@@ -78,7 +80,7 @@ describe('US-004/CA-01 - Create Theme', () => {
             body: JSON.stringify({ name: 'Culture générale' })
         });
         expect(response.statusCode).toBe(201);
-        expect(response.json()).toEqual({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: expect.any(String), last_updated_at: null });
+        expect(response.json()).toEqual({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: anyString, last_updated_at: null });
         expect(mockThemeService.createTheme).toHaveBeenCalledWith('Culture générale');
     });
 });
@@ -356,7 +358,7 @@ describe("US-004/CA-20 - Update an existing theme", () => {
             body: JSON.stringify({ id: "019d92d2-e1f6-7d05-9803-3948dbc4c416", name: "Culture générale 2" })
         });
         expect(response.statusCode).toBe(200);
-        expect(response.json()).toEqual({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale 2', created_at: expect.any(String), last_updated_at: expect.any(String) });
+        expect(response.json()).toEqual({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale 2', created_at: anyString, last_updated_at: anyString });
         expect(mockThemeService.updateTheme).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416', 'Culture générale 2');
     });
 });

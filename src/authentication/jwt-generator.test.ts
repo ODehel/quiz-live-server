@@ -42,7 +42,7 @@ describe("US-003/CA-002 - HS256 algorithm", () => {
         const tokenGenerator = new JwtGenerator(secretKey, duration);
         const itoken = tokenGenerator.generateToken(userMock);
         const token = itoken.token;
-        const decodedHeader = JSON.parse(Buffer.from(token.split(".")[0] ?? "", "base64").toString());
+        const decodedHeader: unknown = JSON.parse(Buffer.from(token.split(".")[0] ?? "", "base64").toString());
         expect(decodedHeader).toHaveProperty("alg", "HS256");
     });
 });

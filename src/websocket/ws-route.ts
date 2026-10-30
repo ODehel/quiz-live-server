@@ -37,7 +37,7 @@ export default function wsRoute(app: FastifyInstance, config: WsRouteConfigurati
             try {
                 if (authenticated) {
                     try {
-                        const syncMessage: { type?: string } = JSON.parse(rawDataToString(data));
+                        const syncMessage = JSON.parse(rawDataToString(data)) as { type?: string };
                         if (syncMessage.type === "request_game_state") {
                             const connectedBuzzers = [...registry.values()].filter(e => e.role === UserRole.PLAYER).map(e => ({ username: e.username }));
                             socket.send(JSON.stringify({ type: "game_state_sync", connected_buzzers: connectedBuzzers }));
@@ -49,7 +49,7 @@ export default function wsRoute(app: FastifyInstance, config: WsRouteConfigurati
                 handle.cancel();
                 let message: { type?: string, token?: string };
                 try {
-                    message = JSON.parse(rawDataToString(data));
+                    message = JSON.parse(rawDataToString(data)) as { type?: string, token?: string };
                 } catch {
                     config.wsEventReporter.invalidToken(request.ip);
                     socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);

@@ -67,7 +67,7 @@ describe("WebSocket", () => {
         port = 3001;
         maxConnections = 5;
         mockScheduler = {
-            schedule: vi.fn((callback) => {
+            schedule: vi.fn((callback: () => void) => {
                 capturedCallback = callback;
                 return { cancel: () => { capturedCallback = () => { }; } };
             })
