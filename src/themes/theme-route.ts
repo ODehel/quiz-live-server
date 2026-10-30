@@ -28,7 +28,9 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
     });
 
     app.get('/api/v1/themes', async (request, reply) => {
-        const { page = 1, limit = 20 } = request.query as { page?: number, limit?: number };
+        const query = request.query as { page?: string, limit?: string };
+        const page = Number(query.page ?? 1);
+        const limit = Number(query.limit ?? 20);
 
         if (paginationParametersAreInvalid(limit, page)) {
             reply.status(400).send({ error: INVALID_PAGINATION });
