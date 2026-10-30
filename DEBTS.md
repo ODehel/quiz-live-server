@@ -45,6 +45,7 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 ## authentication/
 
 - **`429` des tokens non re-testé** (`token-route.test.ts:113`, statut seul).
+- **`additionalProperties: false` du schéma de `POST /api/v1/token` n'est pas appliqué** — `{"username":…,"password":…,"extra":1}` répond `200` avec un jeton (sondé le 2026-10-30, identique avant et après la mise à jour de `fastify`) : l'Ajv de Fastify retire les champs en trop (`removeAdditional`) au lieu de les rejeter. Les routes des questions rendent `UNKNOWN_FIELDS` par leur propre mécanisme. *Pas séparé* : `fix(authentication)`, à trancher avec la spec de `POST /api/v1/token` (rejeter, ou assumer le retrait silencieux).
 - **Test du `UserRepositoryParticipantResolver`** : fake inconditionnel.
 - **`JwtValidator` / `JwtDecoder` instanciés deux fois** dans `index.ts`.
 
@@ -67,7 +68,8 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **Helper `parseJson` écrit deux fois** (`ws-route.test.ts`, `question-route.test.ts`). *Pas séparé* : extraction vers un module de test commun.
 - **Messages WebSocket lus par `JSON.parse(...) as {...}`** (`ws-route.ts`, deux lectures) — le type est affirmé, non vérifié : c'est l'entrée d'un client. Un `token` qui n'est pas une chaîne n'est pas sondé. *Pas séparé* : validation de la forme à la frontière.
 - **`anyString` écrit deux fois** (`question-route.test.ts`, `theme-route.test.ts`) : `expect.any(String)` typé `unknown` pour éviter le `any` du matcher ; `sqliteBusyError` (`question-route.test.ts`) suit le même principe pour `expect.objectContaining`. Extraction à la troisième occurrence.
-- **11 vulnérabilités `npm audit`** (1 faible, 3 modérées, 7 élevées), déjà présentes à `bf349ac` avant l'installation d'ESLint (mesuré le 2026-10-22) ; avertissement `install-scripts` pour `better-sqlite3` et `esbuild`. Non traité. *Pas séparé* : `chore(deps)`, lire l'audit avant tout `npm audit fix`.
+- **1 vulnérabilité `npm audit` faible** (`esbuild` 0.27.3 – 0.28.0 : lecture arbitraire de fichier par le serveur de développement ; outil de développement, absent de la production) — mesurée le 2026-10-30 après la mise à jour des dépendances (11 constats avant, dont 3 élevées de production sur `fastify`). Aucune version corrigée dans la plage de `vite`. Avertissement `install-scripts` pour `better-sqlite3` et `esbuild` non traité. *Pas séparé* : `chore(deps)` quand `vite` accepte un `esbuild` corrigé.
+- **`npm audit fix` et `npm update` plantent** (`Cannot read properties of null (reading 'edgesOut')`, npm 10.9.9, arborist, dépendances pair de `vitest` et `vite`) — le lockfile du 2026-10-30 vient de `npm install --legacy-peer-deps` ciblé ; `npm ci` strict vert. *Pas séparé* : retenter `npm audit fix` avec un npm plus récent.
 - **Tests à propriétés (`fast-check`)** — décision du 2026-10-18 : plus tard. Terrain naturel : les familles de valeurs de pagination et les bornes de `level`, `points`, `time_limit`.
 
 ## spec (`quiz-buzzer-docs`)
