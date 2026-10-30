@@ -37,15 +37,36 @@ describe('US-003/CA-05: Without token', () => {
     });
 });
 
-describe('US-003/CA-06: With wrong property', () => {
-    it('should return 400', async () => {
+describe('US-003/CA-06 (CA-12): With valid credentials and an unknown field', () => {
+    it('should return 400 UNKNOWN_FIELDS naming the field', async () => {
         const response = await app.inject({
             method: 'POST',
             url: '/api/v1/token',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: 'User Name', passyord: 'user-password' })
+            body: JSON.stringify({ username: 'User Name', password: 'user-password', extra: 1 })
         })
-        expect(response.statusCode).toBe(400)
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): extra.' });
+    });
+
+    it('should not authenticate', async () => {
+        await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'User Name', password: 'user-password', extra: 1 })
+        })
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
+    });
+
+    it('should name every unknown field', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'User Name', password: 'user-password', first: 1, second: 2 })
+        })
+        expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): first, second.' });
     });
 });
 
