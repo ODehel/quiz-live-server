@@ -73,6 +73,14 @@ describe("US-004/CA-003 - When the service is called to create a theme with a na
     });
 });
 
+describe("US-004/CA-003 - When the service is called to create a theme with a hyphen in the name", () => {
+    it("should create a theme with the hyphenated name", () => {
+        const theme = defaultThemeService.createTheme("Jean-Pierre");
+
+        assert.equal(theme.name, "Jean-Pierre");
+    });
+});
+
 describe("US-004/CA-004 - When the service is called to create a theme with a name that already exists", () => {
     beforeEach(() => {
         themeRepository.getByName = vi.fn().mockReturnValue({ id: "existing-id", name: "Existing Theme", created_at: "2026-04-08T13:32:00Z", last_updated_at: null });
