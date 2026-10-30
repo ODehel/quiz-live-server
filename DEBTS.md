@@ -40,7 +40,6 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **`count()` du repository thème** en `as { count: number }`.
 - **Règle de pagination différente entre thèmes et questions** — `paginationParametersAreInvalid` (`theme-route.ts`) s'appuie sur la coercition de `Number` : d'après sa logique, `page=1.5`, `1e1` ou `0x10` passent (**non sondé sur le serveur réel**), alors que `GET /api/v1/questions` les rejette (regex `^[1-9][0-9]*$`, `question-route.ts`). *Pas séparé* : aligner les thèmes sur la règle des questions (`fix(themes)` qui resserre la validation), puis extraire la règle à la troisième occurrence.
 - **Corps de l'erreur de pagination différent entre thèmes et questions** — `GET /api/v1/themes` renvoie `{ "error": "INVALID_PAGINATION" }` (`theme-route.ts` l. 34) ; `GET /api/v1/questions` renvoie le corps standard `{ status, error, message }`, comme le demande `error-codes.md` (« Standard », toutes les US). *Pas séparé* : `fix(themes)`, avec les chaînes ci-dessus.
-- **Aucun test ne couvre le tiret dans le nom d'un thème** — la règle de nommage (`formatName` dans `default-theme-service.ts`) l'autorise (« lettres, chiffres, espaces, apostrophes et tirets ») mais aucun test du service ni de la route n'envoie un nom avec tiret ; une régression de l'expression régulière passerait la suite. *Pas séparé* : un `test(themes)` avec un nom du type `Jean-Pierre`, né vert donc mutation obligatoire (retirer le `-` de la classe de caractères).
 
 ## authentication/
 
