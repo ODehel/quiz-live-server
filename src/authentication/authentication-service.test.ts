@@ -1,0 +1,80 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import { UserRepository } from "../users/user-repository.interface";
+import { Hasher } from "../common/hasher.interface";
+import { UserRole } from "../users/user-role";
+import { JwtAuthenticationService } from "./jwt-authentication-service";
+
+describe("Login inexistant en base de données", () => {
+    let mockUserRepository: UserRepository;
+    beforeEach(() => {
+        // Arrange : Faire un mock de IUserRepository pour qu'il retourne undefined
+        mockUserRepository = {
+            count: () => Promise.resolve(0),
+            insert: () => Promise.resolve(),
+            retrieveByLogin: () => Promise.resolve(undefined),
+            retrieveById: () => Promise.resolve(undefined)
+        };
+    });
+    it("should return an error", async () => {
+        const authenticateService = new JwtAuthenticationService(mockUserRepository, {} as Hasher);
+        // Act : Appeler la méthode d'authentification avec un login qui n'existe pas
+        const result = await authenticateService.authenticate("nonexistent", "password");
+        // Assert : Vérifier que le résultat est undefined
+        expect(result).toBeUndefined();
+    });
+});
+
+describe("Login with wrong password", () => {
+    let mockUserRepository: UserRepository;
+    let hasher: Hasher;
+    beforeEach(() => {
+        // Arrange : Faire un mock de IUserRepository pour qu'il retourne un utilisateur avec un mot de passe hashé
+        mockUserRepository = {
+            count: () => Promise.resolve(1),
+            insert: () => Promise.resolve(),
+            retrieveByLogin: () => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER }),
+            retrieveById: () => Promise.resolve(undefined)
+        };
+        // Arrange : Faire un mock de IHasher pour qu'il retourne true lors de la comparaison
+        hasher = {
+            hash: () => Promise.resolve("$2b$10$..."),
+            compare: () => Promise.resolve(false) // Simulate wrong password
+        };
+    });
+
+    it("should return an error", async () => {
+        // Arrange : Faire un mock de IUserRepository pour qu'il retourne un utilisateur
+        const authenticateService = new JwtAuthenticationService(mockUserRepository, hasher);
+        // Act : Appeler la méthode d'authentification avec le bon login mais un mot de passe incorrect
+        const result = await authenticateService.authenticate("testuser", "wrongpassword");
+        // Assert : Vérifier que le résultat est undefined
+        expect(result).toBeUndefined();
+    });
+});
+
+describe("Login with correct credentials", () => {
+    let mockUserRepository: UserRepository;
+    let hasher: Hasher;
+    beforeEach(() => {
+        // Arrange : Faire un mock de IUserRepository pour qu'il retourne un utilisateur avec un mot de passe hashé
+        mockUserRepository = {
+            count: () => Promise.resolve(1),
+            insert: () => Promise.resolve(),
+            retrieveByLogin: () => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER }),
+            retrieveById: () => Promise.resolve(undefined)
+        };
+        // Arrange : Faire un mock de IHasher pour qu'il retourne true lors de la comparaison
+        hasher = {
+            hash: () => Promise.resolve("$2b$10$..."),
+            compare: () => Promise.resolve(true) // Simulate correct password
+        };
+    });
+    it("should return the user", async () => {
+        // Arrange : Faire un mock de IUserRepository pour qu'il retourne un utilisateur avec un mot de passe hashé
+        const authenticateService = new JwtAuthenticationService(mockUserRepository, hasher);
+        // Act : Appeler la méthode d'authentification avec le bon login et le bon mot de passe
+        const result = await authenticateService.authenticate("testuser", "password");
+        // Assert : Vérifier que le résultat est l'utilisateur attendu
+        expect(result).toEqual({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER });
+    });
+});

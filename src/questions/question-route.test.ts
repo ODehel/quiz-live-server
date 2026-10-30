@@ -1,0 +1,1258 @@
+import Fastify, { FastifyInstance } from 'fastify';
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import questionRoute from './question-route';
+import { QuestionService } from './question-service.interface';
+import { Question } from './question.interface';
+import { InvalidThemeError } from './invalid-theme-error';
+import { ValidationError } from './validation-error';
+import { ConflictError } from './conflict-error';
+import { NotFoundError } from '../common/not-found-error';
+import authenticationMiddleware from '../authentication/authentication-middleware';
+import { TokenValidator } from '../authentication/token-validator.interface';
+import { TokenDecoder } from '../authentication/token-decoder.interface';
+import rateLimitMiddleware from '../infrastructure/rate-limit-middleware';
+
+let app: FastifyInstance;
+let mockQuestionService: QuestionService;
+let mockTokenValidator: TokenValidator;
+let mockTokenDecoder: TokenDecoder;
+
+const anyString: unknown = expect.any(String);
+const sqliteBusyError: unknown = expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' });
+
+beforeEach(() => {
+    mockQuestionService = {
+        createQuestion: vi.fn().mockReturnValue({
+            id: '019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            type: 'MCQ',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: 'Quelle est la capitale de la France ?',
+            choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+            correct_answer: 'Paris',
+            level: 1,
+            time_limit: 30,
+            points: 10,
+            image_path: null,
+            audio_path: null,
+            created_at: new Date().toISOString(),
+            last_updated_at: null
+        }),
+        getQuestionById: vi.fn(),
+        getAll: vi.fn()
+    };
+    mockTokenValidator = { validateToken: vi.fn(), inspectToken: vi.fn() };
+    mockTokenDecoder = { decode: vi.fn() };
+    const mockMiddleware = async () => { };
+    const mockRateLimitMiddleware = async () => { };
+    app = Fastify();
+    app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, rateLimitMiddleware: mockRateLimitMiddleware });
+});
+
+describe('US-005/CA-1 - Create an MCQ question', () => {
+    it('should create a new question successfully', async () => {
+        const input = {
+            type: 'MCQ',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: 'Quelle est la capitale de la France ?',
+            choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+            correct_answer: 'Paris',
+            level: 1,
+            time_limit: 30,
+            points: 10
+        };
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+        expect(response.statusCode).toBe(201);
+        expect(response.json()).toEqual({
+            id: '019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            type: 'MCQ',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: 'Quelle est la capitale de la France ?',
+            choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+            correct_answer: 'Paris',
+            level: 1,
+            time_limit: 30,
+            points: 10,
+            image_path: null,
+            audio_path: null,
+            created_at: anyString,
+            last_updated_at: null
+        });
+        expect(mockQuestionService.createQuestion).toHaveBeenCalledWith(input);
+    });
+});
+
+describe('US-005/CA-2 - Create a SPEED question', () => {
+    it('should create a new SPEED question successfully', async () => {
+        mockQuestionService.createQuestion = vi.fn().mockReturnValue({
+            id: '019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: 'Quel est le plus grand océan du monde ?',
+            correct_answer: 'Pacifique',
+            level: 2,
+            time_limit: 15,
+            points: 20,
+            image_path: null,
+            audio_path: null,
+            created_at: new Date().toISOString(),
+            last_updated_at: null
+        });
+        const input = {
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: 'Quel est le plus grand océan du monde ?',
+            correct_answer: 'Pacifique',
+            level: 2,
+            time_limit: 15,
+            points: 20
+        };
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+        expect(response.statusCode).toBe(201);
+        expect(response.json()).toEqual({
+            id: '019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: 'Quel est le plus grand océan du monde ?',
+            correct_answer: 'Pacifique',
+            level: 2,
+            time_limit: 15,
+            points: 20,
+            image_path: null,
+            audio_path: null,
+            created_at: anyString,
+            last_updated_at: null
+        });
+        expect(mockQuestionService.createQuestion).toHaveBeenCalledWith(input);
+    });
+});
+
+describe('US-005/CA-5 - Reject a question whose title is already taken', () => {
+    it('should translate a ConflictError into a 409 QUESTION_ALREADY_EXISTS response', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new ConflictError();
+        });
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'QUELLE EST LA CAPITALE DE LA FRANCE ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            }
+        });
+
+        expect(response.statusCode).toBe(409);
+        expect(response.json()).toEqual({
+            status: 409,
+            error: 'QUESTION_ALREADY_EXISTS',
+            message: 'A question with this title already exists.'
+        });
+    });
+});
+
+describe('US-005/CA-6 - Reject a question with an invalid type', () => {
+    it('should translate the ValidationError into a 400 VALIDATION_ERROR response carrying its message', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new ValidationError('Question type must be MCQ or SPEED.');
+        });
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'OPEN',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Qui a peint la Joconde ?',
+                correct_answer: 'Léonard de Vinci',
+                level: 3,
+                time_limit: 30,
+                points: 10
+            }
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question type must be MCQ or SPEED.'
+        });
+    });
+});
+
+describe('US-005/CA-8 - Reject a question with a malformed theme_id', () => {
+    it('should reject a question whose theme_id is not a valid UUID with a 400 INVALID_UUID response', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'SPEED',
+                theme_id: 'not-a-valid-uuid',
+                title: 'Qui a peint la Joconde ?',
+                correct_answer: 'Léonard de Vinci',
+                level: 3,
+                time_limit: 30,
+                points: 10
+            }
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_UUID',
+            message: 'The provided ID is not a valid UUID.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-7 - Reject a question referencing a non-existent theme', () => {
+    it('should translate an InvalidThemeError into a 400 INVALID_THEME response', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new InvalidThemeError();
+        });
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'SPEED',
+                theme_id: '018e4f5a-0000-0000-0000-000000000000',
+                title: 'Qui a peint la Joconde ?',
+                correct_answer: 'Léonard de Vinci',
+                level: 3,
+                time_limit: 30,
+                points: 10
+            }
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_THEME',
+            message: 'The provided theme_id does not reference an existing theme.'
+        });
+    });
+});
+
+describe('US-005/CA-15 - Reject a question with an invalid points', () => {
+    it('should translate a ValidationError into a 400 VALIDATION_ERROR response', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new ValidationError();
+        });
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la vitesse de la lumière ?',
+                correct_answer: '300 000 km/s',
+                level: 3,
+                time_limit: 30,
+                points: 100
+            }
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json<{ error: string }>().error).toBe('VALIDATION_ERROR');
+    });
+});
+
+describe('US-005/CA-18 - Reject a question carrying a media path', () => {
+    it.each(['image_path', 'audio_path'])('should reject a body containing %s with a 400 UNKNOWN_FIELDS response naming the field', async (mediaField) => {
+        const input = {
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: "Quel est le symbole chimique de l'argent ?",
+            correct_answer: 'Ag',
+            level: 2,
+            time_limit: 15,
+            points: 10,
+            [mediaField]: '/media/argent'
+        };
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'UNKNOWN_FIELDS',
+            message: `Unknown field(s): ${mediaField}.`
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-19 - Reject a question carrying a field outside the allowed ones', () => {
+    it('should reject a body containing difficulty with a 400 UNKNOWN_FIELDS response naming the field', async () => {
+        const input = {
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: "Quel est le symbole chimique de l'argent ?",
+            correct_answer: 'Ag',
+            level: 2,
+            time_limit: 15,
+            points: 10,
+            difficulty: 'hard'
+        };
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'UNKNOWN_FIELDS',
+            message: 'Unknown field(s): difficulty.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+
+    it('should name every unknown field in the 400 UNKNOWN_FIELDS response', async () => {
+        const input = {
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: "Quel est le symbole chimique de l'argent ?",
+            correct_answer: 'Ag',
+            level: 2,
+            time_limit: 15,
+            points: 10,
+            difficulty: 'hard',
+            hint: 'Argentum'
+        };
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'UNKNOWN_FIELDS',
+            message: 'Unknown field(s): difficulty, hint.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('error-codes/INVALID_BODY - Reject a question whose body is not a JSON object', () => {
+    it('should reject an array body with a 400 INVALID_BODY response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify([])
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_BODY',
+            message: 'Request body must be a JSON object.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-9 - Reject an MCQ question whose choices is not an array', () => {
+    it.each([
+        ['null', null],
+        ['a string', 'Paris'],
+        ['a number', 4],
+        ['a boolean', true],
+        ['an object', { first: 'Paris' }]
+    ])('should reject choices being %s with a 400 VALIDATION_ERROR response without calling the service', async (_label, notAnArray) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: notAnArray,
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question choices must be an array.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-9 - Reject an MCQ question whose choices contain a non-string entry', () => {
+    it('should reject choices made of numbers with a 400 VALIDATION_ERROR response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: [1, 2, 3, 4],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question choices must contain only strings.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-11 - Leave the entries of SPEED choices to the service', () => {
+    it('should hand a SPEED question whose choices are numbers over to the service', async () => {
+        const input = {
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: 'Quelle est la capitale de la France ?',
+            choices: [1, 2],
+            correct_answer: 'Paris',
+            level: 1,
+            time_limit: 30,
+            points: 10
+        };
+        await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+        expect(mockQuestionService.createQuestion).toHaveBeenCalledWith(input);
+    });
+});
+
+describe('US-005/CA-4 - Reject a question whose title is not a string', () => {
+    it.each([
+        ['a number', 42],
+        ['null', null],
+        ['a boolean', true],
+        ['an array', []],
+        ['an object', {}]
+    ])('should reject a title that is %s with a 400 VALIDATION_ERROR response without calling the service', async (_label, title) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title,
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-4 - Reject a SPEED question whose title is not a string', () => {
+    it('should reject a SPEED question whose title is a number with a 400 VALIDATION_ERROR response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 42,
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-10 - Reject a question whose correct_answer is not a string', () => {
+    it.each([
+        ['a number', 42],
+        ['null', null],
+        ['a boolean', true],
+        ['an array', []],
+        ['an object', {}]
+    ])('should reject a correct_answer that is %s with a 400 VALIDATION_ERROR response without calling the service', async (_label, correctAnswer) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: correctAnswer,
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question correct_answer must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-12 - Reject a SPEED question whose correct_answer is not a string', () => {
+    it('should reject a SPEED question whose correct_answer is a number with a 400 VALIDATION_ERROR response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                correct_answer: 42,
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question correct_answer must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('error-codes/VALIDATION_ERROR - Report a mistyped title before a missing or an unknown field', () => {
+    it('should report the mistyped title only when points is also missing', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 42,
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+
+    it('should report the mistyped title only when the body also contains an unknown field', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 42,
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10,
+                difficulty: 1
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title must be a string.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('error-codes/VALIDATION_ERROR - Report mistyped choices before a mistyped title', () => {
+    it('should report the choices only when choices is not an array and the title is not a string', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 42,
+                choices: null,
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question choices must be an array.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('error-codes/VALIDATION_ERROR - Reject a question missing a required field', () => {
+    it.each(['theme_id', 'title', 'type', 'level', 'time_limit', 'points', 'correct_answer'])('should reject a body without %s with a 400 VALIDATION_ERROR response without calling the service', async (missingField) => {
+        const body: Record<string, unknown> = {
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: 'Quelle est la capitale de la France ?',
+            correct_answer: 'Paris',
+            level: 1,
+            time_limit: 30,
+            points: 10
+        };
+        delete body[missingField];
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: `Question ${missingField} is required.`
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+
+    it('should name every missing field in a single 400 VALIDATION_ERROR response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                points: 10,
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                correct_answer: 'Paris',
+                level: 1
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title, time_limit are required.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+
+    it('should name correct_answer along with another missing field in a single 400 VALIDATION_ERROR response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'SPEED',
+                title: 'Quelle est la capitale de la France ?',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question theme_id, correct_answer are required.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+
+    it('should name the missing field only when the body also contains an unknown field, with a 400 VALIDATION_ERROR response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10,
+                difficulty: 3
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title is required.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+
+    it('should reject an MCQ body without choices with a 400 VALIDATION_ERROR response without calling the service', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question choices is required.'
+        });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-50 - Create a question without authorization', () => {
+    beforeEach(() => {
+        app = Fastify();
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware, rateLimitMiddleware: async () => { } });
+    });
+    it('should reject the creation with a 401 error', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+        expect(response.statusCode).toBe(401);
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-54 - Hide technical details of an unexpected error', () => {
+    it('should translate an unexpected error into a 500 INTERNAL_SERVER_ERROR response without technical details', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new Error('SQLITE_BUSY: database is locked');
+        });
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Qui a peint la Joconde ?',
+                correct_answer: 'Léonard de Vinci',
+                level: 3,
+                time_limit: 20,
+                points: 15
+            }
+        });
+
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual({
+            status: 500,
+            error: 'INTERNAL_SERVER_ERROR',
+            message: 'An unexpected error occurred. Please try again later.'
+        });
+    });
+});
+
+describe('US-005/CA-54 - Log the technical details of an unexpected error', () => {
+    let logLines: string[];
+
+    beforeEach(() => {
+        logLines = [];
+        app = Fastify({
+            logger: {
+                level: 'error',
+                stream: { write: (line: string) => { logLines.push(line); } }
+            }
+        });
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { }, rateLimitMiddleware: async () => { } });
+    });
+
+    it('should log the unexpected error with its technical message at error level', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new Error('SQLITE_BUSY: database is locked');
+        });
+
+        await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: {
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Qui a peint la Joconde ?',
+                correct_answer: 'Léonard de Vinci',
+                level: 3,
+                time_limit: 20,
+                points: 15
+            }
+        });
+
+        const logs = logLines.map(line => parseJson<Record<string, unknown>>(line));
+        expect(logs).toContainEqual(expect.objectContaining({
+            level: 50,
+            err: sqliteBusyError
+        }));
+    });
+
+    it('should log the unexpected error of the list with its technical message at error level', async () => {
+        mockQuestionService.getAll = vi.fn(() => {
+            throw new Error('SQLITE_BUSY: database is locked');
+        });
+
+        await app.inject({ method: 'GET', url: '/api/v1/questions' });
+
+        const logs = logLines.map(line => parseJson<Record<string, unknown>>(line));
+        expect(logs).toContainEqual(expect.objectContaining({
+            level: 50,
+            err: sqliteBusyError
+        }));
+    });
+});
+
+describe('US-005/CA-52 - Rate limiting on the questions route', () => {
+    const limit = 5;
+    const postQuestion = () => app.inject({ method: 'POST', url: '/api/v1/questions', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'MCQ' }) });
+    const exhaustTheLimit = async () => { for (let i = 0; i < limit; i++) { await postQuestion(); } };
+
+    beforeEach(() => {
+        const lowRateLimitMiddleware = (app: FastifyInstance) => rateLimitMiddleware(app, { maxRequestsPerMinute: limit });
+        app = Fastify();
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { }, rateLimitMiddleware: lowRateLimitMiddleware });
+    });
+    it('should reject the request exceeding the limit with a 429', async () => {
+        await exhaustTheLimit();
+        const response = await postQuestion();
+        expect(response.statusCode).toBe(429);
+    });
+    it('should tell the client to retry after 60 seconds', async () => {
+        await exhaustTheLimit();
+        const response = await postQuestion();
+        expect(response.headers['retry-after']).toBe('60');
+    });
+    it('should explain the refusal with the standard error body', async () => {
+        await exhaustTheLimit();
+        const response = await postQuestion();
+        expect(response.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' });
+    });
+});
+
+describe('US-005/CA-21 - Get an MCQ question by its id', () => {
+    it('should return the MCQ question with its choices', async () => {
+        const id = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+        const mcqQuestion = {
+            id: id, type: 'MCQ', theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a', title: 'Quelle est la capitale de la France ?',
+            choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'], correct_answer: 'Paris', level: 1, time_limit: 30, points: 10,
+            image_path: null, audio_path: null, created_at: '2026-09-26T09:00:00.000Z', last_updated_at: null
+        } as Question;
+        mockQuestionService.getQuestionById = vi.fn().mockReturnValue(mcqQuestion);
+
+        const response = await app.inject({ method: 'GET', url: `/api/v1/questions/${id}` });
+
+        expect(mockQuestionService.getQuestionById).toHaveBeenCalledWith(id);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(mcqQuestion);
+    });
+});
+
+describe('US-005/CA-23 - Get a question by an unknown id', () => {
+    it('should reply 404 NOT_FOUND with the standard error body', async () => {
+        mockQuestionService.getQuestionById = vi.fn(() => {
+            throw new NotFoundError();
+        });
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions/018e4f5a-0000-0000-0000-000000000000' });
+
+        expect(response.statusCode).toBe(404);
+        expect(response.json()).toEqual({
+            status: 404,
+            error: 'NOT_FOUND',
+            message: 'The requested question was not found.'
+        });
+    });
+});
+
+describe('US-005/CA-24 - Get a question by a malformed id', () => {
+    it('should reply 400 INVALID_UUID with the standard error body without calling the service', async () => {
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions/not-a-valid-uuid' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_UUID',
+            message: 'The provided ID is not a valid UUID.'
+        });
+        expect(mockQuestionService.getQuestionById).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-54 - Hide technical details of an unexpected error on GET /:id', () => {
+    it('should translate an unexpected error into a 500 INTERNAL_SERVER_ERROR response without technical details', async () => {
+        mockQuestionService.getQuestionById = vi.fn(() => {
+            throw new Error('SQLITE_BUSY: database is locked');
+        });
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions/018e4f5a-0000-0000-0000-000000000000' });
+
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual({
+            status: 500,
+            error: 'INTERNAL_SERVER_ERROR',
+            message: 'An unexpected error occurred. Please try again later.'
+        });
+    });
+});
+
+describe('US-005/CA-26 - List a page of questions', () => {
+    it('should ask the service for the requested page and limit as numbers and reply 200 with its pagination', async () => {
+        const question = {
+            id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', type: 'MCQ', theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a', title: 'Quelle est la capitale de la France ?',
+            choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'], correct_answer: 'Paris', level: 1, time_limit: 30, points: 10,
+            image_path: null, audio_path: null, created_at: '2026-09-26T09:00:00.000Z', last_updated_at: null
+        } as Question;
+        const pagination = { data: [question], page: 2, limit: 5, total: 12, total_pages: 3 };
+        mockQuestionService.getAll = vi.fn().mockReturnValue(pagination);
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=2&limit=5' });
+
+        expect(mockQuestionService.getAll).toHaveBeenCalledWith(2, 5);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(pagination);
+    });
+});
+
+describe('US-005/CA-26 - List another page of questions', () => {
+    it('should forward the requested page and limit whatever their values', async () => {
+        const pagination = { data: [{ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416' } as Question], page: 3, limit: 10, total: 25, total_pages: 3 };
+        mockQuestionService.getAll = vi.fn().mockReturnValue(pagination);
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=3&limit=10' });
+
+        expect(mockQuestionService.getAll).toHaveBeenCalledWith(3, 10);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(pagination);
+    });
+});
+
+describe('US-005/CA-28 - Default pagination parameters of the list of questions', () => {
+    it('should ask the service for the page 1 and the limit 20 when none is given', async () => {
+        const pagination = { data: [{ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416' } as Question], page: 1, limit: 20, total: 1, total_pages: 1 };
+        mockQuestionService.getAll = vi.fn().mockReturnValue(pagination);
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions' });
+
+        expect(mockQuestionService.getAll).toHaveBeenCalledWith(1, 20);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(pagination);
+    });
+});
+
+describe('US-005/CA-29 - Cap the limit of the list of questions', () => {
+    it('should reject a limit above 100 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=200' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-29 - Accept the maximum limit of the list of questions', () => {
+    it('should ask the service for a limit of exactly 100', async () => {
+        const pagination = { data: [{ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416' } as Question], page: 1, limit: 100, total: 1, total_pages: 1 };
+        mockQuestionService.getAll = vi.fn().mockReturnValue(pagination);
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=100' });
+
+        expect(mockQuestionService.getAll).toHaveBeenCalledWith(1, 100);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(pagination);
+    });
+
+    it('should reject a limit of 101 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=101' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-30 - Reject invalid pagination parameters of the list of questions', () => {
+    it('should reject a limit of 0 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=0' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a limit of A with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=A' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a limit of -3 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=-3' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a limit written in scientific notation, such as 1e1, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=1e1' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a limit with a leading zero, such as 007, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=007' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page of 0 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=0' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page of A with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=A' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page written in scientific notation, such as 1e1, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=1e1' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page with a leading zero, such as 007, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=007' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a limit with a decimal part, such as 1.5, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?limit=1.5' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page with a decimal part, such as 1.5, with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=1.5' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+
+    it('should reject a page of -1 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
+        mockQuestionService.getAll = vi.fn();
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=-1' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_PAGINATION',
+            message: 'Invalid pagination parameters.'
+        });
+        expect(mockQuestionService.getAll).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-54 - Hide technical details of an unexpected error on GET /', () => {
+    it('should translate an unexpected error into a 500 INTERNAL_SERVER_ERROR response without technical details', async () => {
+        mockQuestionService.getAll = vi.fn(() => {
+            throw new Error('SQLITE_BUSY: database is locked');
+        });
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions' });
+
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual({
+            status: 500,
+            error: 'INTERNAL_SERVER_ERROR',
+            message: 'An unexpected error occurred. Please try again later.'
+        });
+    });
+});
+
+function parseJson<T>(raw: string): T {
+    return JSON.parse(raw) as T
+}

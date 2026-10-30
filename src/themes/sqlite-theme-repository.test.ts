@@ -1,0 +1,187 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import { Theme } from "./theme.interface";
+import { SpeedQuestion } from "../questions/speed-question.interface";
+import { SqliteThemeRepository } from "./sqlite-theme-repository";
+import { SqliteQuestionRepository } from "../questions/sqlite-question-repository";
+import Database from "better-sqlite3";
+
+let database: Database.Database;
+let repository: SqliteThemeRepository;
+let theme: Theme;
+beforeEach(() => {
+    database = new Database(":memory:");
+    repository = new SqliteThemeRepository(database);
+    // Le constructeur crée la table des questions, que isUsedInQuestions interroge
+    new SqliteQuestionRepository(database);
+    theme = {
+        id: "019d6c17-1c08-7161-9358-fe4a116fa388",
+        name: "Theme test",
+        created_at: new Date().toISOString(),
+        last_updated_at: null
+    };
+});
+
+describe("US-004/CA-001 - SqliteThemeRepository.getById(theme)", () => {
+    it("should return the theme with the specified ID", () => {
+        // Arrange
+        repository.insert(theme);
+        // Act
+        const searchedTheme = repository.getById(theme.id);
+        // Assert
+        expect(searchedTheme?.id).toBe(theme.id);
+        expect(searchedTheme?.name).toBe(theme.name);
+        expect(searchedTheme?.created_at).toBe(theme.created_at);
+        expect(searchedTheme?.last_updated_at).toBe(theme.last_updated_at);
+    });
+});
+
+describe("US-004/CA-001 - SqliteThemeRepository.insert(theme)", () => {
+    it("should create the themes table if it does not exist", () => {
+        const count = repository.count();
+        // Assert
+        expect(count).toBe(0);
+    });
+    it("should insert a theme into the database", () => {
+        // Act
+        repository.insert(theme);
+        // Assert
+        const count = repository.count();
+        expect(count).toBe(1);
+    });
+});
+
+describe("US-004/CA-04 - Case insensitive for getById", () => {
+    it("should return the theme even if the case is different", () => {
+        repository.insert(theme);
+        const existingTheme = repository.getByName("ThEmE tEsT");
+        // Assert
+        expect(existingTheme).not.toBeUndefined();
+    });
+});
+
+describe("US-004/CA-13 - Retrieve a list of themes with pagination", () => {
+    let otherTheme: Theme;
+    beforeEach(() => {
+        otherTheme = {
+            id: "019d979f-6a51-7c7c-879f-b2b8a20d8273",
+            name: "Other theme test",
+            created_at: new Date().toISOString(),
+            last_updated_at: null
+        };
+        repository.insert(theme);
+        repository.insert(otherTheme);
+    });
+    it("should give a list with the first theme", () => {
+        const themes: Theme[] = repository.getAll(0, 1);
+        expect(themes.length).toBe(1);
+    });
+    it("should give a list with the second theme", () => {
+        const themes: Theme[] = repository.getAll(0, 2);
+        expect(themes.length).toBe(2);
+    });
+});
+
+describe("US-004/CA-14 - Retrieve a list of themes with pagination in the correct order", () => {
+    let otherTheme: Theme;
+    beforeEach(() => {
+        otherTheme = {
+            id: "019d979f-6a51-7c7c-879f-b2b8a20d8273",
+            name: "Other theme test",
+            created_at: new Date("2028-04-17 10:00:00").toISOString(),
+            last_updated_at: null
+        };
+        repository.insert(theme);
+        repository.insert(otherTheme);
+    });
+    it("should give a list with the first theme", () => {
+        const themes: Theme[] = repository.getAll(1, 1);
+        expect(themes.length).toBe(1);
+        expect(themes[0]?.name).toBe("Other theme test");
+    });
+    it("should give a list with the second theme", () => {
+        const themes: Theme[] = repository.getAll(2, 1);
+        expect(themes.length).toBe(1);
+        expect(themes[0]?.name).toBe("Theme test");
+    });
+});
+
+describe("US-004/CA-18 - Retrieve an empty list of themes if page is more than total_pages", () => {
+    let otherTheme: Theme;
+    beforeEach(() => {
+        otherTheme = {
+            id: "019d979f-6a51-7c7c-879f-b2b8a20d8273",
+            name: "Other theme test",
+            created_at: new Date("2028-04-17 10:00:00").toISOString(),
+            last_updated_at: null
+        };
+        repository.insert(theme);
+        repository.insert(otherTheme);
+    });
+    it("should give an empty list", () => {
+        const themes: Theme[] = repository.getAll(3, 1);
+        expect(themes.length).toBe(0);
+    });
+});
+
+describe("US-004/CA-18 - Retrieve an empty list of themes if table is emy", () => {
+    it("should give an empty list", () => {
+        const themes: Theme[] = repository.getAll(1, 1);
+        expect(themes.length).toBe(0);
+    });
+});
+
+describe("US-004/CA-20 - Update the theme", () => {
+    it("should update the last_updated_date and return a 200 HTML code", () => {
+        repository.insert(theme);
+        const updatedName = "Updated name for theme test";
+        const date = "2026-04-17 16:33:00";
+        theme.name = updatedName;
+        theme.last_updated_at = date;
+        repository.update(theme);
+        const updatedTheme = repository.getById(theme.id);
+        expect(updatedTheme?.name).toBe(updatedName);
+        expect(updatedTheme?.last_updated_at).toBe(date);
+    });
+});
+
+describe("US-004/CA-28 - Delete a theme without associated questions", () => {
+    it("should delete the theme", () => {
+        repository.insert(theme);
+        repository.delete("019d6c17-1c08-7161-9358-fe4a116fa388");
+        expect(repository.count()).toBe(0);
+    });
+});
+
+describe("US-005/CA-48 - Tell whether a theme is used in questions", () => {
+    it("should report the theme as used when a question references it", () => {
+        // Arrange : une question liée au thème, dans la même base que le repository thème
+        repository.insert(theme);
+        const question: SpeedQuestion = {
+            id: "019d6c17-1c08-7161-9358-fe4a116fa001",
+            type: "SPEED",
+            theme_id: theme.id,
+            title: "Quelle est la capitale de la France",
+            correct_answer: "Paris",
+            level: 3,
+            time_limit: 30,
+            points: 10,
+            image_path: null,
+            audio_path: null,
+            created_at: new Date().toISOString(),
+            last_updated_at: null
+        };
+        new SqliteQuestionRepository(database).insert(question);
+        // Act
+        const used = repository.isUsedInQuestions(theme.id);
+        // Assert
+        expect(used).toBe(true);
+    });
+    it("should report the theme as unused when no question references it", () => {
+        // Arrange
+        repository.insert(theme);
+        // Act
+        const used = repository.isUsedInQuestions(theme.id);
+        // Assert
+        expect(used).toBe(false);
+    });
+});
