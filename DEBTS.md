@@ -33,7 +33,7 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 ## themes/
 
 - **Format court sur 10 branches de `theme-route.ts`** (`{ error: … }` au lieu du body standard, le `message` de `ValidationError` n'est donc pas transmis) — `ThemeNotFoundError` porte un code non standard (`THEME_NOT_FOUND`). *Pas séparé* : série `feat(themes)`, migration vers `common/NotFoundError` incluse.
-- **Deux mécanismes pour `UNKNOWN_FIELDS`** — `bodyHasUnknownFields` (liste blanche, format court) dans `theme-route.ts`, schéma Ajv (body standard) dans `question-route.ts`. *Pas séparé* : série `feat(themes)`.
+- **Trois mécanismes pour `UNKNOWN_FIELDS`** — `bodyHasUnknownFields` (liste blanche, format court) dans `theme-route.ts`, schéma Ajv (body standard) dans `question-route.ts`, et le même schéma Ajv recopié dans `token-route.ts` (`attachValidation`, deux `new Ajv`, un `SchemaViolation` local par route). *Pas séparé* : série `feat(themes)`, puis extraction des deux Ajv vers `common/`.
 - **`500` des thèmes non conforme**, log non vérifié.
 - **`429` des thèmes non re-testé** (`theme-route.test.ts:534`, statut seul). *Pas séparé* : `test(themes)` CA-34.
 - **Couplage temporel `SqliteThemeRepository` → `T_QUESTION_QST`** (`isUsedInQuestions` suppose la table créée).
@@ -43,8 +43,9 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 
 ## authentication/
 
-- **`429` des tokens non re-testé** (`token-route.test.ts:113`, statut seul).
-- **`additionalProperties: false` du schéma de `POST /api/v1/token` n'est pas appliqué** — `{"username":…,"password":…,"extra":1}` répond `200` avec un jeton (sondé le 2026-10-30, identique avant et après la mise à jour de `fastify`) : l'Ajv de Fastify retire les champs en trop (`removeAdditional`) au lieu de les rejeter. Les routes des questions rendent `UNKNOWN_FIELDS` par leur propre mécanisme. *Pas séparé* : `fix(authentication)`, à trancher avec la spec de `POST /api/v1/token` (rejeter, ou assumer le retrait silencieux).
+- **`429` des tokens non re-testé** (`token-route.test.ts:140`, statut seul).
+- **`UNKNOWN_FIELDS` prime sur un champ manquant sur `POST /api/v1/token`, à l'inverse de la décision #9 (questions)** — choix d'Olivier du 2026-10-30, raison non consignée ; la spec (US-003 CA-6, CA-9, CA-10, CA-12) ne fixe aucun ordre. Sondé le même jour : `{"username":"u","extra":1}` répond `400 UNKNOWN_FIELDS`, `{"username":"u"}` répond le `400` natif de Fastify. Aucun test n'asserte le cas cumulé. Le plugin des tokens a son propre Ajv `allErrors` (même réserve que `questions/`). *Pas séparé* : une décision #N qui dise si les deux routes divergent, puis `test(authentication)`.
+- **Tests CA-9 et CA-10 de `token-route.test.ts` : libellés croisés, corps non assertés** — le test « CA-9 » (`username` manquant) envoie `{ username }`, donc un `password` manquant ; le test « CA-10 » (`password` manquant) envoie `{ login }` : les deux manquent **et** un champ est inconnu, il répond désormais `UNKNOWN_FIELDS` (sondé le 2026-10-30) et n'exerce plus le renvoi de l'erreur native. Un `username` manquant seul n'est testé par aucun test. Les deux n'assertent que le statut `400` : le corps est le corps natif de Fastify (`FST_ERR_VALIDATION`), alors que la spec demande `VALIDATION_ERROR` (CA-9, CA-10) ; `INVALID_JSON` (CA-11) n'est pas asserté non plus. Mutant tué par le seul test « CA-9 » : suppression du renvoi de l'erreur native (2026-10-30). *Pas séparé* : `test(authentication)`, puis `fix(authentication)` pour le corps.
 - **Test du `UserRepositoryParticipantResolver`** : fake inconditionnel.
 - **`JwtValidator` / `JwtDecoder` instanciés deux fois** dans `index.ts`.
 
@@ -72,6 +73,7 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **`skipLibCheck: true` masque les erreurs de types des dépendances** — ajouté le 2026-10-30 : avec `@types/node` 26, `thread-stream` (via `pino`, via `fastify`) référence `worker_threads.TransferListItem`, retiré des types de Node 26 (`TS2694` dans `node_modules/thread-stream/index.d.ts`) ; `thread-stream` 4.2.0, sa dernière version, le référence encore. Le code du hub reste contrôlé en entier. *Pas séparé* : retirer l'option quand `thread-stream` corrige (`chore(deps)`).
 - **Avertissement Vite `configLoader: 'native'`** — `vitest.config.ts` utilise la syntaxe ESM dans un fichier chargé en CommonJS (pas de `"type": "module"`) ; affiché à chaque `vitest run`, sous Node 22, 24 et 26 (relevé le 2026-10-30). Sans effet aujourd'hui ; deviendra bloquant quand Vite changera son défaut. *Pas séparé* : `vitest.config.mts` (à vérifier) ou `"type": "module"` (touche tout le projet).
 - **Actions de la CI sur Node 20 et image `ubuntu-latest`** — relevé le 2026-10-30 dans les annotations de la CI : `actions/checkout@v4` et `actions/setup-node@v4` ciblent Node 20, forcé en Node 24 par GitHub (avertissement) ; `ubuntu-latest` migre vers Ubuntu 26 depuis le 19 octobre (avis). CI verte. *Pas séparé* : `ci(workflows)` : monter les actions, décider d'épingler l'image.
+- **Avertissement `DEP0205` au démarrage sous Node 26** — `npm start` affiche `[DEP0205] DeprecationWarning: module.register() is deprecated`, venu de `tsx` 4.21.0 (relevé le 2026-10-30 après la fusion de #7 ; dernière version publiée : 4.23.15). Hypothèse non vérifiée : une mise à jour de `tsx` la supprime. *Pas séparé* : `chore(deps)`.
 - **Tests à propriétés (`fast-check`)** — décision du 2026-10-18 : plus tard. Terrain naturel : les familles de valeurs de pagination et les bornes de `level`, `points`, `time_limit`.
 
 ## spec (`quiz-buzzer-docs`)
