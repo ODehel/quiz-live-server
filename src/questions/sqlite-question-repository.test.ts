@@ -287,3 +287,19 @@ describe("US-005/CA-26 - SqliteQuestionRepository paginates the listed questions
         expect(questions).toEqual([]);
     });
 });
+
+describe("US-005/CA-32 - SqliteQuestionRepository lists an empty store", () => {
+    it("should return no question when nothing is stored", () => {
+        // Act
+        const questions = repository.getAll(1, 20);
+        // Assert
+        expect(questions).toEqual([]);
+    });
+
+    it("should count 0 questions when nothing is stored", () => {
+        // Act
+        const total = repository.count();
+        // Assert
+        expect(total).toBe(0);
+    });
+});

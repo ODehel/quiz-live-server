@@ -1079,6 +1079,19 @@ describe('US-005/CA-31 - List a page beyond the total of questions', () => {
     });
 });
 
+describe('US-005/CA-32 - List the questions when none is stored', () => {
+    it('should reply 200 with the empty pagination of the service', async () => {
+        const pagination = { data: [], page: 1, limit: 20, total: 0, total_pages: 0 };
+        mockQuestionService.getAll = vi.fn().mockReturnValue(pagination);
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions' });
+
+        expect(mockQuestionService.getAll).toHaveBeenCalledWith(1, 20);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual({ data: [], page: 1, limit: 20, total: 0, total_pages: 0 });
+    });
+});
+
 describe('US-005/CA-30 - Reject invalid pagination parameters of the list of questions', () => {
     it('should reject a limit of 0 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
         mockQuestionService.getAll = vi.fn();
