@@ -33,14 +33,12 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 
 ## themes/
 
-- **Format court sur 10 branches de `theme-route.ts`** (`{ error: … }` au lieu du body standard, le `message` de `ValidationError` n'est donc pas transmis) — `ThemeNotFoundError` porte un code non standard (`THEME_NOT_FOUND`). *Pas séparé* : série `feat(themes)`, migration vers `common/NotFoundError` incluse.
+- **Format court sur 9 branches de `theme-route.ts`** (`{ error: … }` au lieu du body standard, le `message` de `ValidationError` n'est donc pas transmis) — `ThemeNotFoundError` porte un code non standard (`THEME_NOT_FOUND`). *Pas séparé* : série `feat(themes)`, migration vers `common/NotFoundError` incluse.
 - **Trois mécanismes pour `UNKNOWN_FIELDS`** — `bodyHasUnknownFields` (liste blanche, format court) dans `theme-route.ts`, schéma Ajv (body standard) dans `question-route.ts`, et le même schéma Ajv recopié dans `token-route.ts` (`attachValidation`, deux `new Ajv`, un `SchemaViolation` local par route). *Pas séparé* : série `feat(themes)`, puis extraction des deux Ajv vers `common/`.
 - **`500` des thèmes non conforme**, log non vérifié.
 - **`429` des thèmes non re-testé** (`theme-route.test.ts:534`, statut seul). *Pas séparé* : `test(themes)` CA-34.
 - **Couplage temporel `SqliteThemeRepository` → `T_QUESTION_QST`** (`isUsedInQuestions` suppose la table créée).
 - **`count()` du repository thème** en `as { count: number }`.
-- **Règle de pagination différente entre thèmes et questions** — `paginationParametersAreInvalid` (`theme-route.ts`) s'appuie sur la coercition de `Number` : d'après sa logique, `page=1.5`, `1e1` ou `0x10` passent (**non sondé sur le serveur réel**), alors que `GET /api/v1/questions` les rejette (regex `^[1-9][0-9]*$`, `question-route.ts`). *Pas séparé* : aligner les thèmes sur la règle des questions (décision `#N`, puis `fix(themes)` qui resserre la validation et réutilise `isWrittenPaginationNumber`).
-- **Corps de l'erreur de pagination différent entre thèmes et questions** — `GET /api/v1/themes` renvoie `{ "error": "INVALID_PAGINATION" }` (`theme-route.ts` l. 34) ; `GET /api/v1/questions` renvoie le corps standard `{ status, error, message }`, comme le demande `error-codes.md` (« Standard », toutes les US). *Pas séparé* : `fix(themes)`, avec les chaînes ci-dessus.
 
 ## authentication/
 
