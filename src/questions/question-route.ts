@@ -5,6 +5,7 @@ import { CreateSpeedInput } from "./create-speed-input.interface";
 import { InvalidThemeError } from "./invalid-theme-error";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
+import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
 import { NotFoundError } from "../common/not-found-error";
 import { UuidFormatValidator } from "../infrastructure/uuid-format-validator";
 import Ajv from "ajv";
@@ -119,7 +120,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     app.get('/api/v1/questions', async (request, reply) => {
         const { page = 1, limit = 20 } = request.query as { page?: number, limit?: number };
 
-        if (!/^[1-9][0-9]*$/.test(String(limit)) || limit > 100 || !/^[1-9][0-9]*$/.test(String(page))) {
+        if (!isWrittenPaginationNumber(limit) || limit > 100 || !isWrittenPaginationNumber(page)) {
             sendInvalidPaginationParameters(reply);
             return;
         }
