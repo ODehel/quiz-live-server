@@ -789,3 +789,15 @@ describe("US-005/CA-31 - When the service lists a page beyond the total", () => 
         expect(result).toEqual({ data: [], page: 9999, limit: 5, total: 12, total_pages: 3 });
     });
 });
+
+describe("US-005/CA-32 - When the service lists the questions and none is stored", () => {
+    let result: Pagination<Question>;
+    beforeEach(() => {
+        vi.mocked(questionRepository.getAll).mockReturnValue([]);
+        vi.mocked(questionRepository.count).mockReturnValue(0);
+        result = defaultQuestionService.getAll(1, 20);
+    });
+    it("should return an empty page with a total of 0 and no page at all", () => {
+        expect(result).toEqual({ data: [], page: 1, limit: 20, total: 0, total_pages: 0 });
+    });
+});
