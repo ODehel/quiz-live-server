@@ -776,3 +776,16 @@ describe("US-005/CA-26 - When the service lists the first page and the total is 
         expect(result).toEqual({ data: [firstQuestion], page: 1, limit: 10, total: 20, total_pages: 2 });
     });
 });
+
+describe("US-005/CA-31 - When the service lists a page beyond the total", () => {
+    let result: Pagination<Question>;
+    beforeEach(() => {
+        vi.mocked(questionRepository.getAll).mockReturnValue([]);
+        vi.mocked(questionRepository.count).mockReturnValue(12);
+        result = defaultQuestionService.getAll(9999, 5);
+    });
+    it("should return an empty page that keeps the requested page and the real total and total of pages", () => {
+        expect(questionRepository.getAll).toHaveBeenCalledWith(9999, 5);
+        expect(result).toEqual({ data: [], page: 9999, limit: 5, total: 12, total_pages: 3 });
+    });
+});

@@ -1066,6 +1066,19 @@ describe('US-005/CA-29 - Accept the maximum limit of the list of questions', () 
     });
 });
 
+describe('US-005/CA-31 - List a page beyond the total of questions', () => {
+    it('should ask the service for a very high page and reply 200 with its empty page', async () => {
+        const pagination = { data: [], page: 9999, limit: 20, total: 12, total_pages: 1 };
+        mockQuestionService.getAll = vi.fn().mockReturnValue(pagination);
+
+        const response = await app.inject({ method: 'GET', url: '/api/v1/questions?page=9999' });
+
+        expect(mockQuestionService.getAll).toHaveBeenCalledWith(9999, 20);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(pagination);
+    });
+});
+
 describe('US-005/CA-30 - Reject invalid pagination parameters of the list of questions', () => {
     it('should reject a limit of 0 with a 400 INVALID_PAGINATION response and not ask the service', async () => {
         mockQuestionService.getAll = vi.fn();

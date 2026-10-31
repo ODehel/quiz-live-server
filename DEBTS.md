@@ -29,6 +29,7 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **`QuestionService` simulé à quatre endroits** (`question-route.test.ts`, `server.test.ts` deux fois, `ws-route.test.ts`) : ajouter `getAll` à l'interface a obligé à modifier les quatre montages. *Pas séparé* : montage commun (fabrique de simulacre) à décider avec le `refactor`.
 - **`async () => { }` inline** dans trois montages de `question-route.test.ts`.
 - **Cosmétique** : ligne vide manquante dans `theme-repository-existence-checker.test.ts`.
+- **CA-27 (tri par date décroissante) testé au dépôt seulement, et page hors plage du dépôt étiquetée CA-26** — relevé le 2026-10-31 : aucun test de route ni de service ne fixe l'ordre de la liste ; le test « page au-delà de la dernière » de `sqlite-question-repository.test.ts` porte l'étiquette CA-26 alors qu'il couvre CA-31 (CA-31 testé à la route et au service depuis cette session). *Pas séparé* : `test(questions)` pour CA-27 à la route, puis renommer l'étiquette du dépôt.
 
 ## themes/
 
