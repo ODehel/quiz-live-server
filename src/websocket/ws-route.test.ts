@@ -520,6 +520,36 @@ describe("WebSocket", () => {
         expect(received.code).toBe(4004);
         expect(received.reason).toBe("Session replaced.");
     });
+    it("keeps the new session of a buzzer when its replaced connection closes", async () => {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockReturnValue("sub-01");
+        mockParticipantResolver.resolve = vi.fn().mockResolvedValue({ username: "quiz_buzzer_01", role: UserRole.PLAYER });
+        const clientA = new WebSocket(`ws://localhost:${port}/ws`);
+        let clientB: WebSocket;
+        let authenticated = false;
+        const syncMessage = await new Promise<{ type: string, connected_buzzers: { username: string }[] }>((resolve, reject) => {
+            clientA.on('open', () => clientA.send(JSON.stringify({ type: "auth", token: "X" })));
+            clientA.on('message', () => {
+                if (!authenticated) {
+                    authenticated = true;
+                    clientB = new WebSocket(`ws://localhost:${port}/ws`);
+                    clientB.on('open', () => clientB.send(JSON.stringify({ type: "auth", token: "X" })));
+                    clientB.on('message', (data) => {
+                        const message = JSON.parse(rawDataToString(data)) as { type: string, connected_buzzers: { username: string }[] };
+                        if (message.type === "auth_success") {
+                            setTimeout(() => clientB.send(JSON.stringify({ type: "request_game_state" })), 100);
+                        } else if (message.type === "game_state_sync") {
+                            resolve(message);
+                        }
+                    });
+                    clientB.on('error', (err) => reject(err));
+                }
+            });
+            clientA.on('error', (err) => reject(err));
+        });
+        expect(syncMessage.connected_buzzers).toEqual([{ username: "quiz_buzzer_01" }]);
+        clientB!.close();
+    });
     it("rejects a new connection when server is full", async () => {
         mockWsRouteConfiguration.maxConnections = 1;
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
