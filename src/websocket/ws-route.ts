@@ -125,6 +125,9 @@ export default function wsRoute(app: FastifyInstance, config: WsRouteConfigurati
         socket.on('close', () => {
             if (subject !== undefined) {
                 const leaving = registry.get(subject);
+                if (leaving?.ws !== socket) {
+                    return;
+                }
                 if (leaving?.role === UserRole.PLAYER) {
                     const admin = [...registry.values()].find(e => e.role === UserRole.ADMIN);
                     admin?.ws.send(JSON.stringify({ type: "buzzer_disconnected", username }));
