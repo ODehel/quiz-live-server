@@ -4,6 +4,7 @@ import { ConflictError } from "./conflict-error";
 import { ID_MISMATCH, INTERNAL_SERVER_ERROR, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
 import { ThemeNotFoundError } from "./theme-not-found-error";
 import { ThemeHasQuestionsError } from "./theme-has-questions-error";
+import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
 import { ThemeRouteConfiguration } from "./theme-route-configuration.interface";
 
 export default async function themeRoute(app: FastifyInstance, options: ThemeRouteConfiguration) {
@@ -28,16 +29,14 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
     });
 
     app.get('/api/v1/themes', async (request, reply) => {
-        const query = request.query as { page?: string, limit?: string };
-        const page = Number(query.page ?? 1);
-        const limit = Number(query.limit ?? 20);
+        const { page = 1, limit = 20 } = request.query as { page?: string, limit?: string };
 
-        if (paginationParametersAreInvalid(limit, page)) {
-            reply.status(400).send({ error: INVALID_PAGINATION });
+        if (!isWrittenPaginationNumber(limit) || Number(limit) > 100 || !isWrittenPaginationNumber(page)) {
+            reply.status(400).send({ status: 400, error: INVALID_PAGINATION, message: 'Invalid pagination parameters.' });
             return;
         }
 
-        const pagination = themeService.getAll(page, limit);
+        const pagination = themeService.getAll(Number(page), Number(limit));
         reply.status(200).send(pagination);
     });
 
@@ -105,10 +104,6 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         } else {
             reply.status(500).send({ error: INTERNAL_SERVER_ERROR });
         }
-    }
-
-    function paginationParametersAreInvalid(limit: number, page: number) {
-        return (limit > 100 || limit <= 0) || (isNaN(limit) || isNaN(page)) || page <= 0;
     }
 
     function bodyHasUnknownFields(body: object, allowedFields: string[]): boolean {

@@ -281,6 +281,8 @@ describe("US-004 - Pagination parameters sent to the service as numbers", () => 
     });
 });
 
+const invalidPaginationBody = { status: 400, error: 'INVALID_PAGINATION', message: 'Invalid pagination parameters.' };
+
 describe("US-004/CA-16 - Limit must be equal or less than 100", () => {
     it("should send a 400 error code", async () => {
         const response = await app.inject({
@@ -289,7 +291,7 @@ describe("US-004/CA-16 - Limit must be equal or less than 100", () => {
             headers: { 'content-type': 'application/json' }
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+        expect(response.json()).toEqual(invalidPaginationBody);
     });
 });
 
@@ -301,7 +303,7 @@ describe("US-004/CA-17 - When pagination parameters are invalid", () => {
             headers: { 'content-type': 'application/json' }
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+        expect(response.json()).toEqual(invalidPaginationBody);
     });
     it("should send a 400 error code - negative limit", async () => {
         const response = await app.inject({
@@ -310,7 +312,7 @@ describe("US-004/CA-17 - When pagination parameters are invalid", () => {
             headers: { 'content-type': 'application/json' }
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+        expect(response.json()).toEqual(invalidPaginationBody);
     });
     it("should send a 400 error code - 0 page", async () => {
         const response = await app.inject({
@@ -319,7 +321,7 @@ describe("US-004/CA-17 - When pagination parameters are invalid", () => {
             headers: { 'content-type': 'application/json' }
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+        expect(response.json()).toEqual(invalidPaginationBody);
     });
     it("should send a 400 error code - 0 limit", async () => {
         const response = await app.inject({
@@ -328,7 +330,7 @@ describe("US-004/CA-17 - When pagination parameters are invalid", () => {
             headers: { 'content-type': 'application/json' }
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+        expect(response.json()).toEqual(invalidPaginationBody);
     });
     it("should send a 400 error code - not numeric page", async () => {
         const response = await app.inject({
@@ -337,7 +339,7 @@ describe("US-004/CA-17 - When pagination parameters are invalid", () => {
             headers: { 'content-type': 'application/json' }
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+        expect(response.json()).toEqual(invalidPaginationBody);
     });
     it("should send a 400 error code - not numeric limit", async () => {
         const response = await app.inject({
@@ -346,7 +348,23 @@ describe("US-004/CA-17 - When pagination parameters are invalid", () => {
             headers: { 'content-type': 'application/json' }
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'INVALID_PAGINATION' });
+        expect(response.json()).toEqual(invalidPaginationBody);
+    });
+});
+
+describe("US-004/CA-17 - When a pagination parameter is not written as digits without a leading zero", () => {
+    it.each([
+        ['page', '007'], ['page', '1.5'], ['page', '1e1'], ['page', '0x10'], ['page', ''],
+        ['limit', '007'], ['limit', '1.5'], ['limit', '1e1'], ['limit', '0x10'], ['limit', '']
+    ])("should send a 400 error and not ask the service - %s=%s", async (name, value) => {
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/themes?${name}=${value}`,
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual(invalidPaginationBody);
+        expect(mockThemeService.getAll).not.toHaveBeenCalled();
     });
 });
 
