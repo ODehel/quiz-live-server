@@ -65,7 +65,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
                 const { id: idFromBody, name } = request.body as { id?: string, name: string };
 
                 if (idFromBody !== undefined && idFromParams !== idFromBody) {
-                    reply.status(400).send({ error: ID_MISMATCH });
+                    reply.status(400).send({ status: 400, error: ID_MISMATCH, message: 'The ID in the request body does not match the URL parameter.' });
                     return;
                 }
                 const updatedTheme = themeService.updateTheme(idFromParams, name);

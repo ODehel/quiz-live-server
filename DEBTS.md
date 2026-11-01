@@ -32,8 +32,8 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 
 ## themes/
 
-- **Format court sur 9 branches de `theme-route.ts`** (`{ error: … }` au lieu du body standard, le `message` de `ValidationError` n'est donc pas transmis) — `ThemeNotFoundError` porte un code non standard (`THEME_NOT_FOUND`). *Pas séparé* : série `feat(themes)`, migration vers `common/NotFoundError` incluse.
-- **Trois mécanismes pour `UNKNOWN_FIELDS`** — `bodyHasUnknownFields` (liste blanche, format court) dans `theme-route.ts`, schéma Ajv (body standard) dans `question-route.ts`, et le même schéma Ajv recopié dans `token-route.ts` (`attachValidation`, deux `new Ajv`, un `SchemaViolation` local par route). *Pas séparé* : série `feat(themes)`, puis extraction des deux Ajv vers `common/`.
+- **Format court sur 8 branches de `theme-route.ts`** (`{ error: … }` au lieu du body standard, le `message` de `ValidationError` n'est donc pas transmis) — `ThemeNotFoundError` porte un code non standard (`THEME_NOT_FOUND`, la spec écrit `NOT_FOUND`). Restent, par code : `INVALID_UUID` (1), `THEME_ALREADY_EXISTS` (1, `sendError`), `VALIDATION_ERROR` (1, `sendError`), `UNKNOWN_FIELDS` (2), `THEME_NOT_FOUND` (2), `INTERNAL_SERVER_ERROR` (1, `sendError`). *Pas séparé* : série `fix(themes)` d'une session par code (décision #14), puis `refactor` migrant `ThemeNotFoundError` vers `common/NotFoundError`.
+- **Trois mécanismes pour `UNKNOWN_FIELDS`** — `bodyHasUnknownFields` (liste blanche, format court) dans `theme-route.ts`, schéma Ajv (body standard) dans `question-route.ts`, et le même schéma Ajv recopié dans `token-route.ts` (`attachValidation`, deux `new Ajv`, un `SchemaViolation` local par route). *Pas séparé* : série `fix(themes)`, puis extraction des deux Ajv vers `common/`.
 - **`500` des thèmes non conforme**, log non vérifié.
 - **`429` des thèmes non re-testé** (`theme-route.test.ts:534`, statut seul). *Pas séparé* : `test(themes)` CA-34.
 - **Couplage temporel `SqliteThemeRepository` → `T_QUESTION_QST`** (`isUsedInQuestions` suppose la table créée).

@@ -432,7 +432,7 @@ describe("US-004/CA-23 - Id should be the same in body and url", () => {
             body: JSON.stringify({ id: '019da051-e379-74e7-b446-65518f88cc3a', name: 'Un nom de thème qui existe déjà' })
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'ID_MISMATCH' });
+        expect(response.json()).toEqual({ status: 400, error: 'ID_MISMATCH', message: 'The ID in the request body does not match the URL parameter.' });
     });
 });
 
