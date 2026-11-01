@@ -26,6 +26,8 @@ import { SqliteThemeRepository } from './themes/sqlite-theme-repository'
 import { SqliteQuestionRepository } from './questions/sqlite-question-repository'
 import { DefaultQuestionService } from './questions/default-question-service'
 import { Question } from './questions/question.interface'
+import { DefaultThemeService } from './themes/default-theme-service'
+import { Theme } from './themes/theme.interface'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -292,6 +294,46 @@ describe('US-005/CA-27 - The question list is ordered most recent first on the a
 		expect(response.statusCode).toBe(200)
 		const createdAt = response.json<{ data: Question[] }>().data.map(question => question.created_at)
 		expect(createdAt).toEqual(['2026-01-02T10:00:00.000Z', '2026-01-01T10:00:00.000Z'])
+	})
+	afterEach(async () => {
+		await server.stop()
+		database.close()
+	});
+});
+
+describe('US-004/CA-14 - The theme list is ordered most recent first on the assembled server', () => {
+	let database: Database
+	let server: QuizServer
+	beforeEach(() => {
+		database = new SqliteDatabase(':memory:')
+		const themeRepository = new SqliteThemeRepository(database)
+		const aTheme = (id: string, name: string, created_at: string): Theme => ({ id, name, created_at, last_updated_at: null })
+		// Fixture croisée : l'ordre voulu (Cinéma, Art, Zoologie) diffère de l'ordre d'insertion, de celui des ids
+		// et de celui des noms, dans les deux sens. Aucun tri sur une seule autre colonne ne passe ce test.
+		themeRepository.insert(aTheme('019d6c17-1c08-7161-9358-fe4a116fa003', 'Art', '2026-01-02T10:00:00.000Z'))
+		themeRepository.insert(aTheme('019d6c17-1c08-7161-9358-fe4a116fa001', 'Zoologie', '2026-01-01T10:00:00.000Z'))
+		themeRepository.insert(aTheme('019d6c17-1c08-7161-9358-fe4a116fa002', 'Cinéma', '2026-01-03T10:00:00.000Z'))
+		const listingThemeService: ThemeService = new DefaultThemeService(
+			mockClock,
+			{ generate: vi.fn() }, // la création n'est pas l'objet de ce test
+			themeRepository
+		)
+		const listingRouteConfiguration: ThemeRouteConfiguration = {
+			themeService: listingThemeService,
+			uuidValidator: mockUuidValidator,
+			tokenValidator: mockTokenValidator,
+			tokenDecoder: mockTokenDecoder,
+			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
+			rateLimitMiddleware: mockRateLimitMiddleware
+		};
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, listingRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+	})
+	it('lists the most recently created theme first', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'GET', url: '/api/v1/themes' })
+		expect(response.statusCode).toBe(200)
+		const createdAt = response.json<{ data: Theme[] }>().data.map(theme => theme.created_at)
+		expect(createdAt).toEqual(['2026-01-03T10:00:00.000Z', '2026-01-02T10:00:00.000Z', '2026-01-01T10:00:00.000Z'])
 	})
 	afterEach(async () => {
 		await server.stop()
