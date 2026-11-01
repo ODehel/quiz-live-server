@@ -105,6 +105,32 @@ describe("US-004/CA-14 - Retrieve a list of themes with pagination in the correc
     });
 });
 
+describe("US-004/CA-14 - SqliteThemeRepository breaks the ties on the creation date", () => {
+    let lowestIdTheme: Theme;
+    let middleIdTheme: Theme;
+    let highestIdTheme: Theme;
+
+    beforeEach(() => {
+        // Même date de création, ids et noms volontairement croisés : ni l'ordre d'insertion,
+        // ni son inverse, ni l'ordre des ids ou des noms (dans un sens ou l'autre) ne donnent l'ordre attendu.
+        const createdAt = "2026-01-01T10:00:00.000Z";
+        lowestIdTheme = { ...theme, id: "019d6c17-1c08-7161-9358-fe4a116fa38a", name: "Zeta", created_at: createdAt };
+        middleIdTheme = { ...theme, id: "019d6c17-1c08-7161-9358-fe4a116fa38b", name: "Alpha", created_at: createdAt };
+        highestIdTheme = { ...theme, id: "019d6c17-1c08-7161-9358-fe4a116fa38c", name: "Mike", created_at: createdAt };
+    });
+
+    it("should return the theme with the highest id first when themes share the same creation date", () => {
+        // Arrange
+        repository.insert(middleIdTheme);
+        repository.insert(highestIdTheme);
+        repository.insert(lowestIdTheme);
+        // Act
+        const themes: Theme[] = repository.getAll(1, 20);
+        // Assert
+        expect(themes.map(t => t.id)).toEqual([highestIdTheme.id, middleIdTheme.id, lowestIdTheme.id]);
+    });
+});
+
 describe("US-004/CA-18 - Retrieve an empty list of themes if page is more than total_pages", () => {
     let otherTheme: Theme;
     beforeEach(() => {
