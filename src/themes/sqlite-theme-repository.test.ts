@@ -21,7 +21,7 @@ beforeEach(() => {
     };
 });
 
-describe("US-004/CA-001 - SqliteThemeRepository.getById(theme)", () => {
+describe("US-004/CA-09 - SqliteThemeRepository.getById(theme)", () => {
     it("should return the theme with the specified ID", () => {
         // Arrange
         repository.insert(theme);
