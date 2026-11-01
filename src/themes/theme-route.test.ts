@@ -243,6 +243,21 @@ describe("US-004/CA-13 - Get all themes with pagination", () => {
     });
 });
 
+describe("US-004/CA-18 - List a page beyond the total of themes", () => {
+    it("should ask the service for a very high page and reply 200 with its empty page", async () => {
+        const pagination = { data: [], page: 999, limit: 20, total: 6, total_pages: 1 } as Pagination<Theme>;
+        mockThemeService.getAll = vi.fn().mockReturnValue(pagination);
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?page=999',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(mockThemeService.getAll).toHaveBeenCalledWith(999, 20);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(pagination);
+    });
+});
+
 describe("US-004/CA-15 - Parameters of pagination set by default", () => {
     it("should send page 1 and limit 20 by default", async () => {
         mockThemeService.getAll = vi.fn().mockImplementation(() => {

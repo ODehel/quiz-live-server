@@ -134,6 +134,19 @@ describe("US-004/CA-13 - When the service is called to find all themes with pagi
     });
 });
 
+describe("US-004/CA-18 - When the service lists a page beyond the total", () => {
+    let result: Pagination<Theme>;
+    beforeEach(() => {
+        themeRepository.getAll = vi.fn().mockReturnValue([]);
+        themeRepository.count = vi.fn().mockReturnValue(12);
+        result = defaultThemeService.getAll(9999, 5);
+    });
+    it("should return an empty page that keeps the requested page and the real total and total of pages", () => {
+        expect(themeRepository.getAll).toHaveBeenCalledWith(9999, 5);
+        expect(result).toEqual({ data: [], page: 9999, limit: 5, total: 12, total_pages: 3 });
+    });
+});
+
 describe("US-004/CA-20 - Update a theme name", () => {
     let update_date: string;
     let theme: Theme;
