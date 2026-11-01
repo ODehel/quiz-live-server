@@ -75,7 +75,7 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **Avertissement `DEP0205` au démarrage sous Node 26** — `npm start` affiche `[DEP0205] DeprecationWarning: module.register() is deprecated`, venu de `tsx` 4.21.0 (relevé le 2026-10-30 après la fusion de #7 ; dernière version publiée : 4.23.15). Hypothèse non vérifiée : une mise à jour de `tsx` la supprime. *Pas séparé* : `chore(deps)`.
 - **Tests à propriétés (`fast-check`)** — décision du 2026-10-18 : plus tard. Terrain naturel : les familles de valeurs de pagination et les bornes de `level`, `points`, `time_limit`.
 
-## spec (`quiz-buzzer-docs`)
+## spec (`docs/specs`)
 
 - **Divergence sur le body `500`** entre la spec et l'implémentation.
 - **`error-codes.md` décrit un `415` que le hub ne rend pas** — `UNSUPPORTED_MEDIA_TYPE` (« Content-Type must be 'application/json'. », l. 27 et l. 251) ; le hub rend le corps natif de Fastify (`FST_ERR_CTP_INVALID_MEDIA_TYPE`, « Unsupported Media Type »), décision #11. US-005/CA-20 n'est testé sur aucune route de questions. *Pas séparé* : corriger `error-codes.md` (code et message) dans `quiz-buzzer-docs`, en session dédiée.

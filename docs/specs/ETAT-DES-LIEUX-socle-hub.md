@@ -1,7 +1,7 @@
 # État des lieux — Traçabilité du socle hub (US-001 → US-009)
 
 > **Méthode : audit par implémentation réelle, pas par étiquette de test.**
-> Chaque CA a été confronté à trois sources : la **spec** (`quiz-buzzer-docs/hub`),
+> Chaque CA a été confronté à trois sources : la **spec** (`docs/specs`),
 > le **code de production** (`quiz-live-server/src`), et le **corps des tests**.
 > Un CA n'est déclaré solide que si le comportement attendu est réellement
 > exercé par une assertion qui mord — la seule présence d'un test étiqueté
