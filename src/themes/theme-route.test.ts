@@ -258,6 +258,20 @@ describe("US-004/CA-18 - List a page beyond the total of themes", () => {
     });
 });
 
+describe("US-004/CA-19 - List the themes when none is stored", () => {
+    it("should reply 200 with the empty pagination of the service", async () => {
+        mockThemeService.getAll = vi.fn().mockReturnValue({ data: [], page: 1, limit: 20, total: 0, total_pages: 0 });
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(mockThemeService.getAll).toHaveBeenCalledWith(1, 20);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual({ data: [], page: 1, limit: 20, total: 0, total_pages: 0 });
+    });
+});
+
 describe("US-004/CA-15 - Parameters of pagination set by default", () => {
     it("should send page 1 and limit 20 by default", async () => {
         mockThemeService.getAll = vi.fn().mockImplementation(() => {

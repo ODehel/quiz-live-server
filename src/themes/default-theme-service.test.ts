@@ -147,6 +147,18 @@ describe("US-004/CA-18 - When the service lists a page beyond the total", () => 
     });
 });
 
+describe("US-004/CA-19 - When the service lists the themes and none is stored", () => {
+    let result: Pagination<Theme>;
+    beforeEach(() => {
+        themeRepository.getAll = vi.fn().mockReturnValue([]);
+        themeRepository.count = vi.fn().mockReturnValue(0);
+        result = defaultThemeService.getAll(1, 20);
+    });
+    it("should return an empty page with a total of 0 and no page at all", () => {
+        expect(result).toEqual({ data: [], page: 1, limit: 20, total: 0, total_pages: 0 });
+    });
+});
+
 describe("US-004/CA-20 - Update a theme name", () => {
     let update_date: string;
     let theme: Theme;
