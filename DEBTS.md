@@ -38,7 +38,6 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **`429` des thèmes non re-testé** (`theme-route.test.ts:534`, statut seul). *Pas séparé* : `test(themes)` CA-34.
 - **Couplage temporel `SqliteThemeRepository` → `T_QUESTION_QST`** (`isUsedInQuestions` suppose la table créée).
 - **`count()` du repository thème** en `as { count: number }`.
-- **Étiquettes de CA fausses dans les tests des thèmes** — relevé le 2026-11-01 : `theme-route.test.ts` étiquette `CA-02` le test de validation du nom (c'est CA-3) et `CA-21` le doublon du `PUT` (c'est CA-24) ; `sqlite-theme-repository.test.ts` étiquette `CA-001` le test de `getById` (c'est CA-9). `CA-19a` (Content-Type ignoré sur la liste) est bien un CA, décrit dans l'annexe de la spec : son étiquette est juste. Matrice : dernier handoff de `docs/sessions/`. *Pas séparé* : un `test(themes)` pour les renommages restants (CA-3, CA-9, CA-24).
 
 ## authentication/
 

@@ -85,7 +85,7 @@ describe('US-004/CA-01 - Create Theme', () => {
     });
 });
 
-describe('US-004/CA-02 - Create Theme with invalid name', () => {
+describe('US-004/CA-03 - Create Theme with invalid name', () => {
     it('should return a validation error for invalid theme name', async () => {
         mockThemeService.createTheme = vi.fn().mockImplementation(() => { throw new ValidationError(); });
         const response = await app.inject({
@@ -477,7 +477,7 @@ describe("US-004/CA-21 - Format an existing theme", () => {
     });
 });
 
-describe('US-004/CA-21 - Update Theme with other existing name', () => {
+describe('US-004/CA-24 - Update Theme with other existing name', () => {
     it('should return a conflict error for existing theme name', async () => {
         mockThemeService.updateTheme = vi.fn().mockImplementation(() => { throw new ConflictError(); });
         const response = await app.inject({
