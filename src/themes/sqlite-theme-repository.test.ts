@@ -149,7 +149,7 @@ describe("US-004/CA-18 - Retrieve an empty list of themes if page is more than t
     });
 });
 
-describe("US-004/CA-18 - Retrieve an empty list of themes if table is emy", () => {
+describe("US-004/CA-19 - Retrieve an empty list of themes if table is empty", () => {
     it("should give an empty list", () => {
         const themes: Theme[] = repository.getAll(1, 1);
         expect(themes.length).toBe(0);
