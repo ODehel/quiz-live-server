@@ -275,12 +275,12 @@ describe("US-005/CA-26 - SqliteQuestionRepository paginates the listed questions
         // Assert
         expect(questions.map(q => q.id)).toEqual([middleQuestion.id]);
     });
+});
 
+describe("US-005/CA-31 - SqliteQuestionRepository lists a page beyond the last page", () => {
     it("should return no question when the requested page is beyond the last page", () => {
         // Arrange
-        repository.insert(oldestQuestion);
-        repository.insert(newestQuestion);
-        repository.insert(middleQuestion);
+        repository.insert(speedQuestion);
         // Act
         const questions = repository.getAll(9999, 2);
         // Assert

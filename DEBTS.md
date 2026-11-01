@@ -29,7 +29,6 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **`QuestionService` simulé à quatre endroits** (`question-route.test.ts`, `server.test.ts` deux fois, `ws-route.test.ts`) : ajouter `getAll` à l'interface a obligé à modifier les quatre montages. *Pas séparé* : montage commun (fabrique de simulacre) à décider avec le `refactor`.
 - **`async () => { }` inline** dans trois montages de `question-route.test.ts`.
 - **Cosmétique** : ligne vide manquante dans `theme-repository-existence-checker.test.ts`.
-- **CA-27 (tri par date décroissante) testé au dépôt seulement, et page hors plage du dépôt étiquetée CA-26** — relevé le 2026-10-31 : aucun test de route ni de service ne fixe l'ordre de la liste ; le test « page au-delà de la dernière » de `sqlite-question-repository.test.ts` porte l'étiquette CA-26 alors qu'il couvre CA-31 (CA-31 testé à la route et au service depuis cette session). *Pas séparé* : `test(questions)` pour CA-27 à la route, puis renommer l'étiquette du dépôt.
 
 ## themes/
 
@@ -47,6 +46,10 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 - **Tests CA-9 et CA-10 de `token-route.test.ts` : libellés croisés, corps non assertés** — le test « CA-9 » (`username` manquant) envoie `{ username }`, donc un `password` manquant ; le test « CA-10 » (`password` manquant) envoie `{ login }` : les deux manquent **et** un champ est inconnu, il répond désormais `UNKNOWN_FIELDS` (sondé le 2026-10-30) et n'exerce plus le renvoi de l'erreur native. Un `username` manquant seul n'est testé par aucun test. Les deux n'assertent que le statut `400` : le corps est le corps natif de Fastify (`FST_ERR_VALIDATION`), alors que la spec demande `VALIDATION_ERROR` (CA-9, CA-10) ; `INVALID_JSON` (CA-11) n'est pas asserté non plus. Mutant tué par le seul test « CA-9 » : suppression du renvoi de l'erreur native (2026-10-30). *Pas séparé* : `test(authentication)`, puis `fix(authentication)` pour le corps.
 - **Test du `UserRepositoryParticipantResolver`** : fake inconditionnel.
 - **`JwtValidator` / `JwtDecoder` instanciés deux fois** dans `index.ts`.
+
+## websocket/
+
+- **Remplacement de session silencieux dans les logs** — `ws-route.ts` ferme l'ancienne socket avec le code `4004` (« Session replaced. ») sur deux chemins : un second admin remplace l'ancien, et une nouvelle socket remplace celle du même sujet. Aucun des deux n'appelle `WsEventReporter` (pas d'événement `WEBSOCKET_SESSION_REPLACED`), et depuis le `fix(websocket)` du 2026-10-31 (#9) le `close` de la socket remplacée ne journalise plus rien non plus (le `WEBSOCKET_DISCONNECTED` ne partait de toute façon que pour la session courante). Relevé le 2026-10-31 sur matériel : un remplacement ne laisse aucune trace. *Pas séparé* : `feat(websocket)` ajoutant un événement au reporter et à son implémentation Pino, testé sur les deux chemins.
 
 ## infrastructure/ & composition
 

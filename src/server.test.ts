@@ -21,6 +21,11 @@ import { WsEventReporter } from './websocket/ws-event-reporter.interface'
 import { WsConnectionPolicy } from './websocket/ws-connection-policy'
 import { QuestionService } from './questions/question-service.interface'
 import { QuestionRouteConfiguration } from './questions/question-route-configuration.interface'
+import SqliteDatabase, { Database } from 'better-sqlite3'
+import { SqliteThemeRepository } from './themes/sqlite-theme-repository'
+import { SqliteQuestionRepository } from './questions/sqlite-question-repository'
+import { DefaultQuestionService } from './questions/default-question-service'
+import { Question } from './questions/question.interface'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -248,5 +253,48 @@ describe('US-005/CA-1 - Question creation reachable on the assembled server', ()
 	})
 	afterEach(async () => {
 		await server.stop()
+	});
+});
+
+describe('US-005/CA-27 - The question list is ordered most recent first on the assembled server', () => {
+	const themeId = '019d6c17-1c08-7161-9358-fe4a116fa000'
+	let database: Database
+	let server: QuizServer
+	beforeEach(() => {
+		database = new SqliteDatabase(':memory:')
+		new SqliteThemeRepository(database).insert({ id: themeId, name: 'Theme parent', created_at: '2026-01-01T00:00:00.000Z', last_updated_at: null })
+		const questionRepository = new SqliteQuestionRepository(database)
+		const aQuestion = (id: string, title: string, created_at: string): Question => ({
+			id, type: 'SPEED', theme_id: themeId, title, correct_answer: 'Paris',
+			level: 3, time_limit: 30, points: 10, image_path: null, audio_path: null, created_at, last_updated_at: null
+		})
+		// la plus ancienne est insérée en premier et porte l'id le plus grand : ni l'ordre d'insertion ni l'id seul ne donnent le bon ordre
+		questionRepository.insert(aQuestion('019d6c17-1c08-7161-9358-fe4a116fa002', 'Quelle est la capitale de la France', '2026-01-01T10:00:00.000Z'))
+		questionRepository.insert(aQuestion('019d6c17-1c08-7161-9358-fe4a116fa001', 'Quelle est la capitale de la Suisse', '2026-01-02T10:00:00.000Z'))
+		const listingQuestionService: QuestionService = new DefaultQuestionService(
+			mockClock,
+			{ generate: vi.fn() }, // la création n'est pas l'objet de ce test
+			questionRepository,
+			{ exists: vi.fn() }
+		)
+		const listingRouteConfiguration: QuestionRouteConfiguration = {
+			questionService: listingQuestionService,
+			tokenValidator: mockTokenValidator,
+			tokenDecoder: mockTokenDecoder,
+			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
+			rateLimitMiddleware: mockRateLimitMiddleware
+		};
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, listingRouteConfiguration)
+	})
+	it('lists the most recently created question first', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'GET', url: '/api/v1/questions' })
+		expect(response.statusCode).toBe(200)
+		const createdAt = response.json<{ data: Question[] }>().data.map(question => question.created_at)
+		expect(createdAt).toEqual(['2026-01-02T10:00:00.000Z', '2026-01-01T10:00:00.000Z'])
+	})
+	afterEach(async () => {
+		await server.stop()
+		database.close()
 	});
 });
