@@ -188,6 +188,22 @@ describe("US-004/CA-11 - Wrong format for UUID", () => {
         });
         expect(response.statusCode).toBe(400);
     });
+
+    it("should reply with the standard error body without calling the service", async () => {
+        mockThemeService.getById = vi.fn();
+        mockUuidValidator.validate = vi.fn().mockReturnValue(false);
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes/1',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_UUID',
+            message: 'The provided ID is not a valid UUID.'
+        });
+        expect(mockThemeService.getById).not.toHaveBeenCalled();
+    });
 });
 
 describe("US-004/CA-12 - The body of a GET on a theme is ignored", () => {

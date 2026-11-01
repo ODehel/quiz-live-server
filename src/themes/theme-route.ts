@@ -17,7 +17,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
     app.get('/api/v1/themes/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
         if (!uuidValidator.validate(id)) {
-            reply.status(400).send({ error: INVALID_UUID });
+            reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
             return;
         }
         const existingTheme = themeService.getById(id);
