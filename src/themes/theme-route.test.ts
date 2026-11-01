@@ -211,6 +211,25 @@ describe("US-004/CA-12 - The body of a GET on a theme is ignored", () => {
     });
 });
 
+describe("US-004/CA-12a - The content-type of a GET on a theme is ignored", () => {
+    it.each([
+        ['text/plain'],
+        ['application/x-www-form-urlencoded'],
+        ['not a media type']
+    ])("should reply 200 with the theme of the service without any body - %s", async (contentType) => {
+        const theme = { id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: '2026-04-17T10:56:00Z', last_updated_at: null };
+        mockThemeService.getById = vi.fn().mockReturnValue(theme);
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': contentType }
+        });
+        expect(mockThemeService.getById).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416');
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(theme);
+    });
+});
+
 describe("US-004/CA-13 - Get all themes with pagination", () => {
     it("should return 200 with the first theme", async () => {
         mockThemeService.getAll = vi.fn().mockImplementation(() => {
