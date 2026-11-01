@@ -1,0 +1,575 @@
+![Page de couverture — US-011](diagrams/covers/US-011-cover.png)
+
+# US-011 — Workflow d'une question MCQ
+
+## 📋 Contexte projet
+
+Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et de ses quatre applications.
+
+---
+
+## 🎯 User Story
+
+> **En tant que** maître du jeu,
+> **je veux** piloter le déroulement d'une question MCQ étape par étape (affichage du titre, affichage des propositions avec chronomètre, affichage de la correction),
+> **afin de** animer la partie en temps réel et permettre à chaque joueur de répondre depuis son buzzer.
+
+---
+
+## ✅ Critères d'acceptance
+
+> 🧪 **Exigence de couverture** — Voir [Conventions techniques — Couverture des tests](../shared/CONVENTIONS-TECHNIQUES.md#-exigence-de-couverture-des-tests). Chaque CA doit être couvert par au moins un test automatisé. Couverture globale ≥ 90 %.
+
+### Machine à états de la partie
+
+| # | Critère | Résultat attendu |
+|---|---|---|
+| CA-1 | La machine à états complète de la partie est étendue avec les nouveaux états | Transitions valides : `PENDING → OPEN → QUESTION_TITLE → QUESTION_OPEN → QUESTION_CLOSED → OPEN` (question suivante) ou `QUESTION_CLOSED → COMPLETED` (dernière question) |
+| CA-2 | L'état courant de la partie et l'index de la question en cours sont persistés en base | `GAM_STATUS` et `GAM_CURRENT_QUESTION_INDEX` mis à jour à chaque transition |
+| CA-3 | La progression est strictement linéaire et irréversible | Aucune transition vers un état précédent n'est possible |
+
+### Déclenchement du titre — `trigger_title`
+
+| # | Critère | Résultat attendu |
+|---|---|---|
+| CA-4 | Le maître du jeu envoie `trigger_title` depuis Angular | La partie passe en `QUESTION_TITLE`, le serveur diffuse `question_title` à tous les buzzers et à Angular |
+| CA-5 | Le message `question_title` contient l'index de la question, le type (`MCQ`), le titre et le `time_limit` | Données conformes à la question en base |
+| CA-6 | `trigger_title` reçu alors que la partie est en état `PENDING` (jamais démarrée) | Serveur envoie `error` à Angular avec code `INVALID_STATE` |
+| CA-7 | `trigger_title` reçu alors que l'état n'est pas `OPEN` (autre que `PENDING` : `QUESTION_TITLE`, `QUESTION_OPEN`, `QUESTION_CLOSED`, `COMPLETED`, `IN_ERROR`, etc.) | Serveur envoie `error` à Angular avec code `INVALID_STATE` |
+| CA-8 | `trigger_title` reçu alors qu'il n'y a plus de question disponible (index hors limites) | Serveur envoie `error` à Angular avec code `NO_MORE_QUESTIONS` |
+
+### Déclenchement des propositions — `trigger_choices`
+
+| # | Critère | Résultat attendu |
+|---|---|---|
+| CA-9 | Le maître du jeu envoie `trigger_choices` depuis Angular | La partie passe en `QUESTION_OPEN`, le serveur diffuse `question_choices` à tous les buzzers et à Angular, le chronomètre démarre |
+| CA-10 | Le message `question_choices` contient les 4 propositions A/B/C/D, l'horodatage de démarrage du chrono (`started_at`) et la durée (`time_limit`) | Données conformes à la question en base |
+| CA-11 | Le serveur envoie un tick de resynchronisation `timer_tick` toutes les 5 secondes avec le temps restant | Format : `{ "type": "timer_tick", "remaining_seconds": N }` |
+| CA-12 | À expiration du chrono, le serveur envoie automatiquement `timer_end` à tous les buzzers et à Angular | **Informatif uniquement** : le message indique que le temps est écoulé et enregistre les joueurs n'ayant pas répondu avec `time_limit` comme temps de réponse. La transition vers `QUESTION_CLOSED` n'est pas automatique — le maître doit envoyer `trigger_correction` |
+| CA-13 | `trigger_choices` reçu alors que l'état n'est pas `QUESTION_TITLE` | Serveur envoie `error` à Angular avec code `INVALID_STATE` |
+
+### Réponse d'un buzzer — `answer`
+
+| # | Critère | Résultat attendu |
+|---|---|---|
+| CA-14 | Un buzzer envoie `answer` avec une valeur `A`, `B`, `C` ou `D` en état `QUESTION_OPEN` | Le serveur enregistre la réponse en mémoire, accuse réception au buzzer (`answer_received`), notifie Angular en temps réel (`player_answered`) |
+| CA-15 | Le message `answer_received` envoyé au buzzer confirme la prise en compte de sa réponse | Format : `{ "type": "answer_received" }` |
+| CA-16 | Le message `player_answered` envoyé à Angular contient le nom du participant, sa réponse et son temps de réponse | Permet au maître du jeu de voir les réponses en direct avec le chrono |
+| CA-17 | Quand tous les joueurs connectés ont répondu, le serveur notifie Angular via `all_answered` | Le maître du jeu peut alors déclencher la correction sans attendre la fin du chrono |
+| CA-18 | Réponse reçue alors que l'état n'est pas `QUESTION_OPEN` | Serveur ignore silencieusement, log `WARN` |
+| CA-19 | Deuxième réponse d'un même buzzer pour la même question | Serveur ignore silencieusement, log `WARN` |
+| CA-20 | Valeur de réponse invalide (ni `A`, `B`, `C`, ni `D`) | Serveur ignore silencieusement, log `WARN` |
+| CA-21 | Réponse reçue après expiration du chrono (race condition : message en transit au moment de l'expiration) | Serveur ignore silencieusement, log `WARN` — le `timer_end` serveur fait foi |
+| CA-22 | Un buzzer dont le participant n'appartient pas à la partie envoie une réponse | Serveur ignore silencieusement, log `WARN` |
+
+### Déclenchement de la correction — `trigger_correction`
+
+| # | Critère | Résultat attendu |
+|---|---|---|
+| CA-23 | Le maître du jeu envoie `trigger_correction` depuis Angular | **Seul déclencheur** de la transition `QUESTION_OPEN → QUESTION_CLOSED`. Condition : tous les joueurs ont répondu **ou** le chrono est expiré (`timer_end` reçu). Sinon : `error` avec code `ANSWERS_PENDING`. Attendre `timer_end` ne suffit pas — le maître doit explicitement envoyer `trigger_correction` |
+| CA-24 | Le serveur calcule les scores, les persiste en base et diffuse les résultats | Voir section Persistance |
+| CA-25 | Le serveur envoie `question_result` individuellement à chaque buzzer | Contient : la bonne réponse, la réponse du joueur, un indicateur `correct` (booléen), les points gagnés sur la question, le score cumulé du joueur |
+| CA-26 | Le serveur envoie `question_result_summary` à Angular | Contient : la bonne réponse, le détail complet de tous les joueurs (nom, réponse, temps de réponse, points gagnés, score cumulé), le classement mis à jour |
+| CA-27 | La partie passe en `QUESTION_CLOSED` | `GAM_STATUS` mis à jour en base |
+| CA-28 | `trigger_correction` reçu alors que l'état n'est pas `QUESTION_OPEN` | Serveur envoie `error` à Angular avec code `INVALID_STATE` |
+| CA-29 | `trigger_correction` reçu alors que le chrono tourne encore et qu'au moins un joueur n'a pas répondu | Serveur envoie `error` à Angular avec code `ANSWERS_PENDING` |
+
+### Passage à la question suivante — `trigger_next_question`
+
+| # | Critère | Résultat attendu |
+|---|---|---|
+| CA-30 | Le maître du jeu envoie `trigger_next_question` depuis Angular | Si questions restantes : `GAM_CURRENT_QUESTION_INDEX` incrémenté, partie repasse en `OPEN` |
+| CA-31 | Si c'était la dernière question, la partie passe en `COMPLETED` | `GAM_STATUS` mis à jour en base à `COMPLETED` |
+| CA-32 | `trigger_next_question` reçu alors que l'état n'est pas `QUESTION_CLOSED` | Serveur envoie `error` à Angular avec code `INVALID_STATE` |
+
+### Persistance des scores
+
+| # | Critère | Résultat attendu |
+|---|---|---|
+| CA-33 | À la fin de chaque question (déclenchement de la correction), les données sont sauvegardées en base pour chaque participant | Réponse donnée, temps de réponse (ms), points gagnés sur la question, score cumulé mis à jour |
+| CA-34 | Les joueurs n'ayant pas répondu avant expiration sont enregistrés avec `answer: null`, `time_ms: time_limit * 1000`, `points_earned: 0` | Score cumulé inchangé |
+| CA-35 | En cas d'erreur SQLite lors de la sauvegarde, le serveur effectue jusqu'à 3 tentatives | Délai exponentiel entre les tentatives |
+| CA-36 | Après 3 tentatives échouées, la partie passe en `IN_ERROR`, le serveur envoie `error` à Angular avec code `INTERNAL_ERROR` | Log `ERROR` avec détail technique |
+| CA-37 | En cas de crash serveur en cours de question (état `QUESTION_TITLE` ou `QUESTION_OPEN`), la reprise repart de la dernière question complètement terminée | La question interrompue est rejouée depuis `OPEN` |
+
+### Sécurité et transversalité
+
+| # | Critère | Résultat attendu |
+|---|---|---|
+| CA-38 | Seul le client authentifié avec le rôle `admin` peut envoyer des messages de pilotage | Buzzer envoyant un message de pilotage → ignoré silencieusement, log `WARN` |
+| CA-39 | Seul un client authentifié avec le rôle `buzzer` peut envoyer `answer` | Angular envoyant `answer` → ignoré silencieusement, log `WARN` |
+| CA-40 | Tout message reçu d'un client non authentifié est ignoré | Ignoré silencieusement, log `WARN` |
+| CA-41 | Tout message avec un `type` inconnu est ignoré | Ignoré silencieusement, log `WARN` |
+| CA-42 | Tout message avec un JSON invalide est ignoré | Ignoré silencieusement, log `WARN` |
+| CA-43 | Tout message avec des champs manquants ou invalides | Serveur envoie `error` au client émetteur avec code `INVALID_MESSAGE` |
+| CA-44 | Tests unitaires et d'intégration | Couverture de tests ≥ 90% |
+
+---
+
+## 🔄 Diagramme de flux
+
+![Diagramme de flux — US-011 — Workflow d'une question MCQ](diagrams/US-011-mcq-question-workflow.png)
+
+---
+
+## 🔀 Diagramme de séquences
+
+![Diagramme de séquences — US-011 — Workflow d'une question MCQ](diagrams/US-011-mcq-question-workflow-sequence.png)
+
+---
+
+## 🔧 Spécifications techniques
+
+Voir les [Conventions techniques](../shared/CONVENTIONS-TECHNIQUES.md) pour la stack complète, les principes d'architecture (KISS, DRY, YAGNI, SOLID) et les conventions de données.
+
+### Extension du schéma de la table `T_GAME_GAM`
+
+#### Ajout de la colonne `GAM_CURRENT_QUESTION_INDEX`
+
+Une colonne est ajoutée à la table existante `T_GAME_GAM` (définie dans l'US-010) :
+
+```sql
+ALTER TABLE T_GAME_GAM ADD COLUMN GAM_CURRENT_QUESTION_INDEX INTEGER NOT NULL DEFAULT 0;
+```
+
+#### Contrainte CHECK — Pas de modification requise
+
+> ⚠️ **Clarification importante** — **Aucune modification du CHECK sur `GAM_STATUS` n'est effectuée en US-011.**
+>
+> **Raison pragmatique :** La contrainte `CHECK (GAM_STATUS IN (...))` a été définie **intégralement lors de l'US-010** en incluant tous les états documentés, y compris les nouveaux états MCQ (`QUESTION_TITLE`, `QUESTION_OPEN`, `QUESTION_CLOSED`, `QUESTION_BUZZED`). Cette approche anticipée **évite une recréation destructive de table en US-011**.
+>
+> **Pourquoi c'est nécessaire :** SQLite ne supporte pas `ALTER COLUMN` et interdit la modification de contraintes `CHECK` existantes via `ALTER TABLE`. La seule solution serait de recréer intégralement `T_GAME_GAM`, migrer les données, puis supprimer l'ancienne table — une opération destructive et complexe. En définissant le CHECK complètement dès l'origine, on évite ce problème lors des migrations ultérieures.
+>
+> **En US-010**, le CHECK inclut donc : `'PENDING'`, `'OPEN'`, `'QUESTION_TITLE'`, `'QUESTION_OPEN'`, `'QUESTION_BUZZED'`, `'QUESTION_CLOSED'`, `'COMPLETED'`, `'IN_ERROR'`.
+>
+> **En US-011**, on ajoute simplement la colonne `GAM_CURRENT_QUESTION_INDEX` — le CHECK reste inchangé et fonctionnel pour les nouveaux états.
+
+### Nouvelle table — Résultats par question
+
+```sql
+CREATE TABLE IF NOT EXISTS T_GAME_ANSWER_GAA
+(
+    GAA_ID           TEXT    PRIMARY KEY,
+    GAA_GAME_ID      TEXT    NOT NULL REFERENCES T_GAME_GAM (GAM_ID) ON DELETE CASCADE,
+    GAA_QUESTION_ID  TEXT    NOT NULL REFERENCES T_QUESTION_QST (QST_ID),
+    GAA_PARTICIPANT_ORDER INTEGER NOT NULL,
+    GAA_ANSWER       TEXT    DEFAULT NULL,
+    GAA_TIME_MS      INTEGER NOT NULL,
+    GAA_POINTS_EARNED INTEGER NOT NULL DEFAULT 0,
+    GAA_CUMULATIVE_SCORE INTEGER NOT NULL DEFAULT 0,
+    GAA_CREATED_AT   TEXT    NOT NULL,
+    UNIQUE (GAA_GAME_ID, GAA_QUESTION_ID, GAA_PARTICIPANT_ORDER)
+);
+```
+
+### Machine à états complète
+
+```
+PENDING
+  └─► OPEN
+        └─► QUESTION_TITLE       (trigger_title)
+              └─► QUESTION_OPEN  (trigger_choices + démarrage chrono)
+                    └─► QUESTION_CLOSED  (trigger_correction)
+                          ├─► OPEN           (trigger_next_question — questions restantes)
+                          └─► COMPLETED      (trigger_next_question — dernière question)
+
+IN_ERROR  ← depuis tout état en cas d'erreur SQLite après 3 tentatives
+```
+
+| Transition | Déclencheur | Condition |
+|---|---|---|
+| `OPEN → QUESTION_TITLE` | `trigger_title` (admin) | Questions restantes disponibles |
+| `QUESTION_TITLE → QUESTION_OPEN` | `trigger_choices` (admin) | État = `QUESTION_TITLE` |
+| `QUESTION_OPEN → QUESTION_CLOSED` | `trigger_correction` (admin) | Tous ont répondu **ou** chrono expiré (`timer_end` reçu) — le `trigger_correction` **doit** être envoyé pour effectuer la transition |
+| `QUESTION_CLOSED → OPEN` | `trigger_next_question` (admin) | Questions restantes disponibles |
+| `QUESTION_CLOSED → COMPLETED` | `trigger_next_question` (admin) | Dernière question atteinte |
+| `* → IN_ERROR` | Serveur | Échec SQLite après 3 tentatives |
+
+> ⚠️ **Clarification importante** — `timer_end` est purement **informatif** : il signale au maître que le chrono a expiré, mais **ne déclenche pas automatiquement la transition**. Le maître doit explicitement envoyer `trigger_correction` pour passer à `QUESTION_CLOSED`.
+
+### Chronomètre — Approche hybride
+
+```
+trigger_choices reçu
+  → 1. Démarrage setInterval (tick toutes les 5s) + setTimeout (expiration)
+  → 2. Diffusion question_choices avec { started_at, time_limit }
+       Les clients calculent le temps restant localement pour l'affichage
+  → 3. Toutes les 5s : diffusion timer_tick { remaining_seconds }
+       Les clients corrigent leur dérive locale
+  → 4a. À expiration du setTimeout : serveur envoie timer_end (informatif)
+        → Enregistre les joueurs n'ayant pas répondu
+        → ⚠️ La transition vers QUESTION_CLOSED n'est PAS automatique
+  → 4b. trigger_correction reçu (tous les joueurs ont répondu OU timer_end reçu)
+        → Seul déclencheur de la transition QUESTION_OPEN → QUESTION_CLOSED
+        → clearInterval + clearTimeout
+        → Calcul + persistance des scores
+```
+
+### Traitement atomique des réponses (race condition)
+
+Les réponses des buzzers et l'expiration du chrono sont traitées de manière atomique via une **file de traitement synchrone** en mémoire. Une réponse reçue dans la même boucle d'événement que `timer_end` est :
+- **Acceptée** si elle est traitée avant `timer_end`
+- **Rejetée** si `timer_end` a déjà été traité
+
+### Format des messages WebSocket
+
+**Pilotage — Angular → Serveur**
+
+```json
+{ "type": "trigger_title" }
+{ "type": "trigger_choices" }
+{ "type": "trigger_correction" }
+{ "type": "trigger_next_question" }
+```
+
+**Diffusion — Serveur → Buzzers + Angular**
+
+```json
+{
+  "type": "question_title",
+  "question_index": 0,
+  "question_type": "MCQ",
+  "title": "Quelle est la capitale de la France ?",
+  "time_limit": 30
+}
+```
+
+```json
+{
+  "type": "question_choices",
+  "choices": ["Paris", "Lyon", "Marseille", "Toulouse"],
+  "started_at": "2026-03-17T14:30:00.000Z",
+  "time_limit": 30
+}
+```
+
+```json
+{ "type": "timer_tick", "remaining_seconds": 25 }
+```
+
+```json
+{ "type": "timer_end" }
+```
+
+**Réponse buzzer — Buzzer → Serveur**
+
+```json
+{ "type": "answer", "value": "A" }
+```
+
+**Accusé de réception — Serveur → Buzzer**
+
+```json
+{ "type": "answer_received" }
+```
+
+**Notification temps réel — Serveur → Angular**
+
+```json
+{
+  "type": "player_answered",
+  "participant_order": 2,
+  "participant_name": "Bob",
+  "answer": "A",
+  "time_ms": 4230
+}
+```
+
+```json
+{ "type": "all_answered" }
+```
+
+**Résultat individuel — Serveur → Buzzer (individuel)**
+
+```json
+{
+  "type": "question_result",
+  "correct_answer": "A",
+  "player_answer": "A",
+  "correct": true,
+  "points_earned": 10,
+  "cumulative_score": 35
+}
+```
+
+**Résultat complet — Serveur → Angular**
+
+```json
+{
+  "type": "question_result_summary",
+  "correct_answer": "A",
+  "results": [
+    {
+      "participant_order": 1,
+      "participant_name": "Alice",
+      "answer": "A",
+      "time_ms": 3100,
+      "correct": true,
+      "points_earned": 10,
+      "cumulative_score": 45
+    },
+    {
+      "participant_order": 2,
+      "participant_name": "Bob",
+      "answer": "C",
+      "time_ms": 5200,
+      "correct": false,
+      "points_earned": 0,
+      "cumulative_score": 25
+    },
+    {
+      "participant_order": 3,
+      "participant_name": "Charlie",
+      "answer": null,
+      "time_ms": 30000,
+      "correct": false,
+      "points_earned": 0,
+      "cumulative_score": 30
+    }
+  ],
+  "ranking": [
+    { "rank": 1, "participant_name": "Alice", "cumulative_score": 45, "total_time_ms": 8300 },
+    { "rank": 2, "participant_name": "Charlie", "cumulative_score": 30, "total_time_ms": 45000 },
+    { "rank": 3, "participant_name": "Bob", "cumulative_score": 25, "total_time_ms": 12400 }
+  ]
+}
+```
+
+**Erreurs — Serveur → Client émetteur**
+
+```json
+{
+  "type": "error",
+  "code": "INVALID_STATE",
+  "message": "This action is not allowed in the current game state."
+}
+```
+
+### Catalogue des codes d'erreur WebSocket
+
+| Code | Contexte |
+|---|---|
+| `INVALID_STATE` | Transition d'état non autorisée depuis l'état courant |
+| `NO_MORE_QUESTIONS` | `trigger_title` reçu alors que toutes les questions ont été jouées |
+| `ANSWERS_PENDING` | `trigger_correction` reçu alors que le chrono tourne et qu'au moins un joueur n'a pas répondu |
+| `INVALID_MESSAGE` | Message avec champs manquants ou invalides |
+| `INTERNAL_ERROR` | Erreur SQLite après 3 tentatives — partie passée en `IN_ERROR` |
+
+### Versioning API
+
+Voir [Conventions techniques](../shared/CONVENTIONS-TECHNIQUES.md) pour le versioning API. Base URL WebSocket : `ws://<ip>:<port>/ws`
+
+### Structure des fichiers
+
+```
+src/
+  game/
+    gameWorkflow.js          ← machine à états, orchestration du workflow MCQ
+    gameTimer.js             ← gestion du chronomètre hybride (tick + expiration)
+    gameAnswerProcessor.js   ← traitement atomique des réponses
+  game/__tests__/
+    gameWorkflow.test.js
+    gameTimer.test.js
+    gameAnswerProcessor.test.js
+  repositories/
+    gameAnswerRepository.js  ← CRUD T_GAME_ANSWER_GAA
+  repositories/__tests__/
+    gameAnswerRepository.test.js
+```
+
+---
+
+## 📝 Logging structuré
+
+### Format JSON
+
+**Déclenchement d'une étape de question :**
+
+```json
+{
+  "timestamp": "2026-03-17T14:30:00.000Z",
+  "level": "INFO",
+  "event": "GAME_QUESTION_STATE_CHANGED",
+  "game_id": "018e4f5d-0000-7000-8000-000000000001",
+  "question_index": 0,
+  "new_status": "QUESTION_OPEN"
+}
+```
+
+**Réponse ignorée (doublon, hors état, race condition) :**
+
+```json
+{
+  "timestamp": "2026-03-17T14:30:05.000Z",
+  "level": "WARN",
+  "event": "GAME_ANSWER_IGNORED",
+  "reason": "Duplicate answer",
+  "participant_order": 2,
+  "game_id": "018e4f5d-0000-7000-8000-000000000001"
+}
+```
+
+**Réponse ignorée (buzzer non assigné à un participant — CA-22) :**
+
+```json
+{
+  "timestamp": "2026-03-17T14:30:05.000Z",
+  "level": "WARN",
+  "event": "GAME_ANSWER_IGNORED",
+  "reason": "UNKNOWN_PARTICIPANT",
+  "participant_order": null,
+  "sub": "019cfd8d-d717-72c7-9352-ef9936c4c5ec"
+}
+```
+
+> Ce log indique que le buzzer est authentifié mais son `sub` n'a pas été assigné à un participant lors du démarrage de la partie (voir [US-010 — Assignation buzzer → participant](US-010-game-crud.md#assignation-buzzer--participant-au-démarrage-gpa_buzzer_sub)). Causes possibles : le buzzer s'est connecté **après** le démarrage de la partie, ou le `Map<sub, participant_order>` n'a pas été initialisé correctement.
+
+**Scores persistés :**
+
+```json
+{
+  "timestamp": "2026-03-17T14:30:32.000Z",
+  "level": "INFO",
+  "event": "GAME_QUESTION_SCORES_SAVED",
+  "game_id": "018e4f5d-0000-7000-8000-000000000001",
+  "question_index": 0,
+  "participants_count": 3
+}
+```
+
+**Erreur de persistance :**
+
+```json
+{
+  "timestamp": "2026-03-17T14:30:33.000Z",
+  "level": "ERROR",
+  "event": "GAME_SCORES_SAVE_FAILED",
+  "game_id": "018e4f5d-0000-7000-8000-000000000001",
+  "attempt": 3,
+  "error": "SQLITE_BUSY"
+}
+```
+
+---
+
+## 🔌 Architecture WebSocket — Workflow MCQ
+
+### Flux complet d'une question MCQ
+
+```
+[Angular] trigger_title
+  → Serveur : OPEN → QUESTION_TITLE
+  → Broadcast question_title (tous buzzers + Angular)
+
+[Angular] trigger_choices
+  → Serveur : QUESTION_TITLE → QUESTION_OPEN
+  → Broadcast question_choices (tous buzzers + Angular)
+  → Démarrage chrono hybride (tick/5s + expiration)
+
+[Buzzers] answer { value: "A"|"B"|"C"|"D" }
+  → Serveur : validation (état, doublon, appartenance)
+  → answer_received → buzzer émetteur
+  → player_answered → Angular
+  → Si tous ont répondu → all_answered → Angular
+
+[Serveur] timer_end (expiration) — informatif uniquement
+  → Enregistre les joueurs n'ayant pas répondu
+  → ⚠️ N'entraîne PAS la transition
+
+[Angular] trigger_correction (condition : tous ont répondu OU timer_end reçu)
+  → Seul déclencheur de la transition QUESTION_OPEN → QUESTION_CLOSED
+  → Serveur : calcul + persistance des scores (3 tentatives)
+  → question_result → chaque buzzer individuellement
+  → question_result_summary → Angular
+
+[Angular] trigger_next_question
+  → Questions restantes → QUESTION_CLOSED → OPEN
+  → Dernière question → QUESTION_CLOSED → COMPLETED
+```
+
+### Clarification : Rôle de `timer_end` et de `trigger_correction`
+
+> **`timer_end` est purement informatif.** À l'expiration du chronomètre, le serveur envoie `timer_end` à tous les buzzers et à Angular pour signaler que le temps est écoulé et enregistrer les joueurs n'ayant pas répondu. **Cependant, `timer_end` ne déclenche pas automatiquement la transition vers `QUESTION_CLOSED`.**
+>
+> **`trigger_correction` est le seul déclencheur** de la transition `QUESTION_OPEN → QUESTION_CLOSED`. Le maître du jeu doit explicitement envoyer `trigger_correction` pour passer à la correction, même s'il a reçu `timer_end`.
+>
+> Scénarios :
+> - **Cas normal** : Avant expiration, tous les joueurs répondent → serveur envoie `all_answered` → maître envoie `trigger_correction` → transition
+> - **Cas expiration** : Chrono expire → serveur envoie `timer_end` (enregistre les manquants) → maître envoie `trigger_correction` → transition
+> - **Attendre `timer_end` ne suffit pas** : Le serveur n'envoie jamais la transition automatiquement, même après `timer_end`. Le maître doit toujours prendre la décision consciente d'envoyer `trigger_correction`.
+
+### Réutilisation de l'US-009 et résolution `sub → participant_order`
+
+Le registre des connexions WebSocket (`Map<sub, { ws, role, username, connectedAt }>`) défini dans l'US-009 est utilisé directement pour :
+- Identifier l'émetteur de chaque message (rôle `admin` ou `buzzer`)
+- Diffuser les messages aux buzzers participants
+- Envoyer les résultats individuellement à chaque buzzer
+
+#### Résolution `sub → participant_order` lors du traitement des réponses
+
+Lorsque le serveur reçoit un message `answer` ou `buzz` d'un buzzer, il doit résoudre le `sub` JWT de l'émetteur en un `participant_order` pour identifier le participant dans la partie. Cette résolution utilise le **`Map<sub, participant_order>`** (nommé `participantOrderBySub`) construit lors du démarrage de la partie (US-010, CA-65 à CA-67).
+
+**Flux de résolution :**
+
+```
+Message answer/buzz reçu via WebSocket
+  → 1. Identifier le sub de l'émetteur depuis le registre WebSocket (US-009)
+  → 2. Vérifier que le rôle est "buzzer" (sinon → ignorer, log WARN)
+  → 3. Chercher le sub dans participantOrderBySub
+     → Si trouvé → participant_order résolu, continuer le traitement
+     → Si non trouvé → UNKNOWN_PARTICIPANT, ignorer silencieusement, log WARN
+  → 4. Utiliser participant_order pour enregistrer la réponse et notifier Angular
+```
+
+**Source du `Map<sub, participant_order>` :**
+
+- **Construction initiale** : au démarrage de la partie (`PENDING → OPEN`), à partir des buzzers connectés assignés aux participants par ordre de connexion. L'assignation est persistée dans `T_GAME_PARTICIPANT_GPA.GPA_BUZZER_SUB` (US-010, CA-65).
+- **Reconstruction après crash** : au redémarrage du serveur, le `Map` est reconstruit depuis la base de données via `SELECT GPA_BUZZER_SUB, GPA_ORDER FROM T_GAME_PARTICIPANT_GPA WHERE GPA_GAME_ID = ? AND GPA_BUZZER_SUB IS NOT NULL` (voir [US-019](US-019-game-recovery.md)).
+
+> ⚠️ **Sans ce `Map`**, le serveur ne peut pas résoudre `sub → participant_order` et toutes les réponses sont rejetées avec la raison `UNKNOWN_PARTICIPANT` (voir CA-22). Ce `Map` doit être initialisé **avant** que la première question ne soit déclenchée.
+
+---
+
+## 📐 Périmètre
+
+| Inclus | Exclu |
+|---|---|
+| Machine à états complète de la partie (tous les états MCQ) | Workflow SPEED (US dédiée — US-012) |
+| Pilotage WebSocket par le maître du jeu (4 messages) | Classement intermédiaire à la demande (US dédiée) |
+| Réception et validation des réponses A/B/C/D | Upload et gestion des fichiers médias des questions |
+| Chronomètre hybride côté serveur (tick/5s + expiration) | Interface Angular (hors périmètre serveur) |
+| Notification temps réel des réponses vers Angular | Firmware ESP32-S3 |
+| Résultats individuels par buzzer et résumé complet Angular | Déploiement / CI-CD |
+| Persistance des réponses et scores (T_GAME_ANSWER_GAA) | |
+| Retry x3 sur erreur SQLite avant passage en IN_ERROR | |
+| Reprise après crash à la dernière question terminée | |
+| Gestion complète des cas d'erreur (E-01 à E-21) | |
+| Tests unitaires et d'intégration (couverture ≥ 90%) | |
+
+---
+
+## 🔍 Points de vigilance
+
+### Race condition réponse / expiration chrono
+
+Le serveur Node.js est mono-thread mais la boucle d'événements peut traiter un message `answer` et le callback `timer_end` dans le même cycle. Une **file de traitement synchrone** garantit qu'une réponse est soit acceptée avant l'expiration, soit rejetée après. Le timestamp serveur de réception du message `answer` est comparé au timestamp d'expiration du chrono pour trancher les cas limites.
+
+### Traitement atomique de la persistance — MCQ uniquement
+
+La sauvegarde des scores en fin de question implique plusieurs écritures en base (`T_GAME_ANSWER_GAA` + `T_GAME_GAM`). Ces écritures doivent être effectuées dans une **transaction SQLite atomique**. En cas d'échec, la transaction est rollbackée avant le retry suivant.
+
+**Note** : Cette persistance systématique (une ligne par participant) s'applique aux questions MCQ. Pour les questions SPEED (US-012), seul le gagnant est persisté dans `T_GAME_ANSWER_GAA`, ou aucune ligne si aucun gagnant (voir [US-012 — Cohérence MCQ / SPEED](US-012-speed-question-workflow.md#cohérence-mcq--speed-dans-t_game_answer_gaa)).
+
+### Buzzers non connectés en cours de partie
+
+Un participant dont le buzzer n'est plus connecté (déconnexion définitive après 3 tentatives, définie dans l'US-009) est traité comme n'ayant pas répondu : `answer: null`, `time_ms: time_limit * 1000`, `points_earned: 0`. Son absence ne bloque pas le déclenchement de la correction — le maître du jeu peut toujours déclencher `trigger_correction` dès que le chrono expire ou que les joueurs connectés ont tous répondu.
+
+### Unicité de la partie active
+
+Étant donné qu'une seule partie peut être en état actif à la fois (contrainte de l'US-010), le serveur n'a pas besoin de l'`id` de la partie dans les messages WebSocket de pilotage — il résout directement la partie active via `SELECT ... WHERE GAM_STATUS NOT IN ('COMPLETED', 'IN_ERROR')`.
+
+### Dépendance d'implémentation avec US-010 et clarification de la garde `QUIZ_IN_USE`
+
+La garde `QUIZ_IN_USE` de l'US-008 (CA-31) — qui empêche la suppression d'un quiz référencé par une partie active — est **définie en US-008** mais **activée (implémentée) en US-010**.
+
+Cette US-011 étend les états d'une partie active aux états intermédiaires (`QUESTION_TITLE`, `QUESTION_OPEN`, `QUESTION_CLOSED`). La garde s'applique désormais à tous ces états également, sans changement d'implémentation requis en US-011 : le contrôle en US-010 vérifiera l'existence de parties avec `GAM_STATUS NOT IN ('COMPLETED', 'IN_ERROR')`, ce qui englobera automatiquement les nouveaux états de US-011.
