@@ -452,6 +452,22 @@ describe('US-004/CA-21 - Update Theme with other existing name', () => {
     });
 });
 
+describe("US-004/CA-22 - Update a theme with its own name written in another case", () => {
+    it("should send the name as written and reply 200 with the unchanged theme of the service", async () => {
+        const unchangedTheme = { id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: '2026-04-17T10:56:00Z', last_updated_at: null };
+        mockThemeService.updateTheme = vi.fn().mockReturnValue(unchangedTheme);
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'CULTURE générale' })
+        });
+        expect(mockThemeService.updateTheme).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416', 'CULTURE générale');
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(unchangedTheme);
+    });
+});
+
 describe("US-004/CA-23 - Id should be the same in body and url", () => {
     it("should return a id_mismatch error", async () => {
         const response = await app.inject({
