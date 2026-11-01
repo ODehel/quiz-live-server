@@ -131,6 +131,35 @@ describe("US-004/CA-14 - SqliteThemeRepository breaks the ties on the creation d
     });
 });
 
+describe("US-004/CA-14 - SqliteThemeRepository orders on the creation date when it contradicts the ids", () => {
+    let firstIdTheme: Theme;
+    let secondIdTheme: Theme;
+    let thirdIdTheme: Theme;
+    let fourthIdTheme: Theme;
+
+    beforeEach(() => {
+        // Dates de création toutes différentes et opposées aux ids : ni l'ordre des ids, ni celui des noms,
+        // ni l'ordre d'insertion (dans un sens ou l'autre), ni l'ordre croissant des dates ne donnent l'ordre attendu.
+        // Ordre attendu (du plus récent au plus ancien) : second, fourth, first, third.
+        firstIdTheme = { ...theme, id: "019d6c17-1c08-7161-9358-fe4a116fa38a", name: "Alpha", created_at: "2026-02-01T10:00:00.000Z" };
+        secondIdTheme = { ...theme, id: "019d6c17-1c08-7161-9358-fe4a116fa38b", name: "Charlie", created_at: "2026-04-01T10:00:00.000Z" };
+        thirdIdTheme = { ...theme, id: "019d6c17-1c08-7161-9358-fe4a116fa38c", name: "Bravo", created_at: "2026-01-01T10:00:00.000Z" };
+        fourthIdTheme = { ...theme, id: "019d6c17-1c08-7161-9358-fe4a116fa38d", name: "Delta", created_at: "2026-03-01T10:00:00.000Z" };
+    });
+
+    it("should return the most recently created theme first whatever its id", () => {
+        // Arrange
+        repository.insert(thirdIdTheme);
+        repository.insert(secondIdTheme);
+        repository.insert(firstIdTheme);
+        repository.insert(fourthIdTheme);
+        // Act
+        const themes: Theme[] = repository.getAll(1, 20);
+        // Assert
+        expect(themes.map(t => t.id)).toEqual([secondIdTheme.id, fourthIdTheme.id, firstIdTheme.id, thirdIdTheme.id]);
+    });
+});
+
 describe("US-004/CA-18 - Retrieve an empty list of themes if page is more than total_pages", () => {
     let otherTheme: Theme;
     beforeEach(() => {
