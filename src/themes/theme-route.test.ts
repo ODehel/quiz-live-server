@@ -190,6 +190,27 @@ describe("US-004/CA-11 - Wrong format for UUID", () => {
     });
 });
 
+describe("US-004/CA-12 - The body of a GET on a theme is ignored", () => {
+    it.each([
+        ['a valid JSON body', 'application/json', '{"name":"ignored"}'],
+        ['an invalid JSON body', 'application/json', '{not json'],
+        ['an XML body', 'application/xml', '<name>ignored</name>'],
+        ['a plain text body', 'text/plain', 'ignored']
+    ])("should reply 200 with the theme of the service - %s", async (_label, contentType, body) => {
+        const theme = { id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: '2026-04-17T10:56:00Z', last_updated_at: null };
+        mockThemeService.getById = vi.fn().mockReturnValue(theme);
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': contentType },
+            body: body
+        });
+        expect(mockThemeService.getById).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416');
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(theme);
+    });
+});
+
 describe("US-004/CA-13 - Get all themes with pagination", () => {
     it("should return 200 with the first theme", async () => {
         mockThemeService.getAll = vi.fn().mockImplementation(() => {
