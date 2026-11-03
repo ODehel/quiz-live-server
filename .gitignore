@@ -4,3 +4,5 @@
 /.vscode
 /data
 .env
+/smoke-test-summary.txt
+/smoke.db
