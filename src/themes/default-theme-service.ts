@@ -25,6 +25,7 @@ export class DefaultThemeService implements ThemeService {
 
     createTheme(name: string): Theme {
         const trimmedName = this.formatName(name);
+        this.ensureNameIsFree(trimmedName);
 
         const theme: Theme = {
             id: this.uuidGenerator.generate(),
@@ -46,6 +47,7 @@ export class DefaultThemeService implements ThemeService {
         if (trimmedName.localeCompare(theme.name, undefined, { sensitivity: 'base' }) === 0) {
             return theme;
         }
+        this.ensureNameIsFree(trimmedName);
 
         theme.name = trimmedName;
         theme.last_updated_at = this.clock.now().toISOString();
@@ -76,10 +78,12 @@ export class DefaultThemeService implements ThemeService {
         if (!/^[\p{Lu}][\p{L}\p{N} '-]{1,38}[\p{L}\p{N}]$/u.test(trimmedName)) {
             throw new ValidationError("Theme name must be 3 to 40 characters, start with an uppercase letter, end with a letter or digit, and contain only letters, digits, spaces, apostrophes and hyphens.");
         }
+        return trimmedName;
+    }
 
-        if (this.themeRepository.getByName(trimmedName) !== undefined) {
+    private ensureNameIsFree(name: string): void {
+        if (this.themeRepository.getByName(name) !== undefined) {
             throw new ConflictError();
         }
-        return trimmedName;
     }
 }
