@@ -226,6 +226,25 @@ describe("US-004/CA-22 - Update a theme with the same name", () => {
     });
 });
 
+describe("US-004/CA-22 - Update a theme with its own name when the repository finds it by name", () => {
+    let theme: Theme;
+    beforeEach(() => {
+        theme = defaultThemeService.createTheme("Test Theme");
+        themeRepository.getById = vi.fn().mockReturnValue(theme);
+        themeRepository.getByName = vi.fn().mockReturnValue(theme);
+    });
+    it.each([
+        ["the same name", "Test Theme"],
+        ["the same name in another case", "TEST theme"],
+        ["the same name with extra blanks", "  Test    Theme  "],
+    ])("should return the unchanged theme for %s", (_description, name) => {
+        const updatedTheme = defaultThemeService.updateTheme(theme.id, name);
+        expect(updatedTheme).toEqual(theme);
+        expect(updatedTheme.last_updated_at).toBeNull();
+        expect(themeRepository.update).not.toHaveBeenCalled();
+    });
+});
+
 describe("US-004/CA-28 - Delete a theme without associated questions", () => {
     it("should delete the theme with the id", () => {
         const theme = defaultThemeService.createTheme("Test Theme");

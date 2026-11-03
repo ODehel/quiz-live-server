@@ -366,10 +366,10 @@ try {
     $r = New-Theme $nameCase
     $idCase = Get-Field $r.Raw 'id'
     $r = Invoke-Api -Method PUT -Path "/api/v1/themes/$idCase" -Body (NameBody $nameCase.ToUpper()) -Token $script:Token
-    Check 'CA-22 meme nom en casse differente -> 200' ($r.Status -eq 200) "$($r.Status) $($r.Raw)" 'repond 409 THEME_ALREADY_EXISTS : le conflit est leve avant la comparaison avec le nom actuel (constat du 2026-11-03)'
-    Check '  CA-22 theme inchange (nom d''origine, last_updated_at null)' (((Get-Field $r.Raw 'name') -eq $nameCase) -and ($null -eq (Get-Field $r.Raw 'last_updated_at'))) $r.Raw 'voir ci-dessus'
+    Check 'CA-22 meme nom en casse differente -> 200' ($r.Status -eq 200) "$($r.Status) $($r.Raw)"
+    Check '  CA-22 theme inchange (nom d''origine, last_updated_at null)' (((Get-Field $r.Raw 'name') -eq $nameCase) -and ($null -eq (Get-Field $r.Raw 'last_updated_at'))) $r.Raw
     $r = Invoke-Api -Method PUT -Path "/api/v1/themes/$idCase" -Body (NameBody $nameCase) -Token $script:Token
-    Check 'CA-22 meme nom a l''identique -> 200' ($r.Status -eq 200) "$($r.Status) $($r.Raw)" 'repond 409 THEME_ALREADY_EXISTS (meme cause)'
+    Check 'CA-22 meme nom a l''identique -> 200' ($r.Status -eq 200) "$($r.Status) $($r.Raw)"
 
     $r = Invoke-Api -Method PUT -Path "/api/v1/themes/$idUpd" -Body ('{"id":"' + $OtherId + '","name":"' + (N 'Mismatch') + '"}') -Token $script:Token
     Check 'CA-23 id du body different de l''URL -> 400 ID_MISMATCH (corps standard + message)' (Test-StandardBody $r 400 'ID_MISMATCH' 'The ID in the request body does not match the URL parameter.') "$($r.Status) $($r.Raw)"
