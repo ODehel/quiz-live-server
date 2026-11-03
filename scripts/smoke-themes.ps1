@@ -261,7 +261,7 @@ try {
     $r = Invoke-Api -Method POST -Path '/api/v1/themes' -Body (NameBody (N 'Form')) -ContentType 'application/x-www-form-urlencoded' -Token $script:Token
     Check 'CA-8 Content-Type x-www-form-urlencoded -> 415' ($r.Status -eq 415) "$($r.Status) $($r.Raw)"
     $r = Invoke-Api -Method POST -Path '/api/v1/themes' -Body (NameBody (N 'Texte')) -ContentType 'text/plain' -Token $script:Token
-    Check 'CA-8 Content-Type text/plain -> 415' ($r.Status -eq 415) "$($r.Status) $($r.Raw)" 'text/plain repond 400 UNKNOWN_FIELDS (constat du 2026-11-03 ; les tests unitaires n''essaient que application/xml)'
+    Check 'CA-8 Content-Type text/plain -> 415' ($r.Status -eq 415) "$($r.Status) $($r.Raw)"
 
     $r = Invoke-Api -Method POST -Path '/api/v1/themes' -Body (NameBody (N 'SansToken'))
     Check 'CA-32 POST sans token -> 401' ($r.Status -eq 401) "$($r.Status) $($r.Raw)"
@@ -386,7 +386,7 @@ try {
     $r = Invoke-Api -Method PUT -Path "/api/v1/themes/$idUpd" -Body (NameBody (N 'Xml')) -ContentType 'application/xml' -Token $script:Token
     Check 'CA-26 Content-Type application/xml -> 415' ($r.Status -eq 415) "$($r.Status) $($r.Raw)"
     $r = Invoke-Api -Method PUT -Path "/api/v1/themes/$idUpd" -Body (NameBody (N 'Texte')) -ContentType 'text/plain' -Token $script:Token
-    Check 'CA-26 Content-Type text/plain -> 415' ($r.Status -eq 415) "$($r.Status) $($r.Raw)" 'text/plain repond 400 UNKNOWN_FIELDS (meme cause que CA-8)'
+    Check 'CA-26 Content-Type text/plain -> 415' ($r.Status -eq 415) "$($r.Status) $($r.Raw)"
 
     $r = Invoke-Api -Method PUT -Path "/api/v1/themes/$idUpd" -Body (NameBody (N 'Inconnu') ',"extra":1') -Token $script:Token
     Check 'CA-27 champ inconnu -> 400 UNKNOWN_FIELDS' ($r.Status -eq 400 -and $r.Json.error -eq 'UNKNOWN_FIELDS') "$($r.Status) $($r.Raw)"
@@ -410,6 +410,11 @@ try {
     $r = Invoke-Api -Method DELETE -Path "/api/v1/themes/$idDel" -Token $script:Token
     Check 'CA-29 suppression d''un id deja supprime -> 404' ($r.Status -eq 404) "$($r.Status) $($r.Raw)"
     Check '  CA-29 code NOT_FOUND' ($r.Json.error -eq 'NOT_FOUND') $r.Raw 'le code est THEME_NOT_FOUND (decision #14 : migration prevue)'
+
+    $r = New-Theme (N 'SupprimableTexte')
+    $idDelText = Get-Field $r.Raw 'id'
+    $r = Invoke-Api -Method DELETE -Path "/api/v1/themes/$idDelText" -Body 'ignore' -ContentType 'text/plain' -Token $script:Token
+    Check 'CA-31a suppression avec Content-Type text/plain -> 204, ignore' ($r.Status -eq 204 -and $r.Raw -eq '') "$($r.Status) $($r.Raw)"
 
     if ($IncludeQuestionCase) {
         $r = New-Theme (N 'AvecQuestion')

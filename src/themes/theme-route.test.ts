@@ -152,6 +152,16 @@ describe("US-004/CA-08 - Wrong content-type", () => {
         expect(response.json()).toEqual({ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 });
         expect(mockThemeService.createTheme).not.toHaveBeenCalled();
     });
+    it("should return a 415 error code for a plain text body", async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/themes',
+            headers: { 'content-type': 'text/plain' },
+            body: JSON.stringify({ name: 'Histoire' })
+        });
+        expect(response.statusCode).toBe(415);
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
 });
 
 describe("US-004/CA-09 - Retrieve a theme by its ID", () => {
@@ -563,6 +573,16 @@ describe("US-004/CA-26 - Wrong content-type", () => {
         expect(response.json()).toEqual({ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 });
         expect(mockThemeService.createTheme).not.toHaveBeenCalled();
     });
+    it("should return a 415 error code for a plain text body", async () => {
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'text/plain' },
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu' })
+        });
+        expect(response.statusCode).toBe(415);
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
+    });
 });
 
 describe("US-004/CA-27 - Unknown fields", () => {
@@ -614,6 +634,16 @@ describe("US-004/CA-28 - Delete route", () => {
             method: 'DELETE',
             url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
             headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(204);
+        expect(mockThemeService.deleteTheme).toHaveBeenCalled();
+    });
+    it("should ignore a plain text content type", async () => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'text/plain' },
+            body: 'ignored'
         });
         expect(response.statusCode).toBe(204);
         expect(mockThemeService.deleteTheme).toHaveBeenCalled();

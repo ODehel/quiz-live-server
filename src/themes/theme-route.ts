@@ -40,40 +40,43 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         reply.status(200).send(pagination);
     });
 
-    app.post('/api/v1/themes', async (request, reply) => {
-        if (bodyHasUnknownFields(request.body as object, ['name'])) {
-            reply.status(400).send({ error: UNKNOWN_FIELDS });
-        }
-        else {
-            try {
-                const { name } = request.body as { name: string };
-                const newTheme = themeService.createTheme(name);
-                reply.status(201).send(newTheme);
-            } catch (error) {
-                sendError(error, reply);
+    app.register((instance) => {
+        instance.removeContentTypeParser('text/plain');
+        instance.post('/api/v1/themes', async (request, reply) => {
+            if (bodyHasUnknownFields(request.body as object, ['name'])) {
+                reply.status(400).send({ error: UNKNOWN_FIELDS });
             }
-        }
-    });
-
-    app.put('/api/v1/themes/:id', async (request, reply) => {
-        if (bodyHasUnknownFields(request.body as object, ['id', 'name'])) {
-            reply.status(400).send({ error: UNKNOWN_FIELDS });
-        }
-        else {
-            try {
-                const { id: idFromParams } = request.params as { id: string };
-                const { id: idFromBody, name } = request.body as { id?: string, name: string };
-
-                if (idFromBody !== undefined && idFromParams !== idFromBody) {
-                    reply.status(400).send({ status: 400, error: ID_MISMATCH, message: 'The ID in the request body does not match the URL parameter.' });
-                    return;
+            else {
+                try {
+                    const { name } = request.body as { name: string };
+                    const newTheme = themeService.createTheme(name);
+                    reply.status(201).send(newTheme);
+                } catch (error) {
+                    sendError(error, reply);
                 }
-                const updatedTheme = themeService.updateTheme(idFromParams, name);
-                reply.status(200).send(updatedTheme);
-            } catch (error) {
-                sendError(error, reply);
             }
-        }
+        });
+
+        instance.put('/api/v1/themes/:id', async (request, reply) => {
+            if (bodyHasUnknownFields(request.body as object, ['id', 'name'])) {
+                reply.status(400).send({ error: UNKNOWN_FIELDS });
+            }
+            else {
+                try {
+                    const { id: idFromParams } = request.params as { id: string };
+                    const { id: idFromBody, name } = request.body as { id?: string, name: string };
+
+                    if (idFromBody !== undefined && idFromParams !== idFromBody) {
+                        reply.status(400).send({ status: 400, error: ID_MISMATCH, message: 'The ID in the request body does not match the URL parameter.' });
+                        return;
+                    }
+                    const updatedTheme = themeService.updateTheme(idFromParams, name);
+                    reply.status(200).send(updatedTheme);
+                } catch (error) {
+                    sendError(error, reply);
+                }
+            }
+        });
     });
 
     app.register((instance) => {
