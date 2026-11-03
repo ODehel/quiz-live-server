@@ -61,6 +61,7 @@ Source de vérité unique des dettes assumées. Une dette **soldée est supprim�
 
 - **Message `Retry-After` et `timeWindow` découplés** dans le rate limit.
 - **Signature `rateLimitMiddleware` / `middleware` dupliquée** entre les configurations de routes. *Pas séparé* : `refactor(infrastructure)`.
+- **Mots de passe par défaut rejetés par le validateur du seed** — `ProcessEnvironment` donne `admin123` (8 caractères) et `player123` (9) par défaut, et `OwaspPasswordValidator` exige 12 à 72 caractères ASCII : sans variables d'environnement (ou `.env`) à 12 caractères au moins, `npm run seed` échoue avec `Invalid password`, et le hub démarre sur une base vide. L'en-tête de `scripts/smoke-themes.ps1` annonce toujours `admin123` par défaut. Relevé le 2026-11-03 à la lecture du code et par un `401` sur base vide ; non testé. *Pas séparé* : décider entre retirer les défauts (échec clair au démarrage) ou les allonger, et aligner l'en-tête du script.
 - **Composition `index.ts` non vérifiée à l'exécution** — smoke test (`npm start` + `curl`) jamais fait : `POST`, `GET /:id`, `404`, `400`.
 - **Construction de `QuizServer` répétée** dans 7 `beforeEach` (relevé le 2026-11-01).
 - **Espions `console.log` jamais restaurés** (`server.test.ts`, CA-2 à CA-4) : ni `mockRestore` dans le fichier, ni `restoreMocks` dans `vitest.config.ts` (relevé le 2026-10-26). Effet sur les tests non mesuré.
