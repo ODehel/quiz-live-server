@@ -110,7 +110,7 @@ describe('US-004/CA-04 - Create Theme with existing name', () => {
             body: JSON.stringify({ name: 'Culture générale' })
         });
         expect(response.statusCode).toBe(409);
-        expect(response.json()).toEqual({ error: 'THEME_ALREADY_EXISTS' });
+        expect(response.json()).toEqual({ status: 409, error: 'THEME_ALREADY_EXISTS', message: 'A theme with this name already exists.' });
         expect(mockThemeService.createTheme).toHaveBeenCalledWith('Culture générale');
     });
 });
@@ -503,7 +503,7 @@ describe('US-004/CA-24 - Update Theme with other existing name', () => {
             body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Un nom de thème qui existe déjà' })
         });
         expect(response.statusCode).toBe(409);
-        expect(response.json()).toEqual({ error: 'THEME_ALREADY_EXISTS' });
+        expect(response.json()).toEqual({ status: 409, error: 'THEME_ALREADY_EXISTS', message: 'A theme with this name already exists.' });
         expect(mockThemeService.updateTheme).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416', 'Un nom de thème qui existe déjà');
     });
 });
