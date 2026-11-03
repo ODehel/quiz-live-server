@@ -96,7 +96,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         if (error instanceof ValidationError) {
             reply.status(400).send({ error: VALIDATION_ERROR });
         } else if (error instanceof ConflictError) {
-            reply.status(409).send({ error: THEME_ALREADY_EXISTS });
+            reply.status(409).send({ status: 409, error: THEME_ALREADY_EXISTS, message: 'A theme with this name already exists.' });
         } else if (error instanceof ThemeNotFoundError) {
             reply.status(404).send({ error: THEME_NOT_FOUND });
         } else if (error instanceof ThemeHasQuestionsError) {
