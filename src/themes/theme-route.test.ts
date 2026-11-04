@@ -87,7 +87,7 @@ describe('US-004/CA-01 - Create Theme', () => {
 
 describe('US-004/CA-03 - Create Theme with invalid name', () => {
     it('should return a validation error for invalid theme name', async () => {
-        mockThemeService.createTheme = vi.fn().mockImplementation(() => { throw new ValidationError(); });
+        mockThemeService.createTheme = vi.fn().mockImplementation(() => { throw new ValidationError('Theme name is invalid.'); });
         const response = await app.inject({
             method: 'POST',
             url: '/api/v1/themes',
@@ -95,7 +95,7 @@ describe('US-004/CA-03 - Create Theme with invalid name', () => {
             body: JSON.stringify({ name: 'Invalid@Name!' })
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'VALIDATION_ERROR' });
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Theme name is invalid.' });
         expect(mockThemeService.createTheme).toHaveBeenCalledWith('Invalid@Name!');
     });
 });
@@ -490,7 +490,7 @@ describe("US-004/CA-20 - Update an existing theme", () => {
 
 describe("US-004/CA-21 - Format an existing theme", () => {
     it("should trim the new name", async () => {
-        mockThemeService.updateTheme = vi.fn().mockImplementation(() => { throw new ValidationError(); });
+        mockThemeService.updateTheme = vi.fn().mockImplementation(() => { throw new ValidationError('Theme name is too long.'); });
         const response = await app.inject({
             method: 'PUT',
             url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
@@ -498,7 +498,7 @@ describe("US-004/CA-21 - Format an existing theme", () => {
             body: JSON.stringify({ id: "019d92d2-e1f6-7d05-9803-3948dbc4c416", name: "Culture générale avec un nom beaucoup trop long que ce qui est autorisé" })
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'VALIDATION_ERROR' });
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Theme name is too long.' });
         expect(mockThemeService.updateTheme).toHaveBeenCalledWith("019d92d2-e1f6-7d05-9803-3948dbc4c416", "Culture générale avec un nom beaucoup trop long que ce qui est autorisé");
     });
 });

@@ -241,7 +241,7 @@ try {
         $r = Invoke-Api -Method POST -Path '/api/v1/themes' -Body (NameBody $invalidNames[$label]) -Token $script:Token
         Check "CA-3 nom invalide ($label) -> 400 VALIDATION_ERROR" ($r.Status -eq 400 -and $r.Json.error -eq 'VALIDATION_ERROR') "$($r.Status) $($r.Raw)"
         if ($first) {
-            Check '  CA-3 corps standard { status, error, message }' (Test-StandardBody $r 400 'VALIDATION_ERROR') $r.Raw 'corps court { error } (serie fix(themes), VALIDATION_ERROR a venir)'
+            Check '  CA-3 corps standard { status, error, message }' (Test-StandardBody $r 400 'VALIDATION_ERROR') $r.Raw
             $first = $false
         }
     }
@@ -361,6 +361,7 @@ try {
     Check 'CA-21 memes regles que le POST : nom normalise' ($r.Status -eq 200 -and (Get-Field $r.Raw 'name') -eq (N 'Format')) "$($r.Status) $($r.Raw)"
     $r = Invoke-Api -Method PUT -Path "/api/v1/themes/$idUpd" -Body (NameBody 'Invalid@Name!') -Token $script:Token
     Check 'CA-21 nom invalide -> 400 VALIDATION_ERROR' ($r.Status -eq 400 -and $r.Json.error -eq 'VALIDATION_ERROR') "$($r.Status) $($r.Raw)"
+    Check '  CA-21 corps standard { status, error, message }' ((Test-StandardBody $r 400 'VALIDATION_ERROR') -and -not [string]::IsNullOrWhiteSpace($r.Json.message)) $r.Raw
 
     $nameCase = N 'Casse'
     $r = New-Theme $nameCase
