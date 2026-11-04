@@ -253,7 +253,7 @@ try {
 
     $r = Invoke-Api -Method POST -Path '/api/v1/themes' -Body (NameBody (N 'Inconnu') ',"extra":1') -Token $script:Token
     Check 'CA-7 champ inconnu -> 400 UNKNOWN_FIELDS' ($r.Status -eq 400 -and $r.Json.error -eq 'UNKNOWN_FIELDS') "$($r.Status) $($r.Raw)"
-    Check '  CA-7 corps standard' (Test-StandardBody $r 400 'UNKNOWN_FIELDS') $r.Raw 'corps court { error } (serie fix(themes), UNKNOWN_FIELDS a venir)'
+    Check '  CA-7 corps standard + champs listes dans le message' (Test-StandardBody $r 400 'UNKNOWN_FIELDS' 'Unknown field(s): extra.') $r.Raw
 
     $r = Invoke-Api -Method POST -Path '/api/v1/themes' -Body (NameBody (N 'Xml')) -ContentType 'application/xml' -Token $script:Token
     Check 'CA-8 Content-Type application/xml -> 415' ($r.Status -eq 415) "$($r.Status) $($r.Raw)"
@@ -391,6 +391,7 @@ try {
 
     $r = Invoke-Api -Method PUT -Path "/api/v1/themes/$idUpd" -Body (NameBody (N 'Inconnu') ',"extra":1') -Token $script:Token
     Check 'CA-27 champ inconnu -> 400 UNKNOWN_FIELDS' ($r.Status -eq 400 -and $r.Json.error -eq 'UNKNOWN_FIELDS') "$($r.Status) $($r.Raw)"
+    Check '  CA-27 corps standard + champs listes dans le message' (Test-StandardBody $r 400 'UNKNOWN_FIELDS' 'Unknown field(s): extra.') $r.Raw
 
     $r = Invoke-Api -Method PUT -Path "/api/v1/themes/$idUpd" -Body (NameBody (N 'SansToken'))
     Check 'CA-32 PUT sans token -> 401' ($r.Status -eq 401) "$($r.Status) $($r.Raw)"
