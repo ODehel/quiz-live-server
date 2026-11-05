@@ -751,6 +751,10 @@ describe("US-004/CA-36 - Unexpected error", () => {
             body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu' })
         });
         expect(response.statusCode).toBe(500);
-        expect(response.json()).toEqual({ error: 'INTERNAL_SERVER_ERROR' });
+        expect(response.json()).toEqual({
+            status: 500,
+            error: 'INTERNAL_SERVER_ERROR',
+            message: 'An unexpected error occurred. Please try again later.'
+        });
     });
 });
