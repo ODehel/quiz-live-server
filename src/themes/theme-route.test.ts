@@ -124,7 +124,7 @@ describe("US-004/CA-07 - Unknown fields", () => {
             body: JSON.stringify({ nem: 'Histoire' })
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'UNKNOWN_FIELDS' });
+        expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): nem.' });
         expect(mockThemeService.createTheme).not.toHaveBeenCalled();
     });
     it("should return an error 400 with an unknown property", async () => {
@@ -135,7 +135,18 @@ describe("US-004/CA-07 - Unknown fields", () => {
             body: JSON.stringify({ name: 'Histoire', color: 'Red' })
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'UNKNOWN_FIELDS' });
+        expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): color.' });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+    it("should list every unknown property in the message", async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/themes',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ name: 'Histoire', color: 'Red', size: 3 })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): color, size.' });
         expect(mockThemeService.createTheme).not.toHaveBeenCalled();
     });
 });
@@ -594,7 +605,7 @@ describe("US-004/CA-27 - Unknown fields", () => {
             body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', nem: 'Inconnu' })
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'UNKNOWN_FIELDS' });
+        expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): nem.' });
         expect(mockThemeService.createTheme).not.toHaveBeenCalled();
     });
     it("should return an error 400 with an unknown property", async () => {
@@ -605,7 +616,18 @@ describe("US-004/CA-27 - Unknown fields", () => {
             body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu', active: false })
         });
         expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({ error: 'UNKNOWN_FIELDS' });
+        expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): active.' });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+    it("should list every unknown property in the message", async () => {
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu', active: false, size: 3 })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): active, size.' });
         expect(mockThemeService.createTheme).not.toHaveBeenCalled();
     });
 });

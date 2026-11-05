@@ -43,8 +43,9 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
     app.register((instance) => {
         instance.removeContentTypeParser('text/plain');
         instance.post('/api/v1/themes', async (request, reply) => {
-            if (bodyHasUnknownFields(request.body as object, ['name'])) {
-                reply.status(400).send({ error: UNKNOWN_FIELDS });
+            const unknownFields = findUnknownFields(request.body as object, ['name']);
+            if (unknownFields.length > 0) {
+                reply.status(400).send({ status: 400, error: UNKNOWN_FIELDS, message: `Unknown field(s): ${unknownFields.join(', ')}.` });
             }
             else {
                 try {
@@ -58,8 +59,9 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         });
 
         instance.put('/api/v1/themes/:id', async (request, reply) => {
-            if (bodyHasUnknownFields(request.body as object, ['id', 'name'])) {
-                reply.status(400).send({ error: UNKNOWN_FIELDS });
+            const unknownFields = findUnknownFields(request.body as object, ['id', 'name']);
+            if (unknownFields.length > 0) {
+                reply.status(400).send({ status: 400, error: UNKNOWN_FIELDS, message: `Unknown field(s): ${unknownFields.join(', ')}.` });
             }
             else {
                 try {
@@ -109,8 +111,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         }
     }
 
-    function bodyHasUnknownFields(body: object, allowedFields: string[]): boolean {
-        const unknownFields = Object.keys(body).filter(key => !allowedFields.includes(key));
-        return unknownFields.length > 0;
+    function findUnknownFields(body: object, allowedFields: string[]): string[] {
+        return Object.keys(body).filter(key => !allowedFields.includes(key));
     }
 }
