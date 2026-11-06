@@ -16,6 +16,7 @@ import { UserRole } from '../users/user-role';
 import rateLimitMiddleware from '../infrastructure/rate-limit-middleware';
 
 const anyString: unknown = expect.any(String);
+const sqliteBusyError: unknown = expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' });
 
 let app: FastifyInstance;
 let mockThemeService: ThemeService;
@@ -756,5 +757,51 @@ describe("US-004/CA-36 - Unexpected error", () => {
             error: 'INTERNAL_SERVER_ERROR',
             message: 'An unexpected error occurred. Please try again later.'
         });
+    });
+});
+
+describe("US-004/CA-36 - Log the technical details of an unexpected error", () => {
+    let logLines: string[];
+
+    beforeEach(() => {
+        logLines = [];
+        app = Fastify({
+            logger: {
+                level: 'error',
+                stream: { write: (line: string) => { logLines.push(line); } }
+            }
+        });
+        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, rateLimitMiddleware: mockRateLimitMiddleware });
+    });
+
+    it("should log the unexpected error with its technical message at error level", async () => {
+        mockThemeService.updateTheme = vi.fn().mockImplementation(() => { throw new Error('SQLITE_BUSY: database is locked'); });
+
+        await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu' })
+        });
+
+        const logs = logLines.map(line => JSON.parse(line) as Record<string, unknown>);
+        expect(logs).toContainEqual(expect.objectContaining({
+            level: 50,
+            err: sqliteBusyError
+        }));
+    });
+
+    it("should not log an expected error", async () => {
+        mockThemeService.updateTheme = vi.fn().mockImplementation(() => { throw new ConflictError(); });
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu' })
+        });
+
+        expect(response.statusCode).toBe(409);
+        expect(logLines).toEqual([]);
     });
 });

@@ -107,6 +107,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         } else if (error instanceof ThemeHasQuestionsError) {
             reply.status(409).send({ status: 409, error: THEME_HAS_QUESTIONS, message: "Cannot delete this theme: questions are still associated with it." });
         } else {
+            reply.log.error(error);
             reply.status(500).send({ status: 500, error: INTERNAL_SERVER_ERROR, message: 'An unexpected error occurred. Please try again later.' });
         }
     }
