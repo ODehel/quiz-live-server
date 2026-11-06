@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyReply } from "fastify";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
-import { ID_MISMATCH, INTERNAL_SERVER_ERROR, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, THEME_NOT_FOUND, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
+import { ID_MISMATCH, INTERNAL_SERVER_ERROR, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
 import { ThemeNotFoundError } from "./theme-not-found-error";
 import { ThemeHasQuestionsError } from "./theme-has-questions-error";
 import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
@@ -22,7 +22,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         }
         const existingTheme = themeService.getById(id);
         if (existingTheme === undefined) {
-            reply.status(404).send({ error: THEME_NOT_FOUND });
+            reply.status(404).send({ status: 404, error: 'NOT_FOUND', message: 'The requested theme was not found.' });
         } else {
             reply.status(200).send(existingTheme);
         }
@@ -103,7 +103,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         } else if (error instanceof ConflictError) {
             reply.status(409).send({ status: 409, error: THEME_ALREADY_EXISTS, message: 'A theme with this name already exists.' });
         } else if (error instanceof ThemeNotFoundError) {
-            reply.status(404).send({ error: THEME_NOT_FOUND });
+            reply.status(404).send({ status: 404, error: 'NOT_FOUND', message: 'The requested theme was not found.' });
         } else if (error instanceof ThemeHasQuestionsError) {
             reply.status(409).send({ status: 409, error: THEME_HAS_QUESTIONS, message: "Cannot delete this theme: questions are still associated with it." });
         } else {
