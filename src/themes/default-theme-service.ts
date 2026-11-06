@@ -1,10 +1,10 @@
 import { Clock } from "../common/clock.interface";
 import { buildPagination } from "../common/build-pagination";
+import { NotFoundError } from "../common/not-found-error";
 import { Pagination } from "../common/pagination.interface";
 import { UuidGenerator } from "../common/uuid-generator.interface";
 import { ConflictError } from "./conflict-error";
 import { ThemeHasQuestionsError } from "./theme-has-questions-error";
-import { ThemeNotFoundError } from "./theme-not-found-error";
 import { ThemeRepository } from "./theme-repository.interface";
 import { ThemeService } from "./theme-service.interface";
 import { Theme } from "./theme.interface";
@@ -41,7 +41,7 @@ export class DefaultThemeService implements ThemeService {
         const theme = this.themeRepository.getById(id);
 
         if (theme === undefined) {
-            throw new ThemeNotFoundError();
+            throw new NotFoundError();
         }
         const trimmedName = this.formatName(name);
         if (trimmedName.localeCompare(theme.name, undefined, { sensitivity: 'base' }) === 0) {
@@ -59,7 +59,7 @@ export class DefaultThemeService implements ThemeService {
         const theme = this.themeRepository.getById(id);
 
         if (theme === undefined) {
-            throw new ThemeNotFoundError();
+            throw new NotFoundError();
         }
 
         if (this.themeRepository.isUsedInQuestions(id)) {
