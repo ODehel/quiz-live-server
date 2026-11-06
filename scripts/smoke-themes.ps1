@@ -275,7 +275,7 @@ try {
 
     $r = Invoke-Api -Method GET -Path "/api/v1/themes/$UnknownId" -Token $script:Token
     Check 'CA-10 id inexistant -> 404' ($r.Status -eq 404) "$($r.Status) $($r.Raw)"
-    Check '  CA-10 code NOT_FOUND' ($r.Json.error -eq 'NOT_FOUND') $r.Raw 'le code est THEME_NOT_FOUND (decision #14 : migration prevue)'
+    Check '  CA-10 code NOT_FOUND' ($r.Json.error -eq 'NOT_FOUND') $r.Raw
 
     $r = Invoke-Api -Method GET -Path '/api/v1/themes/pas-un-uuid' -Token $script:Token
     Check 'CA-11 id mal forme -> 400 INVALID_UUID (corps standard + message)' (Test-StandardBody $r 400 'INVALID_UUID' 'The provided ID is not a valid UUID.') "$($r.Status) $($r.Raw)"
@@ -382,7 +382,7 @@ try {
 
     $r = Invoke-Api -Method PUT -Path "/api/v1/themes/$UnknownId" -Body (NameBody (N 'Fantome')) -Token $script:Token
     Check 'CA-25 id inexistant -> 404' ($r.Status -eq 404) "$($r.Status) $($r.Raw)"
-    Check '  CA-25 code NOT_FOUND' ($r.Json.error -eq 'NOT_FOUND') $r.Raw 'le code est THEME_NOT_FOUND (decision #14 : migration prevue)'
+    Check '  CA-25 code NOT_FOUND' ($r.Json.error -eq 'NOT_FOUND') $r.Raw
 
     $r = Invoke-Api -Method PUT -Path "/api/v1/themes/$idUpd" -Body (NameBody (N 'Xml')) -ContentType 'application/xml' -Token $script:Token
     Check 'CA-26 Content-Type application/xml -> 415' ($r.Status -eq 415) "$($r.Status) $($r.Raw)"
@@ -411,7 +411,7 @@ try {
     Check '  CA-28 le theme n''existe plus (GET -> 404)' ($r.Status -eq 404) "$($r.Status) $($r.Raw)"
     $r = Invoke-Api -Method DELETE -Path "/api/v1/themes/$idDel" -Token $script:Token
     Check 'CA-29 suppression d''un id deja supprime -> 404' ($r.Status -eq 404) "$($r.Status) $($r.Raw)"
-    Check '  CA-29 code NOT_FOUND' ($r.Json.error -eq 'NOT_FOUND') $r.Raw 'le code est THEME_NOT_FOUND (decision #14 : migration prevue)'
+    Check '  CA-29 code NOT_FOUND' ($r.Json.error -eq 'NOT_FOUND') $r.Raw
 
     $r = New-Theme (N 'SupprimableTexte')
     $idDelText = Get-Field $r.Raw 'id'

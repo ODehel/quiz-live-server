@@ -196,6 +196,11 @@ describe("US-004/CA-10 - Inexisting theme", () => {
             headers: { 'content-type': 'application/json' }
         });
         expect(response.statusCode).toBe(404);
+        expect(response.json()).toEqual({
+            status: 404,
+            error: 'NOT_FOUND',
+            message: 'The requested theme was not found.'
+        });
     });
 });
 
@@ -569,7 +574,11 @@ describe("US-004/CA-25 - Unknown id", () => {
             body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu' })
         });
         expect(response.statusCode).toBe(404);
-        expect(response.json()).toEqual({ error: 'THEME_NOT_FOUND' });
+        expect(response.json()).toEqual({
+            status: 404,
+            error: 'NOT_FOUND',
+            message: 'The requested theme was not found.'
+        });
     });
 });
 
@@ -681,7 +690,11 @@ describe("US-004/CA-29 - Delete unfound theme", () => {
             url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416'
         });
         expect(response.statusCode).toBe(404);
-        expect(response.json()).toEqual({ error: 'THEME_NOT_FOUND' });
+        expect(response.json()).toEqual({
+            status: 404,
+            error: 'NOT_FOUND',
+            message: 'The requested theme was not found.'
+        });
     });
 });
 
