@@ -5,6 +5,12 @@ import authenticationMiddleware from "./authentication-middleware";
 import { TokenDecoder } from "./token-decoder.interface";
 import { UserRole } from "../users/user-role";
 
+const unauthorizedBody = {
+    status: 401,
+    error: 'UNAUTHORIZED',
+    message: 'Authentication token is missing or invalid.'
+};
+
 describe("US-004/CA-32 - Test of the middleware", () => {
     let mockTokenValidator: TokenValidator;
     let mockTokenDecoder: TokenDecoder;
@@ -58,6 +64,13 @@ describe("US-004/CA-32 - No token", () => {
         })
         expect(response.statusCode).toBe(401);
     });
+    it("should answer with the standard UNAUTHORIZED error body", async() => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes'
+        })
+        expect(response.json()).toEqual(unauthorizedBody);
+    });
 });
 
 describe("US-004/CA-32 - Invalid token", () => {
@@ -85,6 +98,14 @@ describe("US-004/CA-32 - Invalid token", () => {
             headers: { 'Authorization': 'Bearer blabla' }
         })
         expect(response.statusCode).toBe(401);
+    });
+    it("should answer with the standard UNAUTHORIZED error body", async() => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes',
+            headers: { 'Authorization': 'Bearer blabla' }
+        })
+        expect(response.json()).toEqual(unauthorizedBody);
     });
 });
 
