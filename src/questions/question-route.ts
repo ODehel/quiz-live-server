@@ -7,14 +7,9 @@ import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
 import { NotFoundError } from "../common/not-found-error";
+import { sendErrorBody } from "../common/send-error-body";
 import { UuidFormatValidator } from "../infrastructure/uuid-format-validator";
 import Ajv from "ajv";
-
-interface ErrorBody {
-    status: number;
-    error: string;
-    message?: string;
-}
 
 type SchemaViolation = { keyword: string, instancePath: string, params: { missingProperty?: string, additionalProperty?: string } };
 
@@ -241,9 +236,5 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             error: 'UNKNOWN_FIELDS',
             message: `Unknown field(s): ${unknownFields}.`
         });
-    }
-
-    function sendErrorBody(reply: FastifyReply, body: ErrorBody) {
-        reply.status(body.status).send(body);
     }
 }

@@ -189,10 +189,11 @@ try {
 
     $r = Invoke-Api -Method GET -Path '/api/v1/themes'
     Check 'GET /themes sans token -> 401' ($r.Status -eq 401) "$($r.Status) $($r.Raw)"
-    Check '  corps 401 : UNAUTHORIZED' ($r.Raw -match 'UNAUTHORIZED') $r.Raw 'le 401 renvoie un corps vide (code UNAUTHORIZED absent)'
+    Check '  corps 401 : UNAUTHORIZED' ($r.Json.error -eq 'UNAUTHORIZED') $r.Raw
 
     $r = Invoke-Api -Method GET -Path '/api/v1/themes' -Token 'abc.def.ghi'
     Check 'GET /themes avec un token invalide -> 401' ($r.Status -eq 401) "$($r.Status) $($r.Raw)"
+    Check '  corps 401 : UNAUTHORIZED' ($r.Json.error -eq 'UNAUTHORIZED') $r.Raw
 
     $r = Invoke-Api -Method POST -Path '/api/v1/token' -Body ('{"username":"' + $Username + '","password":"mot-de-passe-faux-123"}')
     Check 'POST /token avec un mauvais mot de passe -> 401' ($r.Status -eq 401) "$($r.Status) $($r.Raw)"
