@@ -93,6 +93,17 @@ describe('US-003/CA-08: With wrong credentials', () => {
         })
         expect(response.statusCode).toBe(401)
     });
+
+    it('should return the standard error body INVALID_CREDENTIALS', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockResolvedValue(undefined);
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'User Name', password: 'wrong-password' })
+        })
+        expect(response.json()).toEqual({ status: 401, error: 'INVALID_CREDENTIALS', message: 'Invalid credentials.' });
+    });
 });
 
 describe('US-003/CA-09: Without login', () => {
