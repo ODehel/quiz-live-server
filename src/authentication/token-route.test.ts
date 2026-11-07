@@ -205,14 +205,28 @@ describe('US-003/CA-10: Without password', () => {
     });
 });
 
+describe('US-003/CA-11: With a body that is not valid JSON', () => {
+    it('should return 400 INVALID_JSON', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{"username":'
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'INVALID_JSON', message: 'Request body must be valid JSON.' });
+    });
+});
+
 describe('US-003/CA-11: Without body', () => {
-    it('should return 400', async () => {
+    it('should return 400 INVALID_JSON', async () => {
         const response = await app.inject({
             method: 'POST',
             url: '/api/v1/token',
             headers: { 'Content-Type': 'application/json' }
         })
         expect(response.statusCode).toBe(400)
+        expect(response.json()).toEqual({ status: 400, error: 'INVALID_JSON', message: 'Request body must be valid JSON.' })
     });
 });
 

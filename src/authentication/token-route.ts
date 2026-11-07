@@ -1,6 +1,6 @@
 import Ajv from "ajv";
-import { FastifyInstance } from "fastify";
-import { INVALID_CREDENTIALS, VALIDATION_ERROR } from "../common/error-codes";
+import { FastifyError, FastifyInstance } from "fastify";
+import { INVALID_CREDENTIALS, INVALID_JSON, VALIDATION_ERROR } from "../common/error-codes";
 import { TokenRouteConfiguration } from "./token-route-configuration.interface";
 
 interface SchemaViolation {
@@ -13,6 +13,8 @@ const requiredFields = [
     { name: 'username', message: 'Username is required.' },
     { name: 'password', message: 'Password is required.' }
 ];
+
+const invalidJsonBodyCodes = ['FST_ERR_CTP_INVALID_JSON_BODY', 'FST_ERR_CTP_EMPTY_JSON_BODY'];
 
 export default async function tokenRoute(app: FastifyInstance, options: TokenRouteConfiguration) {
     const { authenticationService, tokenGenerator, rateLimitMiddleware } = options;
@@ -32,6 +34,18 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
 
     const ajv = new Ajv({ allErrors: true });
     app.setValidatorCompiler(({ schema }) => ajv.compile(schema));
+
+    const inheritedErrorHandler = app.errorHandler;
+    app.setErrorHandler<FastifyError>((error, request, reply) => {
+        if (error.code && invalidJsonBodyCodes.includes(error.code)) {
+            return reply.status(400).send({
+                status: 400,
+                error: INVALID_JSON,
+                message: 'Request body must be valid JSON.'
+            });
+        }
+        return inheritedErrorHandler.call(app, error, request, reply);
+    });
 
     app.post('/api/v1/token', { schema, attachValidation: true }, async (request, reply) => {
         if (request.validationError) {
