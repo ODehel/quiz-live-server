@@ -17,12 +17,25 @@ beforeEach(async () => {
     };
     mockTokenGenerator = {
         generateToken: () => {
-            return { token: 'generated-token' } as Token;
+            const token: Token = { token: 'generated-token', expiresIn: 3600, tokenType: 'Bearer' };
+            return token;
         }
     };
     mockRateLimitMiddleware = async () => { };
     app = Fastify();
     await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, rateLimitMiddleware: mockRateLimitMiddleware });
+});
+
+describe('US-003/CA-01: With valid credentials', () => {
+    it('should return the token, its lifetime and its type in snake_case', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'User Name', password: 'user-password' })
+        })
+        expect(response.json()).toEqual({ token: 'generated-token', expires_in: 3600, token_type: 'Bearer' });
+    });
 });
 
 describe('US-003/CA-05: Without token', () => {

@@ -54,6 +54,10 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
         }
         const token = tokenGenerator.generateToken(user);
         request.log.info({ username, ip: request.ip }, 'Authentication successful');
-        return reply.send(token);
+        return reply.send({
+            token: token.token,
+            expires_in: token.expiresIn,
+            token_type: token.tokenType
+        });
     });
 }
