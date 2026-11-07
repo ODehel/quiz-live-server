@@ -1,5 +1,6 @@
 import Ajv from "ajv";
 import { FastifyInstance } from "fastify";
+import { INVALID_CREDENTIALS } from "../common/error-codes";
 import { TokenRouteConfiguration } from "./token-route-configuration.interface";
 
 interface SchemaViolation {
@@ -45,7 +46,11 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
         const user = await authenticationService.authenticate(username, password);
         if (!user) {
             request.log.warn({ username, ip: request.ip }, 'Authentication failed');
-            return reply.status(401).send({ error: 'Invalid credentials' });
+            return reply.status(401).send({
+                status: 401,
+                error: INVALID_CREDENTIALS,
+                message: 'Invalid credentials.'
+            });
         }
         const token = tokenGenerator.generateToken(user);
         request.log.info({ username, ip: request.ip }, 'Authentication successful');

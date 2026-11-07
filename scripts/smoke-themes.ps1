@@ -196,7 +196,7 @@ try {
 
     $r = Invoke-Api -Method POST -Path '/api/v1/token' -Body ('{"username":"' + $Username + '","password":"mot-de-passe-faux-123"}')
     Check 'POST /token avec un mauvais mot de passe -> 401' ($r.Status -eq 401) "$($r.Status) $($r.Raw)"
-    Check '  corps : INVALID_CREDENTIALS' ($r.Json.error -eq 'INVALID_CREDENTIALS') $r.Raw 'le champ error contient le message "Invalid credentials" et non le code'
+    Check '  corps : INVALID_CREDENTIALS' ($r.Json.error -eq 'INVALID_CREDENTIALS') $r.Raw
 
     $r = Invoke-Api -Method POST -Path '/api/v1/token' -Body ('{"username":"' + $Username + '","password":"' + $Password + '"}')
     Check 'POST /token avec les bons identifiants -> 200' ($r.Status -eq 200) "$($r.Status) $($r.Raw)"
