@@ -45,7 +45,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-17 | Les horodatages sont en ISO 8601 UTC, générés côté Node.js | `created_at` rempli, `last_updated_at` à `null` |
 | CA-18 | Les champs `image_path` et `audio_path` ne sont pas acceptés dans le body du POST | Présents → `400 UNKNOWN_FIELDS` |
 | CA-19 | Le body ne doit contenir que les champs autorisés selon le type | Champs inconnus → `400 UNKNOWN_FIELDS` |
-| CA-20 | Le `Content-Type` doit être `application/json` | Sinon → `415 UNSUPPORTED_MEDIA_TYPE` |
+| CA-20 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 
 ### Lecture d'une question — `GET /api/v1/questions/:id`
 
@@ -81,7 +81,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-38 | L'ID peut être présent dans le body ; s'il l'est, il doit correspondre à l'URL | Sinon → `400 ID_MISMATCH` |
 | CA-39 | Le titre est déjà pris par une autre question | `409 QUESTION_ALREADY_EXISTS` |
 | CA-40 | ID inexistant | `404 NOT_FOUND` |
-| CA-41 | Le `Content-Type` doit être `application/json` | Sinon → `415 UNSUPPORTED_MEDIA_TYPE` |
+| CA-41 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 | CA-42 | Le body ne doit contenir que les champs autorisés (tous les champs métier requis, `id` optionnel ; **`image_path` et `audio_path` ne sont pas gérés par ce endpoint**) | Champs inconnus (dont `image_path`/`audio_path`) → `400 UNKNOWN_FIELDS` |
 | CA-43 | Le PUT exige tous les champs métier : `type`, `theme_id`, `title`, `correct_answer`, `level`, `time_limit`, `points` (+ `choices` si MCQ). **Les champs médias `image_path` et `audio_path` ne sont ni créés, ni modifiés, ni réinitialisés par ce PUT et conservent leur valeur actuelle**. | Champ métier manquant → `400 VALIDATION_ERROR` |
 
@@ -480,7 +480,7 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/questions" \
   }'
 ```
 
-**CA-20** — `Content-Type` incorrect → `415 UNSUPPORTED_MEDIA_TYPE`
+**CA-20** — `Content-Type` incorrect → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`
 
 ```bash
 curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/questions" \
@@ -728,7 +728,7 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/questions/018e4f
   }'
 ```
 
-**CA-41** — `Content-Type` incorrect → `415 UNSUPPORTED_MEDIA_TYPE`
+**CA-41** — `Content-Type` incorrect → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`
 
 ```bash
 curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/questions/$QUESTION_SPD_ID" \

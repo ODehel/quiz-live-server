@@ -41,7 +41,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-15 | Modification de `audio_path` : doit être une chaîne non vide ou `null` (pour supprimer) | Chaîne vide → `400 VALIDATION_ERROR` |
 | CA-16 | Les données envoyées sont identiques à l'existant | `200 OK` avec la question inchangée, `last_updated_at` **non modifié** |
 | CA-17 | ID inexistant | `404 NOT_FOUND` |
-| CA-18 | Le `Content-Type` doit être `application/json` | Sinon → `415 UNSUPPORTED_MEDIA_TYPE` |
+| CA-18 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 | CA-19 | Body vide `{}` | `200 OK` avec la question inchangée (aucune modification) |
 
 ### Sécurité et transversalité
@@ -197,7 +197,7 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X PATCH "$BASE_URL/api/v1/questions/018e
   -d '{"level": 2}'
 ```
 
-**CA-18** — Content-Type incorrect → `415 UNSUPPORTED_MEDIA_TYPE`
+**CA-18** — Content-Type incorrect → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`
 
 ```bash
 curl -s -w "\n→ HTTP %{http_code}\n" -X PATCH "$BASE_URL/api/v1/questions/$QUESTION_ID" \

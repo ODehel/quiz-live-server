@@ -36,7 +36,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-10 | L'ID du quiz est un UUIDv7 généré côté Node.js | Format UUID standard (8-4-4-4-12) |
 | CA-11 | Les horodatages sont en ISO 8601 UTC, générés côté Node.js | `created_at` rempli, `last_updated_at` à `null` |
 | CA-12 | Le body ne doit contenir que les champs `name` et `question_ids` | Champs inconnus → `400 UNKNOWN_FIELDS` |
-| CA-13 | Le `Content-Type` doit être `application/json` | Sinon → `415 UNSUPPORTED_MEDIA_TYPE` |
+| CA-13 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 | CA-14 | Body non parseable | `400 INVALID_BODY` |
 
 ### Lecture de la liste — `GET /api/v1/quizzes`
@@ -77,7 +77,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-32 | L'ID peut être présent dans le body ; s'il l'est, il doit correspondre à l'URL | Sinon → `400 ID_MISMATCH` |
 | CA-33 | ID inexistant dans l'URL | `404 NOT_FOUND` |
 | CA-34 | ID mal formé dans l'URL | `400 INVALID_UUID` |
-| CA-35 | Le `Content-Type` doit être `application/json` | Sinon → `415 UNSUPPORTED_MEDIA_TYPE` |
+| CA-35 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 
 ### Suppression — `DELETE /api/v1/quizzes/:id`
 

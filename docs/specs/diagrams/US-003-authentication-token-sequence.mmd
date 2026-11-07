@@ -7,7 +7,7 @@ sequenceDiagram
     C->>S: POST /api/v1/token<br/>{ "username": "admin", "password": "***" }
 
     alt Content-Type invalide
-        S-->>C: 415 UNSUPPORTED_MEDIA_TYPE
+        S-->>C: 415 FST_ERR_CTP_INVALID_MEDIA_TYPE
     else Méthode non autorisée
         S-->>C: 405 METHOD_NOT_ALLOWED (Allow: POST)
     else Rate limit dépassé (> 5 req/min)

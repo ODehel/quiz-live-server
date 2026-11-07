@@ -20,7 +20,7 @@ flowchart TD
     subgraph POST["➕ Création — POST /api/v1/games"]
         direction TB
         POST_CT{"Content-Type\n= application/json ?"}
-        POST_CT -->|"Non"| PE415["415 UNSUPPORTED_MEDIA_TYPE"]
+        POST_CT -->|"Non"| PE415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         POST_CT -->|"Oui"| POST_JSON{"JSON valide ?"}
         POST_JSON -->|"Non"| PE400a["400 INVALID_BODY"]
         POST_JSON -->|"Oui"| POST_UF{"Champs inconnus ?\n(hors quiz_id, participants)"}
@@ -61,7 +61,7 @@ flowchart TD
         PUT_ID -->|"Oui"| PUT_FIND{"Partie trouvée ?"}
         PUT_FIND -->|"Non"| PUTE404["404 NOT_FOUND"]
         PUT_FIND -->|"Oui"| PUT_CT{"Content-Type\n= application/json ?"}
-        PUT_CT -->|"Non"| PUTE415["415 UNSUPPORTED_MEDIA_TYPE"]
+        PUT_CT -->|"Non"| PUTE415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         PUT_CT -->|"Oui"| PUT_UF{"Champs inconnus ?\n(hors quiz_id, status, participants)"}
         PUT_UF -->|"Oui"| PUTE400b["400 UNKNOWN_FIELDS"]
         PUT_UF -->|"Non"| PUT_QID{"quiz_id présent\net different du quiz_id en base ?"}
@@ -81,7 +81,7 @@ flowchart TD
         PATCH_ID -->|"Oui"| PAT_FIND{"Partie trouvée ?"}
         PAT_FIND -->|"Non"| PATE404["404 NOT_FOUND"]
         PAT_FIND -->|"Oui"| PAT_CT{"Content-Type\n= application/json ?"}
-        PAT_CT -->|"Non"| PATE415["415 UNSUPPORTED_MEDIA_TYPE"]
+        PAT_CT -->|"Non"| PATE415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         PAT_CT -->|"Oui"| PAT_UF{"Champs inconnus ?\n(hors quiz_id, status, participants)"}
         PAT_UF -->|"Oui"| PATE400b["400 UNKNOWN_FIELDS"]
         PAT_UF -->|"Non"| PAT_QID{"quiz_id présent\net different du quiz_id en base ?"}

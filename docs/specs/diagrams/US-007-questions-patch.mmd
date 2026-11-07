@@ -13,7 +13,7 @@ flowchart TD
     PATCH_UUID -->|"Oui"| PATCH_FIND{"Question trouvée ?"}
     PATCH_FIND -->|"Non"| E404["404 NOT_FOUND"]
     PATCH_FIND -->|"Oui"| PATCH_CT{"Content-Type\n= application/json ?"}
-    PATCH_CT -->|"Non"| E415["415 UNSUPPORTED_MEDIA_TYPE"]
+    PATCH_CT -->|"Non"| E415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
     PATCH_CT -->|"Oui"| PATCH_TYPE{"type ou id\ndans le body ?"}
     PATCH_TYPE -->|"type présent"| E400b["400 TYPE_CHANGE_NOT_ALLOWED"]
     PATCH_TYPE -->|"id présent"| E400c["400 UNKNOWN_FIELDS"]

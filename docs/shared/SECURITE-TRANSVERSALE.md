@@ -140,20 +140,22 @@ Content-Type: application/json
 
 ---
 
-### Content-Type obligatoire (415 UNSUPPORTED_MEDIA_TYPE)
+### Content-Type obligatoire (415 FST_ERR_CTP_INVALID_MEDIA_TYPE)
 
 | Critère | Résultat attendu |
 |---|---|
-| **Routes avec body** (POST, PUT, PATCH) exigent `Content-Type: application/json` | Autre type → `415 UNSUPPORTED_MEDIA_TYPE` |
+| **Routes avec body** (POST, PUT, PATCH) exigent `Content-Type: application/json` | Autre type → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 | Les routes **sans body** (GET, DELETE) ignorent le `Content-Type` | Quelle que soit sa valeur, aucune validation n'est effectuée |
 | Le serveur ne doit pas interpréter d'autres formats (XML, form-encoded, etc.) sur les routes qui attendent JSON | Rejeter avec `415` |
 
-**Format de la réponse `415 UNSUPPORTED_MEDIA_TYPE` :**
+**Format de la réponse `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` :** corps natif de Fastify, non personnalisé (décision #11), identique sur toutes les routes JSON.
 
 ```json
 {
-  "error": "UNSUPPORTED_MEDIA_TYPE",
-  "message": "Content-Type must be 'application/json'."
+  "code": "FST_ERR_CTP_INVALID_MEDIA_TYPE",
+  "error": "Unsupported Media Type",
+  "message": "Unsupported Media Type",
+  "statusCode": 415
 }
 ```
 
@@ -266,7 +268,7 @@ curl -s -X GET "$BASE_URL/api/v1/themes/00000000-0000-0000-0000-000000000000" \
 
 ---
 
-### CA-ContentType — Content-Type incorrect → `415 UNSUPPORTED_MEDIA_TYPE`
+### CA-ContentType — Content-Type incorrect → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`
 
 ```bash
 # POST avec Content-Type: text/plain
@@ -274,7 +276,7 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/themes" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: text/plain" \
   -d '{"name": "Musique"}'
-# Attendu : 415 UNSUPPORTED_MEDIA_TYPE
+# Attendu : 415 FST_ERR_CTP_INVALID_MEDIA_TYPE
 
 # DELETE avec n'importe quel Content-Type (ignoré sur GET/DELETE)
 curl -s -w "\n→ HTTP %{http_code}\n" -X DELETE "$BASE_URL/api/v1/themes/some-id" \
