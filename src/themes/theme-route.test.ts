@@ -616,7 +616,7 @@ describe("US-004/CA-27 - Unknown fields", () => {
         });
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): nem.' });
-        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
     });
     it("should return an error 400 with an unknown property", async () => {
         const response = await app.inject({
@@ -627,7 +627,7 @@ describe("US-004/CA-27 - Unknown fields", () => {
         });
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): active.' });
-        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
     });
     it("should list every unknown property in the message", async () => {
         const response = await app.inject({
@@ -638,7 +638,7 @@ describe("US-004/CA-27 - Unknown fields", () => {
         });
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): active, size.' });
-        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
     });
 });
 
