@@ -39,6 +39,7 @@ beforeEach(() => {
         }),
         getQuestionById: vi.fn(),
         getAll: vi.fn(),
+        updateQuestion: vi.fn(),
         deleteQuestion: vi.fn()
     };
     mockTokenValidator = { validateToken: vi.fn(), inspectToken: vi.fn() };
@@ -1348,3 +1349,39 @@ describe('US-005/CA-54 - Hide technical details of an unexpected error on GET /'
 function parseJson<T>(raw: string): T {
     return JSON.parse(raw) as T
 }
+
+describe('US-005/CA-33 - Update an MCQ question', () => {
+    it('should ask the service to update the question with the body and reply 200 with the updated question', async () => {
+        const id = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+        const input = {
+            type: 'MCQ',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: "Quelle est la capitale de l'Espagne ?",
+            choices: ['Madrid', 'Rome', 'Vienne', 'Oslo'],
+            correct_answer: 'Madrid',
+            level: 4,
+            time_limit: 45,
+            points: 20
+        };
+        const updated = {
+            ...input,
+            id,
+            image_path: null,
+            audio_path: null,
+            created_at: '2026-11-01T09:00:00.000Z',
+            last_updated_at: '2026-11-07T21:00:00.000Z'
+        };
+        mockQuestionService.updateQuestion = vi.fn().mockReturnValue(updated);
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: `/api/v1/questions/${id}`,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+
+        expect(mockQuestionService.updateQuestion).toHaveBeenCalledWith(id, input);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(updated);
+    });
+});

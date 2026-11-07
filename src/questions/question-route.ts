@@ -130,6 +130,18 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         }
     });
 
+    app.put('/api/v1/questions/:id', async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const input = request.body as CreateMcqInput;
+
+        try {
+            const updated = questionService.updateQuestion(id, input);
+            reply.status(200).send(updated);
+        } catch (error) {
+            sendError(error, reply);
+        }
+    });
+
     app.register((instance) => {
         instance.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, _body, done) => {
             done(null, null);

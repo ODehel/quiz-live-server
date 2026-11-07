@@ -85,6 +85,27 @@ export class DefaultQuestionService implements QuestionService {
         return question;
     }
 
+    updateQuestion(id: string, input: CreateMcqInput): Question {
+        const existing = this.questionRepository.getById(id)!;
+
+        const updated: Question = {
+            ...existing,
+            type: "MCQ",
+            theme_id: input.theme_id,
+            title: input.title,
+            choices: input.choices,
+            correct_answer: input.correct_answer,
+            level: input.level,
+            time_limit: input.time_limit,
+            points: input.points,
+            last_updated_at: this.clock.now().toISOString()
+        };
+
+        this.questionRepository.update(updated);
+
+        return updated;
+    }
+
     getQuestionById(id: string): Question {
         const question = this.questionRepository.getById(id);
 

@@ -326,3 +326,25 @@ describe("US-005/CA-44 - SqliteQuestionRepository deletes a question", () => {
         expect(repository.count()).toBe(1);
     });
 });
+
+describe("US-005/CA-33 - SqliteQuestionRepository updates an MCQ question", () => {
+    it("should return the updated fields and the new last_updated_at when searched by its id", () => {
+        // Arrange
+        const original: McqQuestion = { ...speedQuestion, type: "MCQ", choices: ['Madrid', 'Paris', 'Lisbonne', 'Berlin'] };
+        repository.insert(original);
+        const updated: McqQuestion = {
+            ...original,
+            title: "Quelle est la capitale de l'Espagne",
+            choices: ['Madrid', 'Rome', 'Vienne', 'Oslo'],
+            correct_answer: "Madrid",
+            level: 4,
+            time_limit: 45,
+            points: 20,
+            last_updated_at: "2026-11-07T21:00:00.000Z"
+        };
+        // Act
+        repository.update(updated);
+        // Assert
+        expect(repository.getById(original.id)).toEqual(updated);
+    });
+});

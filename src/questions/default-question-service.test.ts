@@ -28,6 +28,7 @@ beforeEach(() => {
         getById: vi.fn(),
         getAll: vi.fn(),
         count: vi.fn(),
+        update: vi.fn(),
         delete: vi.fn()
     };
     themeExistenceChecker = { exists: vi.fn().mockReturnValue(true) };
@@ -829,5 +830,53 @@ describe("US-005/CA-32 - When the service lists the questions and none is stored
     });
     it("should return an empty page with a total of 0 and no page at all", () => {
         expect(result).toEqual({ data: [], page: 1, limit: 20, total: 0, total_pages: 0 });
+    });
+});
+
+describe("US-005/CA-33 - When the service updates an MCQ question with valid fields", () => {
+    let result: Question;
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695225",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: "images/france.png",
+        audio_path: "audio/france.mp3",
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9b",
+        title: "Quelle est la capitale de l'Espagne ?",
+        choices: ["Madrid", "Rome", "Vienne", "Oslo"],
+        correct_answer: "Madrid",
+        level: 4,
+        time_limit: 45,
+        points: 20,
+    };
+    const expected: Question = {
+        ...storedQuestion,
+        theme_id: input.theme_id,
+        title: input.title,
+        choices: input.choices,
+        correct_answer: input.correct_answer,
+        level: input.level,
+        time_limit: input.time_limit,
+        points: input.points,
+        last_updated_at: "2026-04-08T13:32:00.000Z",
+    };
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+        result = defaultQuestionService.updateQuestion(storedQuestion.id, input);
+    });
+    it("should return and persist the question with the new fields, the same id, created_at and media paths, and last_updated_at set to now", () => {
+        expect(result).toEqual(expected);
+        expect(questionRepository.update).toHaveBeenCalledWith(expected);
     });
 });
