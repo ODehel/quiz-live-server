@@ -47,6 +47,13 @@ export class SqliteQuestionRepository implements QuestionRepository {
         return this.rowToQuestion(row);
     }
 
+    update(question: Question): void {
+        const choices = question.type === 'MCQ' ? JSON.stringify(question.choices) : null;
+        this.db.prepare(`UPDATE T_QUESTION_QST SET QST_THEME_ID = ?, QST_TITLE = ?, QST_CHOICES = ?, QST_CORRECT_ANSWER = ?, QST_LEVEL = ?,
+            QST_TIME_LIMIT = ?, QST_POINTS = ?, QST_LAST_UPDATED_AT = ? WHERE QST_ID = ?`)
+            .run(question.theme_id, question.title, choices, question.correct_answer, question.level, question.time_limit, question.points, question.last_updated_at, question.id);
+    }
+
     delete(id: string): void {
         this.db.prepare("DELETE FROM T_QUESTION_QST WHERE QST_ID = ?").run(id);
     }

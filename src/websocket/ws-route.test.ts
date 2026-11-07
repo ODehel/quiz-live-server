@@ -119,6 +119,7 @@ describe("WebSocket", () => {
             createQuestion: vi.fn(),
             getQuestionById: vi.fn(),
             getAll: vi.fn(),
+            updateQuestion: vi.fn(),
             deleteQuestion: vi.fn()
         };
         mockUuidValidator = {

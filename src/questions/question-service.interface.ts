@@ -5,6 +5,7 @@ import { Question } from "./question.interface";
 
 export interface QuestionService {
     createQuestion(input: CreateMcqInput | CreateSpeedInput): Question;
+    updateQuestion(id: string, input: CreateMcqInput): Question;
     getQuestionById(id: string): Question;
     getAll(page: number, limit: number): Pagination<Question>;
     deleteQuestion(id: string): void;

@@ -6,5 +6,6 @@ export interface QuestionRepository {
     getAll(page: number, limit: number): Question[];
     getById(id: string): Question | undefined;
     count(): number;
+    update(question: Question): void;
     delete(id: string): void;
 }
