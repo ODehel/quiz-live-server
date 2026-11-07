@@ -17,6 +17,11 @@
     Compte admin. Defaut : admin
 .PARAMETER Password
     Mot de passe admin. Defaut : $env:ADMIN_PASSWORD, sinon admin123.
+.PARAMETER PlayerUsername
+    Compte joueur (role insuffisant, CA-33). Defaut : quiz_buzzer_01 (cree par le seed).
+.PARAMETER PlayerPassword
+    Mot de passe du compte joueur. Defaut : $env:BUZZER_DEFAULT_PASSWORD, sinon player123.
+    Si ce compte ne peut pas se connecter, les controles du role sont sautes (un FAIL est consigne) et le reste continue.
 .PARAMETER IncludeQuestionCase
     Ajoute CA-30 (supprimer un theme qui a des questions). ATTENTION : il n'existe pas de route pour
     supprimer une question, donc ce cas laisse un theme et une question dans la base du hub.
@@ -25,14 +30,16 @@
 .EXAMPLE
     # Hub lance avec une base jetable :
     #   $env:SQLITE_DB_PATH = 'smoke.db'; npm run seed; npm start
-    .\scripts\smoke-themes.ps1 -Password 'MonMotDePasseAdmin'
+    .\scripts\smoke-themes.ps1 -Password 'MonMotDePasseAdmin' -PlayerPassword 'MonMotDePasseJoueur'
     # Si la politique d'execution de Windows bloque le script (valable pour ce seul processus) :
-    powershell -ExecutionPolicy Bypass -File .\scripts\smoke-themes.ps1 -Password 'MonMotDePasseAdmin'
+    powershell -ExecutionPolicy Bypass -File .\scripts\smoke-themes.ps1 -Password 'MonMotDePasseAdmin' -PlayerPassword 'MonMotDePasseJoueur'
 #>
 param(
     [string]$BaseUrl = 'http://localhost:3000',
     [string]$Username = 'admin',
     [string]$Password = $(if ($env:ADMIN_PASSWORD) { $env:ADMIN_PASSWORD } else { 'admin123' }),
+    [string]$PlayerUsername = 'quiz_buzzer_01',
+    [string]$PlayerPassword = $(if ($env:BUZZER_DEFAULT_PASSWORD) { $env:BUZZER_DEFAULT_PASSWORD } else { 'player123' }),
     [string]$OutFile = 'smoke-test-summary.txt',
     [switch]$IncludeQuestionCase,
     [switch]$Strict
@@ -210,6 +217,29 @@ try {
     $claims = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)) | ConvertFrom-Json
     Check '  CA-3 claims : sub UUIDv7, exp > iat' (($claims.sub -match $UuidV7) -and ($claims.exp -gt $claims.iat)) ($claims | ConvertTo-Json -Compress)
     Check '  CA-3 claim role = "admin"' ($claims.role -eq 'admin') ($claims | ConvertTo-Json -Compress) 'le claim role vaut 0 (UserRole.ADMIN numerique) au lieu de "admin"'
+
+    # ------------------------------------------------------------ role
+    Section 'Role insuffisant (US-004 CA-33)'
+
+    $r = Invoke-Api -Method POST -Path '/api/v1/token' -Body ('{"username":"' + $PlayerUsername + '","password":"' + $PlayerPassword + '"}')
+    Check 'POST /token avec le compte joueur -> 200' ($r.Status -eq 200) "$($r.Status) $($r.Raw)"
+    if ($r.Status -eq 200) {
+        $playerToken = $r.Json.token
+
+        $r = Invoke-Api -Method GET -Path '/api/v1/themes' -Token $playerToken
+        Check 'CA-33 GET /themes avec un token joueur -> 403 FORBIDDEN (corps standard + message)' (Test-StandardBody $r 403 'FORBIDDEN' 'You do not have permission to perform this action.') "$($r.Status) $($r.Raw)"
+
+        $r = Invoke-Api -Method POST -Path '/api/v1/themes' -Body (NameBody (N 'Joueur')) -Token $playerToken
+        if ($r.Status -eq 201) {
+            # Hub non conforme : le theme a ete cree malgre le role. On le retient pour le nettoyage final.
+            $createdId = Get-Field $r.Raw 'id'
+            if ($createdId -and $createdId -ne '<absent>') { $script:CreatedIds.Add($createdId) }
+        }
+        Check 'CA-33 POST /themes avec un token joueur -> 403 FORBIDDEN (corps standard + message)' (Test-StandardBody $r 403 'FORBIDDEN' 'You do not have permission to perform this action.') "$($r.Status) $($r.Raw)"
+    }
+    else {
+        Log "  (CA-33 saute : connexion du compte joueur impossible ; verifier -PlayerUsername / -PlayerPassword (ou `$env:BUZZER_DEFAULT_PASSWORD) et que le seed a ete lance)" 'Yellow'
+    }
 
     # ------------------------------------------------------------ creation
     Section 'Creation -- POST /api/v1/themes'
