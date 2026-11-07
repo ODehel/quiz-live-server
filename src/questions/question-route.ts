@@ -130,20 +130,25 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         }
     });
 
-    app.delete('/api/v1/questions/:id', async (request, reply) => {
-        const { id } = request.params as { id: string };
+    app.register((instance) => {
+        instance.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, _body, done) => {
+            done(null, null);
+        });
+        instance.delete('/api/v1/questions/:id', async (request, reply) => {
+            const { id } = request.params as { id: string };
 
-        if (!uuidValidator.validate(id)) {
-            sendInvalidUuid(reply);
-            return;
-        }
+            if (!uuidValidator.validate(id)) {
+                sendInvalidUuid(reply);
+                return;
+            }
 
-        try {
-            questionService.deleteQuestion(id);
-            reply.status(204).send();
-        } catch (error) {
-            sendError(error, reply);
-        }
+            try {
+                questionService.deleteQuestion(id);
+                reply.status(204).send();
+            } catch (error) {
+                sendError(error, reply);
+            }
+        });
     });
 
     function sendMissingFields(reply: FastifyReply, missingFields: string[]) {

@@ -1023,6 +1023,28 @@ describe('US-005/CA-46 - Delete a question by a malformed id', () => {
     });
 });
 
+describe('US-005/CA-47 - The body of a question deletion is ignored', () => {
+    const id = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+
+    it('should ignore a JSON content type without a body', async () => {
+        const response = await app.inject({ method: 'DELETE', url: `/api/v1/questions/${id}`, headers: { 'content-type': 'application/json' } });
+
+        expect(response.statusCode).toBe(204);
+        expect(mockQuestionService.deleteQuestion).toHaveBeenCalledWith(id);
+    });
+
+    it.each([
+        ['a valid JSON body', 'application/json', '{"x":1}'],
+        ['a malformed JSON body', 'application/json', '{not json'],
+        ['a plain text body', 'text/plain', 'ignored']
+    ])('should ignore %s', async (_label, contentType, body) => {
+        const response = await app.inject({ method: 'DELETE', url: `/api/v1/questions/${id}`, headers: { 'content-type': contentType }, body });
+
+        expect(response.statusCode).toBe(204);
+        expect(mockQuestionService.deleteQuestion).toHaveBeenCalledWith(id);
+    });
+});
+
 describe('US-005/CA-26 - List a page of questions', () => {
     it('should ask the service for the requested page and limit as numbers and reply 200 with its pagination', async () => {
         const question = {
