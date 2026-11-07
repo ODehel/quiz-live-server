@@ -119,15 +119,25 @@ describe('US-003/CA-08: With wrong credentials', () => {
     });
 });
 
-describe('US-003/CA-09: Without login', () => {
+describe('US-003/CA-09: Without username', () => {
     it('should return 400', async () => {
         const response = await app.inject({
             method: 'POST',
             url: '/api/v1/token',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: 'User Name' })
+            body: JSON.stringify({ password: 'user-password' })
         })
         expect(response.statusCode).toBe(400)
+    });
+
+    it('should not authenticate', async () => {
+        await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: 'user-password' })
+        })
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
     });
 });
 
@@ -137,9 +147,19 @@ describe('US-003/CA-10: Without password', () => {
             method: 'POST',
             url: '/api/v1/token',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ login: 'user-login' })
+            body: JSON.stringify({ username: 'User Name' })
         })
         expect(response.statusCode).toBe(400)
+    });
+
+    it('should not authenticate', async () => {
+        await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'User Name' })
+        })
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
     });
 });
 
