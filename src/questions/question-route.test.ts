@@ -1385,3 +1385,34 @@ describe('US-005/CA-33 - Update an MCQ question', () => {
         expect(response.json()).toEqual(updated);
     });
 });
+
+describe('US-005/CA-40 - Update a question by an unknown id', () => {
+    it('should reply 404 NOT_FOUND with the standard error body', async () => {
+        mockQuestionService.updateQuestion = vi.fn(() => {
+            throw new NotFoundError();
+        });
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/018e4f5a-0000-0000-0000-000000000000',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Question inexistante à modifier ?',
+                choices: ['Oui', 'Non', 'Peut-être', 'Jamais'],
+                correct_answer: 'Oui',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+
+        expect(response.statusCode).toBe(404);
+        expect(response.json()).toEqual({
+            status: 404,
+            error: 'NOT_FOUND',
+            message: 'The requested question was not found.'
+        });
+    });
+});
