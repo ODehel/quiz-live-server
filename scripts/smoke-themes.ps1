@@ -202,8 +202,8 @@ try {
     Check 'POST /token avec les bons identifiants -> 200' ($r.Status -eq 200) "$($r.Status) $($r.Raw)"
     if ($r.Status -ne 200) { throw "Authentification impossible : verifier -Username / -Password (ou `$env:ADMIN_PASSWORD) et que le seed a ete lance." }
     $script:Token = $r.Json.token
-    Check '  CA-1 token_type = Bearer' ($r.Json.token_type -eq 'Bearer') $r.Raw 'le hub renvoie tokenType en camelCase (reply.send(token)) ; la spec ecrit token_type'
-    Check '  CA-1 expires_in numerique' (($r.Json.expires_in -is [int]) -or ($r.Json.expires_in -is [long])) $r.Raw 'le hub renvoie expiresIn en camelCase ; la spec ecrit expires_in'
+    Check '  CA-1 token_type = Bearer' ($r.Json.token_type -eq 'Bearer') $r.Raw
+    Check '  CA-1 expires_in numerique' (($r.Json.expires_in -is [int]) -or ($r.Json.expires_in -is [long])) $r.Raw
     $payload = $script:Token.Split('.')[1].Replace('-', '+').Replace('_', '/')
     while ($payload.Length % 4) { $payload += '=' }
     $claims = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)) | ConvertFrom-Json
