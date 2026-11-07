@@ -7,7 +7,7 @@ import { ThemeRepository } from "./theme-repository.interface";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { Pagination } from "../common/pagination.interface";
-import { ThemeNotFoundError } from "./theme-not-found-error";
+import { NotFoundError } from "../common/not-found-error";
 import { ThemeHasQuestionsError } from "./theme-has-questions-error";
 
 let clock: Clock;
@@ -175,9 +175,9 @@ describe("US-004/CA-20 - Update a theme name", () => {
         expect(updated_theme.name).toBe(updated_name);
         expect(updated_theme.last_updated_at).toBe(update_date);
     });
-    it("should throw a ThemeNotFoundError", () => {
+    it("should throw a NotFoundError", () => {
         themeRepository.getById = vi.fn().mockReturnValue(undefined);
-        expect(() => { defaultThemeService.updateTheme(theme.id, updated_name) }).toThrow(ThemeNotFoundError);
+        expect(() => { defaultThemeService.updateTheme(theme.id, updated_name) }).toThrow(NotFoundError);
     });
 });
 
@@ -257,7 +257,7 @@ describe("US-004/CA-28 - Delete a theme without associated questions", () => {
 describe("US-004/CA-29 - Delete a theme with inexisting id", () => {
     it("should return a NotFoundError", () => {
         themeRepository.getById = vi.fn().mockReturnValue(undefined);
-        expect(() => defaultThemeService.deleteTheme("019d6cdd-30db-7437-ac57-5826c0695222")).toThrow(ThemeNotFoundError);
+        expect(() => defaultThemeService.deleteTheme("019d6cdd-30db-7437-ac57-5826c0695222")).toThrow(NotFoundError);
     });
 });
 

@@ -7,7 +7,7 @@ import { ValidationError } from './validation-error';
 import { ConflictError } from './conflict-error';
 import { UuidValidator } from '../common/uuid-validator.interface';
 import { Pagination } from '../common/pagination.interface';
-import { ThemeNotFoundError } from './theme-not-found-error';
+import { NotFoundError } from '../common/not-found-error';
 import { ThemeHasQuestionsError } from './theme-has-questions-error';
 import { TokenValidator } from '../authentication/token-validator.interface';
 import authenticationMiddleware from '../authentication/authentication-middleware';
@@ -566,7 +566,7 @@ describe("US-004/CA-23 - Id should be the same in body and url", () => {
 
 describe("US-004/CA-25 - Unknown id", () => {
     it("should return a not found error", async () => {
-        mockThemeService.updateTheme = vi.fn().mockImplementation(() => { throw new ThemeNotFoundError(); });
+        mockThemeService.updateTheme = vi.fn().mockImplementation(() => { throw new NotFoundError(); });
         const response = await app.inject({
             method: 'PUT',
             url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
@@ -684,7 +684,7 @@ describe("US-004/CA-28 - Delete route", () => {
 
 describe("US-004/CA-29 - Delete unfound theme", () => {
     it("should return a 404 not found error", async () => {
-        mockThemeService.deleteTheme = vi.fn().mockImplementation(() => { throw new ThemeNotFoundError(); });
+        mockThemeService.deleteTheme = vi.fn().mockImplementation(() => { throw new NotFoundError(); });
         const response = await app.inject({
             method: 'DELETE',
             url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416'
