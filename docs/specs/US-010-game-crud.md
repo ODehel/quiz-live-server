@@ -36,7 +36,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-9a | Chaque nom de participant doit être unique au sein d'une partie | Sinon → `400 VALIDATION_ERROR` avec message "Participant name "X" is not unique." |
 | CA-10 | Les participants sont insérés dans `T_GAME_PARTICIPANT_GPA` avec leur ordre (1-based) | Garanti par la colonne `GPA_ORDER` |
 | CA-11 | Le body ne doit contenir que les champs `quiz_id` et `participants` | Champs inconnus → `400 UNKNOWN_FIELDS` |
-| CA-12 | Le `Content-Type` doit être `application/json` | Sinon → `415 UNSUPPORTED_MEDIA_TYPE` |
+| CA-12 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 | CA-13 | Body non parseable | `400 INVALID_BODY` |
 | CA-14 | `quiz_id` ou `participants` absent du body | `400 VALIDATION_ERROR` avec message explicite |
 
@@ -77,7 +77,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-32 | Le body ne doit contenir que les champs `quiz_id` (optionnel), `status` (optionnel) et `participants` (optionnel) | Champs inconnus → `400 UNKNOWN_FIELDS` |
 | CA-33 | ID inexistant dans l'URL | `404 NOT_FOUND` |
 | CA-34 | ID mal formé dans l'URL | `400 INVALID_UUID` |
-| CA-35 | Le `Content-Type` doit être `application/json` | Sinon → `415 UNSUPPORTED_MEDIA_TYPE` |
+| CA-35 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 
 ### Modification partielle — `PATCH /api/v1/games/:id`
 
@@ -93,7 +93,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-43 | Le body ne doit contenir que les champs `quiz_id` (optionnel), `status` (optionnel) et `participants` (optionnel) | Champs inconnus → `400 UNKNOWN_FIELDS` |
 | CA-44 | ID inexistant dans l'URL | `404 NOT_FOUND` |
 | CA-45 | ID mal formé dans l'URL | `400 INVALID_UUID` |
-| CA-46 | Le `Content-Type` doit être `application/json` | Sinon → `415 UNSUPPORTED_MEDIA_TYPE` |
+| CA-46 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 
 ### Démarrage — `POST /api/v1/games/:id/start`
 

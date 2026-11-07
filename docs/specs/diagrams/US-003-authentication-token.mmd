@@ -6,7 +6,7 @@ flowchart TD
         RL{"> 5 req/min\npar IP ?"}
         RL -->|"Oui"| E429["429 RATE_LIMIT_EXCEEDED\nRetry-After: 60"]
         RL -->|"Non"| CT{"Content-Type\n= application/json ?"}
-        CT -->|"Non"| E415["415 UNSUPPORTED_MEDIA_TYPE"]
+        CT -->|"Non"| E415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         CT -->|"Oui"| J{"Body JSON\nvalide ?"}
         J -->|"Non"| E400a["400 INVALID_JSON"]
         J -->|"Oui"| UF{"Champs inconnus\ndans le body ?"}

@@ -18,7 +18,7 @@ flowchart TD
     subgraph POST["➕ Création — POST /api/v1/quizzes"]
         direction TB
         POST_CT{"Content-Type\n= application/json ?"}
-        POST_CT -->|"Non"| PE415["415 UNSUPPORTED_MEDIA_TYPE"]
+        POST_CT -->|"Non"| PE415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         POST_CT -->|"Oui"| POST_JSON{"JSON valide ?"}
         POST_JSON -->|"Non"| PE400a["400 INVALID_BODY"]
         POST_JSON -->|"Oui"| POST_UF{"Champs inconnus ?\n(hors name et question_ids)"}
@@ -56,7 +56,7 @@ flowchart TD
         PUT_ID -->|"Oui"| PUT_FIND{"Quiz trouvé ?"}
         PUT_FIND -->|"Non"| PUTE404["404 NOT_FOUND"]
         PUT_FIND -->|"Oui"| PUT_CT{"Content-Type\n= application/json ?"}
-        PUT_CT -->|"Non"| PUTE415["415 UNSUPPORTED_MEDIA_TYPE"]
+        PUT_CT -->|"Non"| PUTE415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         PUT_CT -->|"Oui"| PUT_IDM{"id présent dans body\net ≠ id URL ?"}
         PUT_IDM -->|"Oui"| PUTE400b["400 ID_MISMATCH"]
         PUT_IDM -->|"Non"| PUT_VALID["Appliquer toutes les règles\nde validation du POST\n(nom, question_ids, doublons,\nUUID, existence des questions)"]

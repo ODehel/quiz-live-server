@@ -24,7 +24,7 @@ Codes communs à **toutes les US**, appliquées globalement par le serveur :
 | `FORBIDDEN` | `403` | `"You do not have permission to perform this action."` | Rôle insuffisant ou permission manquante |
 | `NOT_FOUND` | `404` | `"The requested <resource> was not found."` | Ressource inexistante (dynamique selon le contexte) |
 | `METHOD_NOT_ALLOWED` | `405` | `"HTTP method <METHOD> is not allowed on this resource."` | Méthode HTTP non supportée (message dynamique) |
-| `UNSUPPORTED_MEDIA_TYPE` | `415` | `"Content-Type must be 'application/json'."` | Content-Type incorrect |
+| `FST_ERR_CTP_INVALID_MEDIA_TYPE` | `415` | `"Unsupported Media Type"` | Content-Type incorrect. Corps natif de Fastify, non personnalisé (décision #11) : `{ "code": "FST_ERR_CTP_INVALID_MEDIA_TYPE", "error": "Unsupported Media Type", "message": "Unsupported Media Type", "statusCode": 415 }` |
 | `RATE_LIMIT_EXCEEDED` | `429` | `"Too many requests. Please retry in 60 seconds."` | Dépassement du rate limit (header `Retry-After: 60`) |
 | `INTERNAL_SERVER_ERROR` | `500` | `"An unexpected error occurred. Please try again later."` | Erreur serveur (aucun détail technique exposé). Inclut un champ `correlation_id` (UUIDv7) pour traçabilité — voir US-022 CA-19 |
 
@@ -248,7 +248,7 @@ Pour une vue d'ensemble rapide, voici tous les codes documentés :
 | `QUIZ_NOT_FOUND` | 404 | US-010 | Game |
 | `PARTICIPANT_NOT_FOUND` | 404 | US-010 | Game |
 | `METHOD_NOT_ALLOWED` | 405 | Toutes | Standard |
-| `UNSUPPORTED_MEDIA_TYPE` | 415 | Toutes | Standard |
+| `FST_ERR_CTP_INVALID_MEDIA_TYPE` | 415 | Toutes | Standard (corps natif de Fastify) |
 | `RATE_LIMIT_EXCEEDED` | 429 | Toutes | Standard |
 | `THEME_ALREADY_EXISTS` | 409 | US-004 | Theme |
 | `THEME_HAS_QUESTIONS` | 409 | US-004 | Theme |

@@ -19,7 +19,7 @@ flowchart TD
     subgraph POST["➕ Création — POST /api/v1/themes"]
         direction TB
         POST_CT{"Content-Type\n= application/json ?"}
-        POST_CT -->|"Non"| PE415["415 UNSUPPORTED_MEDIA_TYPE"]
+        POST_CT -->|"Non"| PE415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         POST_CT -->|"Oui"| POST_JSON{"JSON valide ?"}
         POST_JSON -->|"Non"| PE400a["400 INVALID_JSON"]
         POST_JSON -->|"Oui"| POST_UF{"Champs inconnus\n(hors name) ?"}
@@ -57,7 +57,7 @@ flowchart TD
         PUT_ID -->|"Oui"| PUT_FIND{"Thème trouvé ?"}
         PUT_FIND -->|"Non"| PUE404["404 NOT_FOUND"]
         PUT_FIND -->|"Oui"| PUT_CT{"Content-Type\n= application/json ?"}
-        PUT_CT -->|"Non"| PUE415["415 UNSUPPORTED_MEDIA_TYPE"]
+        PUT_CT -->|"Non"| PUE415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         PUT_CT -->|"Oui"| PUT_JSON{"JSON valide ?"}
         PUT_JSON -->|"Non"| PUE400b["400 INVALID_JSON"]
         PUT_JSON -->|"Oui"| PUT_UF{"Champs inconnus ?\n(seuls name et id acceptés)"}

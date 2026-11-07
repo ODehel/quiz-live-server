@@ -19,7 +19,7 @@ flowchart TD
     subgraph POST["➕ Création — POST /api/v1/questions"]
         direction TB
         POST_CT{"Content-Type\n= application/json ?"}
-        POST_CT -->|"Non"| PE415["415 UNSUPPORTED_MEDIA_TYPE"]
+        POST_CT -->|"Non"| PE415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         POST_CT -->|"Oui"| POST_JSON{"JSON valide ?"}
         POST_JSON -->|"Non"| PE400a["400 INVALID_JSON"]
         POST_JSON -->|"Oui"| POST_TYPE{"type = MCQ\nou SPEED ?"}
@@ -56,7 +56,7 @@ flowchart TD
         PUT_ID -->|"Oui"| PUT_FIND{"Question trouvée ?"}
         PUT_FIND -->|"Non"| PUTE404["404 NOT_FOUND"]
         PUT_FIND -->|"Oui"| PUT_CT{"Content-Type\n= application/json ?"}
-        PUT_CT -->|"Non"| PUTE415["415 UNSUPPORTED_MEDIA_TYPE"]
+        PUT_CT -->|"Non"| PUTE415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         PUT_CT -->|"Oui"| PUT_VALID["Valider type, idMismatch,\ntitre, choices, correct_answer,\nlevel, time_limit, points"]
         PUT_VALID -->|"Invalide"| PUTE400b["400 VALIDATION_ERROR\nou TYPE_CHANGE_NOT_ALLOWED\nou ID_MISMATCH\nou 409 QUESTION_ALREADY_EXISTS"]
         PUT_VALID -->|"Valide"| PUT_SAME{"Données identiques\nà l'existant ?"}

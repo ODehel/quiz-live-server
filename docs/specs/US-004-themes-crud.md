@@ -31,7 +31,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-5 | L'ID est un UUIDv7 généré côté Node.js | Format UUID standard (8-4-4-4-12) |
 | CA-6 | Les horodatages sont en ISO 8601 UTC, générés côté Node.js | `created_at` rempli, `last_updated_at` à `null` |
 | CA-7 | Le body ne doit contenir que le champ `name` | Champs inconnus → `400 UNKNOWN_FIELDS` |
-| CA-8 | Le `Content-Type` doit être `application/json` | Sinon → `415 UNSUPPORTED_MEDIA_TYPE` |
+| CA-8 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 
 ### Lecture d'un thème — `GET /api/v1/themes/:id`
 
@@ -66,7 +66,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-23 | L'ID peut être présent dans le body ; s'il l'est, il doit correspondre à l'URL | Sinon → `400 ID_MISMATCH` |
 | CA-24 | Le nom est déjà pris par un autre thème | `409 THEME_ALREADY_EXISTS` |
 | CA-25 | ID inexistant | `404 NOT_FOUND` |
-| CA-26 | Le `Content-Type` doit être `application/json` | Sinon → `415 UNSUPPORTED_MEDIA_TYPE` |
+| CA-26 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 | CA-27 | Le body ne doit contenir que les champs `name` (et optionnellement `id`) | Champs inconnus → `400 UNKNOWN_FIELDS` |
 
 ### Suppression — `DELETE /api/v1/themes/:id`
@@ -167,7 +167,7 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/themes" \
   -d '{"name": "Sport", "couleur": "rouge"}'
 ```
 
-**CA-8** — Content-Type incorrect → `415 UNSUPPORTED_MEDIA_TYPE`
+**CA-8** — Content-Type incorrect → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`
 
 ```bash
 curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/themes" \

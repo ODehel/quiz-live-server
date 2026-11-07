@@ -30,7 +30,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-4 | La durée de validité du token est de 1 heure par défaut | Configurable via la variable d'environnement `JWT_EXPIRATION` (en secondes) |
 | CA-5 | L'endpoint n'est pas protégé par un Bearer token | Accessible sans authentification préalable |
 | CA-6 | Le body ne doit contenir que les champs `username` et `password` | Champs inconnus → `400 UNKNOWN_FIELDS` |
-| CA-7 | Le `Content-Type` doit être `application/json` | Sinon → `415 UNSUPPORTED_MEDIA_TYPE` |
+| CA-7 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 
 ### Gestion des erreurs d'authentification
 

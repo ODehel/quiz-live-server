@@ -288,7 +288,7 @@ try {
 
     $r = Invoke-Api -Method POST -Path '/api/v1/themes' -Body (NameBody (N 'Xml')) -ContentType 'application/xml' -Token $script:Token
     Check 'CA-8 Content-Type application/xml -> 415' ($r.Status -eq 415) "$($r.Status) $($r.Raw)"
-    Check '  CA-8 corps : UNSUPPORTED_MEDIA_TYPE' ($r.Raw -match 'UNSUPPORTED_MEDIA_TYPE') $r.Raw 'corps natif de Fastify (FST_ERR_CTP_INVALID_MEDIA_TYPE)'
+    Check '  CA-8 corps : FST_ERR_CTP_INVALID_MEDIA_TYPE (corps natif de Fastify, decision #11)' ($r.Json.code -eq 'FST_ERR_CTP_INVALID_MEDIA_TYPE') $r.Raw
     $r = Invoke-Api -Method POST -Path '/api/v1/themes' -Body (NameBody (N 'Form')) -ContentType 'application/x-www-form-urlencoded' -Token $script:Token
     Check 'CA-8 Content-Type x-www-form-urlencoded -> 415' ($r.Status -eq 415) "$($r.Status) $($r.Raw)"
     $r = Invoke-Api -Method POST -Path '/api/v1/themes' -Body (NameBody (N 'Texte')) -ContentType 'text/plain' -Token $script:Token
