@@ -880,3 +880,31 @@ describe("US-005/CA-33 - When the service updates an MCQ question with valid fie
         expect(questionRepository.update).toHaveBeenCalledWith(expected);
     });
 });
+
+describe("US-005/CA-40 - When the service is asked to update a question by an unknown id", () => {
+    const id = "018e4f5a-0000-0000-0000-000000000000";
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Question inexistante à modifier ?",
+        choices: ["Oui", "Non", "Peut-être", "Jamais"],
+        correct_answer: "Oui",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+
+    beforeEach(() => {
+        questionRepository.getById = vi.fn().mockReturnValue(undefined);
+    });
+
+    it("should reject with a NotFoundError", () => {
+        expect(() => defaultQuestionService.updateQuestion(id, input)).toThrow(NotFoundError);
+    });
+
+    it("should not ask the repository to update anything", () => {
+        expect(() => defaultQuestionService.updateQuestion(id, input)).toThrow();
+
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+});

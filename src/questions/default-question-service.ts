@@ -86,7 +86,7 @@ export class DefaultQuestionService implements QuestionService {
     }
 
     updateQuestion(id: string, input: CreateMcqInput): Question {
-        const existing = this.questionRepository.getById(id)!;
+        const existing = this.getExistingQuestion(id);
 
         const updated: Question = {
             ...existing,
@@ -107,13 +107,7 @@ export class DefaultQuestionService implements QuestionService {
     }
 
     getQuestionById(id: string): Question {
-        const question = this.questionRepository.getById(id);
-
-        if (question === undefined) {
-            throw new NotFoundError();
-        }
-
-        return question;
+        return this.getExistingQuestion(id);
     }
 
     getAll(page: number, limit: number): Pagination<Question> {
@@ -123,11 +117,19 @@ export class DefaultQuestionService implements QuestionService {
     }
 
     deleteQuestion(id: string): void {
-        if (this.questionRepository.getById(id) === undefined) {
+        this.getExistingQuestion(id);
+
+        this.questionRepository.delete(id);
+    }
+
+    private getExistingQuestion(id: string): Question {
+        const question = this.questionRepository.getById(id);
+
+        if (question === undefined) {
             throw new NotFoundError();
         }
 
-        this.questionRepository.delete(id);
+        return question;
     }
 
     private normalizeTitle(title: string): string {
