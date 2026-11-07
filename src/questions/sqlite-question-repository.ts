@@ -47,6 +47,10 @@ export class SqliteQuestionRepository implements QuestionRepository {
         return this.rowToQuestion(row);
     }
 
+    delete(id: string): void {
+        this.db.prepare("DELETE FROM T_QUESTION_QST WHERE QST_ID = ?").run(id);
+    }
+
     getById(id: string): Question | undefined {
         const row = this.db.prepare(`${SqliteQuestionRepository.selectFrom} WHERE QST_ID = ?`).get(id) as QuestionRow | undefined;
 

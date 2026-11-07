@@ -7,4 +7,5 @@ export interface QuestionService {
     createQuestion(input: CreateMcqInput | CreateSpeedInput): Question;
     getQuestionById(id: string): Question;
     getAll(page: number, limit: number): Pagination<Question>;
+    deleteQuestion(id: string): void;
 }

@@ -20,6 +20,8 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
 
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 
+    const uuidValidator = new UuidFormatValidator();
+
     const ajv = new Ajv({ allErrors: true });
     app.setValidatorCompiler(({ schema }) => ajv.compile(schema));
 
@@ -83,7 +85,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
 
         const input = request.body as CreateMcqInput | CreateSpeedInput;
 
-        if (!new UuidFormatValidator().validate(input.theme_id)) {
+        if (!uuidValidator.validate(input.theme_id)) {
             sendInvalidUuid(reply);
             return;
         }
@@ -99,7 +101,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     app.get('/api/v1/questions/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
 
-        if (!new UuidFormatValidator().validate(id)) {
+        if (!uuidValidator.validate(id)) {
             sendInvalidUuid(reply);
             return;
         }
@@ -123,6 +125,22 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         try {
             const pagination = questionService.getAll(Number(page), Number(limit));
             reply.status(200).send(pagination);
+        } catch (error) {
+            sendError(error, reply);
+        }
+    });
+
+    app.delete('/api/v1/questions/:id', async (request, reply) => {
+        const { id } = request.params as { id: string };
+
+        if (!uuidValidator.validate(id)) {
+            sendInvalidUuid(reply);
+            return;
+        }
+
+        try {
+            questionService.deleteQuestion(id);
+            reply.status(204).send();
         } catch (error) {
             sendError(error, reply);
         }

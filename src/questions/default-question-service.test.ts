@@ -27,7 +27,8 @@ beforeEach(() => {
         getByTitle: vi.fn(),
         getById: vi.fn(),
         getAll: vi.fn(),
-        count: vi.fn()
+        count: vi.fn(),
+        delete: vi.fn()
     };
     themeExistenceChecker = { exists: vi.fn().mockReturnValue(true) };
     defaultQuestionService = new DefaultQuestionService(
@@ -685,6 +686,35 @@ describe("US-005/CA-23 - When the service is asked for a question by an unknown 
         questionRepository.getById = vi.fn().mockReturnValue(undefined);
 
         expect(() => defaultQuestionService.getQuestionById(id)).toThrow(NotFoundError);
+    });
+});
+
+describe("US-005/CA-44 - When the service is asked to delete an existing question", () => {
+    it("should ask the repository to delete it", () => {
+        const id = "019d6cdd-30db-7437-ac57-5826c0695222";
+        questionRepository.getById = vi.fn().mockReturnValue({ id: id, type: "SPEED" });
+
+        defaultQuestionService.deleteQuestion(id);
+
+        expect(questionRepository.delete).toHaveBeenCalledWith(id);
+    });
+});
+
+describe("US-005/CA-45 - When the service is asked to delete a question by an unknown id", () => {
+    const id = "018e4f5a-0000-0000-0000-000000000000";
+
+    beforeEach(() => {
+        questionRepository.getById = vi.fn().mockReturnValue(undefined);
+    });
+
+    it("should reject with a NotFoundError", () => {
+        expect(() => defaultQuestionService.deleteQuestion(id)).toThrow(NotFoundError);
+    });
+
+    it("should not ask the repository to delete anything", () => {
+        expect(() => defaultQuestionService.deleteQuestion(id)).toThrow();
+
+        expect(questionRepository.delete).not.toHaveBeenCalled();
     });
 });
 

@@ -101,6 +101,14 @@ export class DefaultQuestionService implements QuestionService {
         return buildPagination(questions, page, limit, total);
     }
 
+    deleteQuestion(id: string): void {
+        if (this.questionRepository.getById(id) === undefined) {
+            throw new NotFoundError();
+        }
+
+        this.questionRepository.delete(id);
+    }
+
     private normalizeTitle(title: string): string {
         return title.trim().replace(/ +/g, " ");
     }
