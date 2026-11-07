@@ -1,12 +1,18 @@
 import Ajv from "ajv";
 import { FastifyInstance } from "fastify";
-import { INVALID_CREDENTIALS } from "../common/error-codes";
+import { INVALID_CREDENTIALS, VALIDATION_ERROR } from "../common/error-codes";
 import { TokenRouteConfiguration } from "./token-route-configuration.interface";
 
 interface SchemaViolation {
     keyword: string;
-    params: { additionalProperty?: string };
+    instancePath: string;
+    params: { additionalProperty?: string; missingProperty?: string };
 }
+
+const requiredFields = [
+    { name: 'username', message: 'Username is required.' },
+    { name: 'password', message: 'Password is required.' }
+];
 
 export default async function tokenRoute(app: FastifyInstance, options: TokenRouteConfiguration) {
     const { authenticationService, tokenGenerator, rateLimitMiddleware } = options;
@@ -38,6 +44,16 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
                     status: 400,
                     error: 'UNKNOWN_FIELDS',
                     message: `Unknown field(s): ${unknownFields.join(', ')}.`
+                });
+            }
+            const missingField = requiredFields.find(({ name }) => violations.some(v =>
+                (v.keyword === 'required' && v.params.missingProperty === name)
+                || (v.keyword === 'minLength' && v.instancePath === `/${name}`)));
+            if (missingField) {
+                return reply.status(400).send({
+                    status: 400,
+                    error: VALIDATION_ERROR,
+                    message: missingField.message
                 });
             }
             return reply.send(request.validationError);

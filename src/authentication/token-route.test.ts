@@ -130,6 +130,27 @@ describe('US-003/CA-09: Without username', () => {
         expect(response.statusCode).toBe(400)
     });
 
+    it('should return the standard error body VALIDATION_ERROR naming the username', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: 'user-password' })
+        })
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Username is required.' });
+    });
+
+    it('should return the same VALIDATION_ERROR when the username is empty', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: '', password: 'user-password' })
+        })
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Username is required.' });
+    });
+
     it('should not authenticate', async () => {
         await app.inject({
             method: 'POST',
@@ -150,6 +171,27 @@ describe('US-003/CA-10: Without password', () => {
             body: JSON.stringify({ username: 'User Name' })
         })
         expect(response.statusCode).toBe(400)
+    });
+
+    it('should return the standard error body VALIDATION_ERROR naming the password', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'User Name' })
+        })
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Password is required.' });
+    });
+
+    it('should return the same VALIDATION_ERROR when the password is empty', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'User Name', password: '' })
+        })
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Password is required.' });
     });
 
     it('should not authenticate', async () => {
