@@ -38,7 +38,8 @@ beforeEach(() => {
             last_updated_at: null
         }),
         getQuestionById: vi.fn(),
-        getAll: vi.fn()
+        getAll: vi.fn(),
+        deleteQuestion: vi.fn()
     };
     mockTokenValidator = { validateToken: vi.fn(), inspectToken: vi.fn() };
     mockTokenDecoder = { decode: vi.fn() };
@@ -976,6 +977,49 @@ describe('US-005/CA-54 - Hide technical details of an unexpected error on GET /:
             error: 'INTERNAL_SERVER_ERROR',
             message: 'An unexpected error occurred. Please try again later.'
         });
+    });
+});
+
+describe('US-005/CA-44 - Delete an existing question', () => {
+    it('should ask the service to delete the question and reply 204 without a body', async () => {
+        const id = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+
+        const response = await app.inject({ method: 'DELETE', url: `/api/v1/questions/${id}` });
+
+        expect(mockQuestionService.deleteQuestion).toHaveBeenCalledWith(id);
+        expect(response.statusCode).toBe(204);
+        expect(response.body).toBe('');
+    });
+});
+
+describe('US-005/CA-45 - Delete a question by an unknown id', () => {
+    it('should reply 404 NOT_FOUND with the standard error body', async () => {
+        mockQuestionService.deleteQuestion = vi.fn(() => {
+            throw new NotFoundError();
+        });
+
+        const response = await app.inject({ method: 'DELETE', url: '/api/v1/questions/018e4f5a-0000-0000-0000-000000000000' });
+
+        expect(response.statusCode).toBe(404);
+        expect(response.json()).toEqual({
+            status: 404,
+            error: 'NOT_FOUND',
+            message: 'The requested question was not found.'
+        });
+    });
+});
+
+describe('US-005/CA-46 - Delete a question by a malformed id', () => {
+    it('should reply 400 INVALID_UUID with the standard error body without calling the service', async () => {
+        const response = await app.inject({ method: 'DELETE', url: '/api/v1/questions/not-a-valid-uuid' });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_UUID',
+            message: 'The provided ID is not a valid UUID.'
+        });
+        expect(mockQuestionService.deleteQuestion).not.toHaveBeenCalled();
     });
 });
 

@@ -303,3 +303,26 @@ describe("US-005/CA-32 - SqliteQuestionRepository lists an empty store", () => {
         expect(total).toBe(0);
     });
 });
+
+describe("US-005/CA-44 - SqliteQuestionRepository deletes a question", () => {
+    it("should no longer find the deleted question by its id", () => {
+        // Arrange
+        repository.insert(speedQuestion);
+        // Act
+        repository.delete(speedQuestion.id);
+        // Assert
+        expect(repository.getById(speedQuestion.id)).toBeUndefined();
+    });
+
+    it("should keep the other stored questions", () => {
+        // Arrange
+        const otherQuestion: Question = { ...speedQuestion, id: "019d6c17-1c08-7161-9358-fe4a116fa389", title: "Quelle est la capitale de l'Italie" };
+        repository.insert(speedQuestion);
+        repository.insert(otherQuestion);
+        // Act
+        repository.delete(speedQuestion.id);
+        // Assert
+        expect(repository.getById(otherQuestion.id)?.title).toBe(otherQuestion.title);
+        expect(repository.count()).toBe(1);
+    });
+});
