@@ -340,3 +340,62 @@ describe('US-004/CA-14 - The theme list is ordered most recent first on the asse
 		database.close()
 	});
 });
+
+const unknownThemeId = '019d92d2-e1f6-7d05-9803-3948dbc4c416'
+const unknownThemeBody = { status: 404, error: 'NOT_FOUND', message: 'The requested theme was not found.' }
+
+// Vrai service, vrai repository SQLite : seule l'authentification, la validation d'UUID et le rate limit sont neutralisés.
+const assembledServerWithRealThemeService = (database: Database): QuizServer => {
+	const themeRouteConfiguration: ThemeRouteConfiguration = {
+		themeService: new DefaultThemeService(mockClock, { generate: vi.fn() }, new SqliteThemeRepository(database)),
+		uuidValidator: { validate: () => true },
+		tokenValidator: mockTokenValidator,
+		tokenDecoder: mockTokenDecoder,
+		middleware: mockMiddleware,
+		rateLimitMiddleware: mockRateLimitMiddleware
+	}
+	return new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, themeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+}
+
+describe('US-004/CA-25 - An unknown theme answers 404 on PUT on the assembled server', () => {
+	let database: Database
+	let server: QuizServer
+	beforeEach(() => {
+		database = new SqliteDatabase(':memory:')
+		server = assembledServerWithRealThemeService(database)
+	})
+	it('answers 404 NOT_FOUND with the standard body', async () => {
+		await server.start()
+		const response = await server.inject({
+			method: 'PUT',
+			url: `/api/v1/themes/${unknownThemeId}`,
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ name: 'Inexistant' })
+		})
+		expect(response.statusCode).toBe(404)
+		expect(response.json()).toEqual(unknownThemeBody)
+	})
+	afterEach(async () => {
+		await server.stop()
+		database.close()
+	});
+});
+
+describe('US-004/CA-29 - An unknown theme answers 404 on DELETE on the assembled server', () => {
+	let database: Database
+	let server: QuizServer
+	beforeEach(() => {
+		database = new SqliteDatabase(':memory:')
+		server = assembledServerWithRealThemeService(database)
+	})
+	it('answers 404 NOT_FOUND with the standard body', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'DELETE', url: `/api/v1/themes/${unknownThemeId}` })
+		expect(response.statusCode).toBe(404)
+		expect(response.json()).toEqual(unknownThemeBody)
+	})
+	afterEach(async () => {
+		await server.stop()
+		database.close()
+	});
+});
