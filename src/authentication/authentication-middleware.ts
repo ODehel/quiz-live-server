@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { TokenValidator } from "./token-validator.interface";
 import { TokenDecoder } from "./token-decoder.interface";
 import { UserRole } from "../users/user-role";
-import { UNAUTHORIZED } from "../common/error-codes";
+import { FORBIDDEN, UNAUTHORIZED } from "../common/error-codes";
 import { sendErrorBody } from "../common/send-error-body";
 
 export default function authenticationMiddleware(app: FastifyInstance, options: { tokenValidator: TokenValidator, tokenDecoder: TokenDecoder }) {
@@ -18,7 +18,11 @@ export default function authenticationMiddleware(app: FastifyInstance, options: 
         } else {
             const decodedToken = tokenDecoder.decode(token);
             if (!decodedToken || decodedToken.role !== UserRole.ADMIN) {
-                reply.status(403).send();
+                sendErrorBody(reply, {
+                    status: 403,
+                    error: FORBIDDEN,
+                    message: 'You do not have permission to perform this action.'
+                });
             }
         }
     });

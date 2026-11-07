@@ -11,6 +11,12 @@ const unauthorizedBody = {
     message: 'Authentication token is missing or invalid.'
 };
 
+const forbiddenBody = {
+    status: 403,
+    error: 'FORBIDDEN',
+    message: 'You do not have permission to perform this action.'
+};
+
 describe("US-004/CA-32 - Test of the middleware", () => {
     let mockTokenValidator: TokenValidator;
     let mockTokenDecoder: TokenDecoder;
@@ -134,5 +140,49 @@ describe("US-004/CA-33 - Valid token but wrong role", () => {
             headers: { 'Authorization': 'Bearer blabla' }
         })
         expect(response.statusCode).toBe(403);
+    });
+    it("should answer with the standard FORBIDDEN error body", async() => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes',
+            headers: { 'Authorization': 'Bearer blabla' }
+        })
+        expect(response.json()).toEqual(forbiddenBody);
+    });
+});
+
+describe("US-004/CA-33 - Valid token that cannot be decoded", () => {
+    let mockTokenValidator: TokenValidator;
+    let mockTokenDecoder: TokenDecoder;
+    let app: FastifyInstance;
+    beforeEach(() => {
+        mockTokenValidator = {
+            validateToken: vi.fn().mockReturnValue(true),
+            inspectToken: vi.fn()
+        };
+        mockTokenDecoder = {
+            decode: vi.fn().mockReturnValue(undefined)
+        };
+        app = Fastify();
+        authenticationMiddleware(app, { tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder });
+        app.get("/api/v1/themes", () => {
+            return { status: 'Undecodable token' };
+        });
+    });
+    it("should return a HTML 403", async() => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes',
+            headers: { 'Authorization': 'Bearer blabla' }
+        })
+        expect(response.statusCode).toBe(403);
+    });
+    it("should answer with the standard FORBIDDEN error body", async() => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes',
+            headers: { 'Authorization': 'Bearer blabla' }
+        })
+        expect(response.json()).toEqual(forbiddenBody);
     });
 });
