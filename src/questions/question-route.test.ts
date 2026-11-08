@@ -1534,3 +1534,49 @@ describe('US-005/CA-39 - Update a question with the title of another question', 
         });
     });
 });
+
+describe('US-005/CA-41 - Write a question with a content type that is not JSON', () => {
+    const unsupportedMediaType = { code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 };
+    const validBody = JSON.stringify({
+        type: 'MCQ',
+        theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+        title: 'Quelle est la capitale de la France ?',
+        choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+        correct_answer: 'Paris',
+        level: 1,
+        time_limit: 30,
+        points: 10
+    });
+
+    it.each([
+        ['a plain text body', 'text/plain'],
+        ['an XML body', 'application/xml']
+    ])('should reply 415 and not create the question for %s', async (_label, contentType) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': contentType },
+            body: validBody
+        });
+
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual(unsupportedMediaType);
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['a plain text body', 'text/plain'],
+        ['an XML body', 'application/xml']
+    ])('should reply 415 and not update the question for %s', async (_label, contentType) => {
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'Content-Type': contentType },
+            body: validBody
+        });
+
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual(unsupportedMediaType);
+        expect(mockQuestionService.updateQuestion).not.toHaveBeenCalled();
+    });
+});

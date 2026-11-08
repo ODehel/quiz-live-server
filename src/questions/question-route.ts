@@ -21,6 +21,8 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
 
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 
+    app.removeContentTypeParser('text/plain');
+
     const uuidValidator = new UuidFormatValidator();
 
     const ajv = new Ajv({ allErrors: true });
@@ -150,9 +152,11 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     });
 
     app.register((instance) => {
-        instance.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, _body, done) => {
-            done(null, null);
-        });
+        for (const contentType of ['application/json', 'text/plain']) {
+            instance.addContentTypeParser(contentType, { parseAs: 'string' }, (_req, _body, done) => {
+                done(null, null);
+            });
+        }
         instance.delete('/api/v1/questions/:id', async (request, reply) => {
             const { id } = request.params as { id: string };
 
