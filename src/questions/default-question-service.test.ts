@@ -1113,6 +1113,48 @@ describe("US-005/CA-39 - When the service updates a question with the title of a
     });
 });
 
+describe("US-005/CA-39 - When the service updates a SPEED question with the title of another question", () => {
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695231",
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 2,
+        time_limit: 20,
+        points: 15,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const otherQuestion: Question = {
+        ...storedQuestion,
+        id: "019d6cdd-30db-7437-ac57-5826c0695232",
+        title: "Quel est le plus long fleuve du monde ?",
+        correct_answer: "Nil",
+    };
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: storedQuestion.theme_id,
+        title: otherQuestion.title,
+        correct_answer: "Nil",
+        level: 2,
+        time_limit: 20,
+        points: 15,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+        vi.mocked(questionRepository.getByTitle).mockReturnValue(otherQuestion);
+    });
+
+    it("should reject with a ConflictError and not ask the repository to update anything", () => {
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow(ConflictError);
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+});
+
 describe("US-005/CA-39 - When the service updates a question and keeps its own title", () => {
     const storedQuestion: Question = {
         id: "019d6cdd-30db-7437-ac57-5826c0695230",
