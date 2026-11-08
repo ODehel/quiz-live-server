@@ -26,9 +26,7 @@ export class DefaultQuestionService implements QuestionService {
     }
 
     createQuestion(input: CreateQuestionInput): Question {
-        if (input.type !== "MCQ" && input.type !== "SPEED") {
-            throw new ValidationError("Question type must be MCQ or SPEED.");
-        }
+        this.rejectInvalidType(input);
 
         this.rejectChoicesOnSpeed(input);
 
@@ -85,6 +83,8 @@ export class DefaultQuestionService implements QuestionService {
     }
 
     updateQuestion(id: string, input: CreateQuestionInput): Question {
+        this.rejectInvalidType(input);
+
         const existing = this.getExistingQuestion(id);
 
         if (input.type !== existing.type) {
@@ -143,6 +143,12 @@ export class DefaultQuestionService implements QuestionService {
         }
 
         return question;
+    }
+
+    private rejectInvalidType(input: CreateQuestionInput): void {
+        if (input.type !== "MCQ" && input.type !== "SPEED") {
+            throw new ValidationError("Question type must be MCQ or SPEED.");
+        }
     }
 
     private rejectChoicesOnSpeed(input: CreateQuestionInput): void {

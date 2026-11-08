@@ -1068,6 +1068,55 @@ describe("US-005/CA-36 - When the service updates an MCQ question with a SPEED b
     });
 });
 
+describe("US-005/CA-43 - When the service updates a question with a type that is absent or not MCQ or SPEED", () => {
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695229",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale du Portugal ?",
+        choices: ["Lisbonne", "Porto", "Faro", "Braga"],
+        correct_answer: "Lisbonne",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const bodyWithoutType = {
+        theme_id: storedQuestion.theme_id,
+        title: storedQuestion.title,
+        choices: ["Lisbonne", "Porto", "Faro", "Braga"],
+        correct_answer: "Lisbonne",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+    });
+
+    it.each([
+        ["absent", bodyWithoutType],
+        ["FOO", { ...bodyWithoutType, type: "FOO" }],
+    ])("should reject a type %s with a ValidationError and not ask the repository to update anything", (_label, body) => {
+        const input = body as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow(ValidationError);
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow("Question type must be MCQ or SPEED.");
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("should report the invalid type before looking for the question", () => {
+        vi.mocked(questionRepository.getById).mockReturnValue(undefined);
+        const input = { ...bodyWithoutType, type: "FOO" } as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow(ValidationError);
+    });
+});
+
 describe("US-005/CA-39 - When the service updates a question with the title of another question", () => {
     const storedQuestion: Question = {
         id: "019d6cdd-30db-7437-ac57-5826c0695228",
