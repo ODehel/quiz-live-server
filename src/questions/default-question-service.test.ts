@@ -10,6 +10,7 @@ import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { InvalidThemeError } from "./invalid-theme-error";
 import { TypeChangeNotAllowedError } from "./type-change-not-allowed-error";
+import { UnknownFieldsError } from "./unknown-fields-error";
 import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
 import { NotFoundError } from "../common/not-found-error";
 import { Pagination } from "../common/pagination.interface";
@@ -1112,6 +1113,71 @@ describe("US-005/CA-43 - When the service updates a question with a type that is
     it("should report the invalid type before looking for the question", () => {
         vi.mocked(questionRepository.getById).mockReturnValue(undefined);
         const input = { ...bodyWithoutType, type: "FOO" } as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow(ValidationError);
+    });
+});
+
+describe("US-005/CA-42 - When the service updates a question with a body carrying fields outside the allowed ones", () => {
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695229",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale du Portugal ?",
+        choices: ["Lisbonne", "Porto", "Faro", "Braga"],
+        correct_answer: "Lisbonne",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: "images/portugal.png",
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const validBody: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedQuestion.theme_id,
+        title: "Quelle est la capitale de l'Espagne ?",
+        choices: ["Madrid", "Rome", "Vienne", "Oslo"],
+        correct_answer: "Madrid",
+        level: 4,
+        time_limit: 45,
+        points: 20,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+    });
+
+    it.each(["image_path", "audio_path", "difficulty"])("should reject a body containing %s with an UnknownFieldsError naming it and not ask the repository to update anything", (field) => {
+        const input = { ...validBody, [field]: "/media/portugal" } as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow(UnknownFieldsError);
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow(`Unknown field(s): ${field}.`);
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("should name every unknown field in the order they appear in the body", () => {
+        const input = { ...validBody, difficulty: "hard", hint: "Tage", image_path: "/media/x" } as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow("Unknown field(s): difficulty, hint, image_path.");
+    });
+
+    it("should accept an id in the body", () => {
+        const input = { ...validBody, id: storedQuestion.id } as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).not.toThrow();
+    });
+
+    it("should report the unknown field before looking for the question", () => {
+        vi.mocked(questionRepository.getById).mockReturnValue(undefined);
+        const input = { ...validBody, image_path: "/media/x" } as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow(UnknownFieldsError);
+    });
+
+    it("should report an invalid type before an unknown field", () => {
+        const input = { ...validBody, type: "FOO", image_path: "/media/x" } as unknown as CreateQuestionInput;
 
         expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow(ValidationError);
     });

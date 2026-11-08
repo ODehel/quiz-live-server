@@ -13,11 +13,13 @@ import { QuestionService } from "./question-service.interface";
 import { Question } from "./question.interface";
 import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
 import { TypeChangeNotAllowedError } from "./type-change-not-allowed-error";
+import { UnknownFieldsError } from "./unknown-fields-error";
 import { ValidationError } from "./validation-error";
 
 const CHOICES_COUNT = 4;
 const SHORT_TEXT_MIN_LENGTH = 1;
 const SHORT_TEXT_MAX_LENGTH = 40;
+const UPDATE_ALLOWED_FIELDS = ["id", "type", "theme_id", "title", "correct_answer", "choices", "level", "time_limit", "points"];
 
 export type CreateQuestionInput = CreateMcqInput | CreateSpeedInput;
 
@@ -85,6 +87,8 @@ export class DefaultQuestionService implements QuestionService {
     updateQuestion(id: string, input: CreateQuestionInput): Question {
         this.rejectInvalidType(input);
 
+        this.rejectUnknownFields(input);
+
         const existing = this.getExistingQuestion(id);
 
         if (input.type !== existing.type) {
@@ -148,6 +152,13 @@ export class DefaultQuestionService implements QuestionService {
     private rejectInvalidType(input: CreateQuestionInput): void {
         if (input.type !== "MCQ" && input.type !== "SPEED") {
             throw new ValidationError("Question type must be MCQ or SPEED.");
+        }
+    }
+
+    private rejectUnknownFields(input: CreateQuestionInput): void {
+        const unknownFields = Object.keys(input).filter(field => !UPDATE_ALLOWED_FIELDS.includes(field));
+        if (unknownFields.length > 0) {
+            throw new UnknownFieldsError(unknownFields);
         }
     }
 
