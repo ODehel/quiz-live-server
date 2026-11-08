@@ -133,6 +133,12 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     app.put('/api/v1/questions/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
         const input = request.body as CreateMcqInput;
+        const idFromBody = (request.body as { id?: string }).id;
+
+        if (idFromBody !== undefined && idFromBody !== id) {
+            sendIdMismatch(reply);
+            return;
+        }
 
         try {
             const updated = questionService.updateQuestion(id, input);
@@ -262,6 +268,14 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             status: 400,
             error: 'INVALID_UUID',
             message: 'The provided ID is not a valid UUID.'
+        });
+    }
+
+    function sendIdMismatch(reply: FastifyReply) {
+        sendErrorBody(reply, {
+            status: 400,
+            error: 'ID_MISMATCH',
+            message: 'The ID in the request body does not match the URL parameter.'
         });
     }
 
