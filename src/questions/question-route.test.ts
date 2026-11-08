@@ -1387,6 +1387,71 @@ describe('US-005/CA-33 - Update an MCQ question', () => {
     });
 });
 
+describe('US-005/CA-34 - Update a SPEED question', () => {
+    it('should ask the service to update the question with the body and reply 200 with the updated question', async () => {
+        const id = '019d92d2-e1f6-7d05-9803-3948dbc4c417';
+        const input = {
+            type: 'SPEED',
+            theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+            title: 'Quel est le plus grand océan du monde (mise à jour) ?',
+            correct_answer: 'Pacifique',
+            level: 3,
+            time_limit: 20,
+            points: 25
+        };
+        const updated = {
+            ...input,
+            id,
+            image_path: null,
+            audio_path: null,
+            created_at: '2026-11-01T09:00:00.000Z',
+            last_updated_at: '2026-11-08T12:00:00.000Z'
+        };
+        mockQuestionService.updateQuestion = vi.fn().mockReturnValue(updated);
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: `/api/v1/questions/${id}`,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+
+        expect(mockQuestionService.updateQuestion).toHaveBeenCalledWith(id, input);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(updated);
+        expect(response.json()).not.toHaveProperty('choices');
+    });
+
+    it('should reply 400 VALIDATION_ERROR when the service refuses a SPEED body containing choices', async () => {
+        mockQuestionService.updateQuestion = vi.fn(() => {
+            throw new ValidationError('Question choices must be absent for a SPEED question.');
+        });
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/019d92d2-e1f6-7d05-9803-3948dbc4c418',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quel est le plus grand océan du monde ?',
+                choices: ['Pacifique', 'Atlantique', 'Indien', 'Arctique'],
+                correct_answer: 'Pacifique',
+                level: 3,
+                time_limit: 20,
+                points: 25
+            })
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question choices must be absent for a SPEED question.'
+        });
+    });
+});
+
 describe('US-005/CA-40 - Update a question by an unknown id', () => {
     it('should reply 404 NOT_FOUND with the standard error body', async () => {
         mockQuestionService.updateQuestion = vi.fn(() => {

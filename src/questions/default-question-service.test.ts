@@ -882,6 +882,87 @@ describe("US-005/CA-33 - When the service updates an MCQ question with valid fie
     });
 });
 
+describe("US-005/CA-34 - When the service updates a SPEED question with valid fields", () => {
+    let result: Question;
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695230",
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 2,
+        time_limit: 20,
+        points: 15,
+        image_path: "images/ocean.png",
+        audio_path: "audio/ocean.mp3",
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9b",
+        title: "Quel est le plus long fleuve du monde ?",
+        correct_answer: "Nil",
+        level: 3,
+        time_limit: 25,
+        points: 25,
+    };
+    const expected: Question = {
+        ...storedQuestion,
+        theme_id: input.theme_id,
+        title: input.title,
+        correct_answer: input.correct_answer,
+        level: input.level,
+        time_limit: input.time_limit,
+        points: input.points,
+        last_updated_at: "2026-04-08T13:32:00.000Z",
+    };
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+        result = defaultQuestionService.updateQuestion(storedQuestion.id, input);
+    });
+    it("should return and persist a SPEED question with the new fields, the same id, created_at and media paths, and last_updated_at set to now", () => {
+        expect(result).toEqual(expected);
+        expect(questionRepository.update).toHaveBeenCalledWith(expected);
+    });
+});
+
+describe("US-005/CA-34 - When the service updates a SPEED question with a body containing choices", () => {
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695231",
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 2,
+        time_limit: 20,
+        points: 15,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const input = {
+        type: "SPEED",
+        theme_id: storedQuestion.theme_id,
+        title: storedQuestion.title,
+        choices: ["Pacifique", "Atlantique", "Indien", "Arctique"],
+        correct_answer: "Pacifique",
+        level: 2,
+        time_limit: 20,
+        points: 15,
+    } as unknown as CreateSpeedInput;
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+    });
+
+    it("should reject with a ValidationError and not ask the repository to update anything", () => {
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow(ValidationError);
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+});
+
 describe("US-005/CA-40 - When the service is asked to update a question by an unknown id", () => {
     const id = "018e4f5a-0000-0000-0000-000000000000";
     const input: CreateMcqInput = {
@@ -967,7 +1048,7 @@ describe("US-005/CA-36 - When the service updates an MCQ question with a SPEED b
         created_at: "2026-04-01T09:00:00.000Z",
         last_updated_at: null,
     };
-    const speedBody = {
+    const speedBody: CreateSpeedInput = {
         type: "SPEED",
         theme_id: storedQuestion.theme_id,
         title: storedQuestion.title,
@@ -975,7 +1056,7 @@ describe("US-005/CA-36 - When the service updates an MCQ question with a SPEED b
         level: 1,
         time_limit: 30,
         points: 10,
-    } as unknown as CreateMcqInput;
+    };
 
     beforeEach(() => {
         vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);

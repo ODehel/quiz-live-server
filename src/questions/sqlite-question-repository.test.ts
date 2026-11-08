@@ -348,3 +348,25 @@ describe("US-005/CA-33 - SqliteQuestionRepository updates an MCQ question", () =
         expect(repository.getById(original.id)).toEqual(updated);
     });
 });
+
+describe("US-005/CA-34 - SqliteQuestionRepository updates a SPEED question", () => {
+    it("should return the updated fields, still without choices, and the new last_updated_at when searched by its id", () => {
+        // Arrange
+        repository.insert(speedQuestion);
+        const updated: Question = {
+            ...speedQuestion,
+            title: "Quelle est la capitale de l'Espagne",
+            correct_answer: "Madrid",
+            level: 4,
+            time_limit: 45,
+            points: 20,
+            last_updated_at: "2026-11-08T12:00:00.000Z"
+        };
+        // Act
+        repository.update(updated);
+        // Assert
+        const found = repository.getById(speedQuestion.id);
+        expect(found).toEqual(updated);
+        expect(found).not.toHaveProperty("choices");
+    });
+});

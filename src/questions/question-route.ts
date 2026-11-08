@@ -135,7 +135,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
 
     app.put('/api/v1/questions/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
-        const input = request.body as CreateMcqInput;
+        const input = request.body as CreateMcqInput | CreateSpeedInput;
         const idFromBody = (request.body as { id?: string }).id;
 
         if (idFromBody !== undefined && idFromBody !== id) {
