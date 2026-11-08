@@ -1605,6 +1605,37 @@ describe('US-005/CA-42 - Update a question with a field outside the allowed ones
     });
 });
 
+describe('US-005/CA-43 - Update a question with a missing business field', () => {
+    it('should reply 400 VALIDATION_ERROR naming the field with the standard error body', async () => {
+        mockQuestionService.updateQuestion = vi.fn(() => {
+            throw new ValidationError('Question title is required.');
+        });
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'VALIDATION_ERROR',
+            message: 'Question title is required.'
+        });
+        expect(mockQuestionService.updateQuestion).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('US-005/CA-39 - Update a question with the title of another question', () => {
     it('should reply 409 QUESTION_ALREADY_EXISTS with the standard error body', async () => {
         mockQuestionService.updateQuestion = vi.fn(() => {

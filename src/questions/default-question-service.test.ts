@@ -1183,6 +1183,111 @@ describe("US-005/CA-42 - When the service updates a question with a body carryin
     });
 });
 
+describe("US-005/CA-43 - When the service updates a question with a body missing a business field", () => {
+    const storedMcq: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695229",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale du Portugal ?",
+        choices: ["Lisbonne", "Porto", "Faro", "Braga"],
+        correct_answer: "Lisbonne",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const storedSpeed: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695230",
+        type: "SPEED",
+        theme_id: storedMcq.theme_id,
+        title: "Quel fleuve traverse Lisbonne ?",
+        correct_answer: "Tage",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const validMcqBody: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedMcq.theme_id,
+        title: "Quelle est la capitale de l'Espagne ?",
+        choices: ["Madrid", "Rome", "Vienne", "Oslo"],
+        correct_answer: "Madrid",
+        level: 4,
+        time_limit: 45,
+        points: 20,
+    };
+    const validSpeedBody: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: storedMcq.theme_id,
+        title: "Quel fleuve traverse Madrid ?",
+        correct_answer: "Manzanares",
+        level: 4,
+        time_limit: 45,
+        points: 20,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedMcq);
+    });
+
+    const without = (body: object, ...fields: string[]): object => Object.fromEntries(Object.entries(body).filter(([key]) => !fields.includes(key)));
+
+    const missingValues: [string, (body: object, field: string) => object][] = [
+        ["absent", (body, field) => without(body, field)],
+        ["null", (body, field) => ({ ...body, [field]: null })],
+    ];
+
+    describe.each(["theme_id", "title", "choices", "correct_answer", "level", "time_limit", "points"])("%s", (field) => {
+        it.each(missingValues)("should reject an MCQ body where it is %s with a ValidationError naming it and not ask the repository to update anything", (_label, remove) => {
+            const input = remove(validMcqBody, field) as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ValidationError);
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(`Question ${field} is required.`);
+            expect(questionRepository.update).not.toHaveBeenCalled();
+        });
+    });
+
+    it.each(["theme_id", "title", "correct_answer", "level", "time_limit", "points"])("should reject a SPEED body without %s", (field) => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedSpeed);
+        const input = without(validSpeedBody, field) as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.updateQuestion(storedSpeed.id, input)).toThrow(`Question ${field} is required.`);
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("should name the first missing field in the order theme_id, title, choices, correct_answer, level, time_limit, points", () => {
+        const input = without(validMcqBody, "points", "title") as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question title is required.");
+    });
+
+    it("should accept a SPEED body without choices", () => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedSpeed);
+
+        expect(() => defaultQuestionService.updateQuestion(storedSpeed.id, validSpeedBody)).not.toThrow();
+    });
+
+    it("should report a missing field before looking for the question", () => {
+        vi.mocked(questionRepository.getById).mockReturnValue(undefined);
+        const input = without(validMcqBody, "title") as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ValidationError);
+    });
+
+    it("should report an unknown field before a missing field", () => {
+        const input = { ...without(validMcqBody, "title"), image_path: "/media/x" } as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(UnknownFieldsError);
+    });
+});
+
 describe("US-005/CA-39 - When the service updates a question with the title of another question", () => {
     const storedQuestion: Question = {
         id: "019d6cdd-30db-7437-ac57-5826c0695228",
