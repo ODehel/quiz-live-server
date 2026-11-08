@@ -7,6 +7,7 @@ import { InvalidThemeError } from './invalid-theme-error';
 import { ValidationError } from './validation-error';
 import { ConflictError } from './conflict-error';
 import { TypeChangeNotAllowedError } from './type-change-not-allowed-error';
+import { UnknownFieldsError } from './unknown-fields-error';
 import { NotFoundError } from '../common/not-found-error';
 import authenticationMiddleware from '../authentication/authentication-middleware';
 import { TokenValidator } from '../authentication/token-validator.interface';
@@ -1565,6 +1566,41 @@ describe('US-005/CA-36 - Update a question with a type different from the stored
             status: 400,
             error: 'TYPE_CHANGE_NOT_ALLOWED',
             message: 'The type of an existing question cannot be changed.'
+        });
+    });
+});
+
+describe('US-005/CA-42 - Update a question with a field outside the allowed ones', () => {
+    it.each([
+        [['image_path']],
+        [['difficulty', 'hint']]
+    ])('should reply 400 UNKNOWN_FIELDS naming %j with the standard error body', async (fields) => {
+        mockQuestionService.updateQuestion = vi.fn(() => {
+            throw new UnknownFieldsError(fields);
+        });
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10,
+                image_path: '/media/france'
+            })
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'UNKNOWN_FIELDS',
+            message: `Unknown field(s): ${fields.join(', ')}.`
         });
     });
 });

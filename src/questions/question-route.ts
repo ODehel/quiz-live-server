@@ -6,6 +6,7 @@ import { InvalidThemeError } from "./invalid-theme-error";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { TypeChangeNotAllowedError } from "./type-change-not-allowed-error";
+import { UnknownFieldsError } from "./unknown-fields-error";
 import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
 import { NotFoundError } from "../common/not-found-error";
 import { sendErrorBody } from "../common/send-error-body";
@@ -246,6 +247,8 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                 error: 'VALIDATION_ERROR',
                 message: error.message
             });
+        } else if (error instanceof UnknownFieldsError) {
+            sendUnknownFields(reply, error.fields.join(', '));
         } else if (error instanceof NotFoundError) {
             sendErrorBody(reply, {
                 status: 404,
