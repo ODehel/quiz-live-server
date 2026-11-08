@@ -93,6 +93,12 @@ export class DefaultQuestionService implements QuestionService {
             throw new TypeChangeNotAllowedError();
         }
 
+        const sameTitle = this.questionRepository.getByTitle(input.title);
+
+        if (sameTitle !== undefined && sameTitle.id !== id) {
+            throw new ConflictError();
+        }
+
         const updated: Question = {
             ...existing,
             type: "MCQ",
