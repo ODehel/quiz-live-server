@@ -1503,3 +1503,34 @@ describe('US-005/CA-36 - Update a question with a type different from the stored
         });
     });
 });
+
+describe('US-005/CA-39 - Update a question with the title of another question', () => {
+    it('should reply 409 QUESTION_ALREADY_EXISTS with the standard error body', async () => {
+        mockQuestionService.updateQuestion = vi.fn(() => {
+            throw new ConflictError();
+        });
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+
+        expect(response.statusCode).toBe(409);
+        expect(response.json()).toEqual({
+            status: 409,
+            error: 'QUESTION_ALREADY_EXISTS',
+            message: 'A question with this title already exists.'
+        });
+    });
+});

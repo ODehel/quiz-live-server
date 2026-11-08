@@ -986,3 +986,88 @@ describe("US-005/CA-36 - When the service updates an MCQ question with a SPEED b
         expect(questionRepository.update).not.toHaveBeenCalled();
     });
 });
+
+describe("US-005/CA-39 - When the service updates a question with the title of another question", () => {
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695228",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de l'Espagne ?",
+        choices: ["Madrid", "Rome", "Vienne", "Oslo"],
+        correct_answer: "Madrid",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const otherQuestion: Question = {
+        ...storedQuestion,
+        id: "019d6cdd-30db-7437-ac57-5826c0695229",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+    };
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedQuestion.theme_id,
+        title: otherQuestion.title,
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+        vi.mocked(questionRepository.getByTitle).mockReturnValue(otherQuestion);
+    });
+
+    it("should reject with a ConflictError and not ask the repository to update anything", () => {
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow(ConflictError);
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+});
+
+describe("US-005/CA-39 - When the service updates a question and keeps its own title", () => {
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695230",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedQuestion.theme_id,
+        title: storedQuestion.title,
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 5,
+        time_limit: 30,
+        points: 10,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+        vi.mocked(questionRepository.getByTitle).mockReturnValue(storedQuestion);
+    });
+
+    it("should update the question without raising a conflict", () => {
+        const result = defaultQuestionService.updateQuestion(storedQuestion.id, input);
+
+        expect(result.level).toBe(5);
+        expect(questionRepository.update).toHaveBeenCalledWith(result);
+    });
+});
