@@ -263,3 +263,16 @@ L'en-tête de chaque décision porte le **titre du commit** qui l'a livrée, pas
 **Décision.** Sur choix d'Olivier, le contrôle passe après celui du `type` (décision #20) et avant le `404` : un body invalide ne révèle pas si l'id existe. Il est porté par le service (`rejectUnknownFields`, liste `UPDATE_ALLOWED_FIELDS`, `id` toléré), qui lève `UnknownFieldsError` ; la route la traduit par `sendUnknownFields`, déjà utilisé par le `POST`. `choices` reste un champ permis : sur un SPEED, il est refusé ensuite par `rejectChoicesOnSpeed` (décision #19, `VALIDATION_ERROR`).
 
 **Conséquences.** Un body invalide à la fois par un `type` faux et un champ inconnu répond sur le `type`. Un `id` différent de l'URL est encore refusé avant tout, par la route (`ID_MISMATCH`). Le message est construit deux fois (l'erreur et la route) : dette notée dans `DEBTS.md`. Le schéma Ajv du `POST` n'est pas réutilisé, faute de décision sur l'unification des mécanismes.
+
+
+---
+
+## #22 — Un `PUT` de question exige tous ses champs métier, présents et non `null`, nommés un par un
+
+*`fix(questions): reject an update with a missing field` — US-005/CA-43.*
+
+**Contexte.** Le `PUT` ne contrôlait que le `type` et les champs inconnus : un body sans `title`, `level` ou `points` répondait `200` et écrasait la question avec des valeurs `undefined`.
+
+**Décision.** Sur choix d'Olivier, un champ `null` compte comme absent. La garde `rejectMissingFields` passe après `rejectUnknownFields` et avant le `404` (même principe que #20 et #21). Elle exige `theme_id`, `title`, `correct_answer`, `level`, `time_limit`, `points`, et `choices` pour un MCQ seulement ; `choices` reste interdit sur un SPEED (#19). Elle lève `ValidationError` (`400 VALIDATION_ERROR`, `Question <champ> is required.`) en nommant le premier champ manquant dans l'ordre `theme_id`, `title`, `choices`, `correct_answer`, `level`, `time_limit`, `points`.
+
+**Conséquences.** Le message diffère de celui du `POST`, qui nomme tous les champs manquants (« are required. »). Aucune règle de forme ou de borne n'est reprise : elles relèvent de CA-35. Un body invalide ne révèle toujours pas si l'id existe.

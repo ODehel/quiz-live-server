@@ -20,6 +20,8 @@ const CHOICES_COUNT = 4;
 const SHORT_TEXT_MIN_LENGTH = 1;
 const SHORT_TEXT_MAX_LENGTH = 40;
 const UPDATE_ALLOWED_FIELDS = ["id", "type", "theme_id", "title", "correct_answer", "choices", "level", "time_limit", "points"];
+const UPDATE_REQUIRED_SPEED_FIELDS = ["theme_id", "title", "correct_answer", "level", "time_limit", "points"];
+const UPDATE_REQUIRED_MCQ_FIELDS = ["theme_id", "title", "choices", "correct_answer", "level", "time_limit", "points"];
 
 export type CreateQuestionInput = CreateMcqInput | CreateSpeedInput;
 
@@ -88,6 +90,8 @@ export class DefaultQuestionService implements QuestionService {
         this.rejectInvalidType(input);
 
         this.rejectUnknownFields(input);
+
+        this.rejectMissingFields(input);
 
         const existing = this.getExistingQuestion(id);
 
@@ -159,6 +163,15 @@ export class DefaultQuestionService implements QuestionService {
         const unknownFields = Object.keys(input).filter(field => !UPDATE_ALLOWED_FIELDS.includes(field));
         if (unknownFields.length > 0) {
             throw new UnknownFieldsError(unknownFields);
+        }
+    }
+
+    private rejectMissingFields(input: CreateQuestionInput): void {
+        const required = input.type === "MCQ" ? UPDATE_REQUIRED_MCQ_FIELDS : UPDATE_REQUIRED_SPEED_FIELDS;
+        const record = input as unknown as Record<string, unknown>;
+        const missing = required.find(field => record[field] === undefined || record[field] === null);
+        if (missing !== undefined) {
+            throw new ValidationError(`Question ${missing} is required.`);
         }
     }
 
