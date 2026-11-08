@@ -30,9 +30,7 @@ export class DefaultQuestionService implements QuestionService {
             throw new ValidationError("Question type must be MCQ or SPEED.");
         }
 
-        if (input.type === "SPEED" && "choices" in input) {
-            throw new ValidationError("Question choices must be absent for a SPEED question.");
-        }
+        this.rejectChoicesOnSpeed(input);
 
         const title = this.validateTitle(this.normalizeTitle(input.title));
 
@@ -86,12 +84,14 @@ export class DefaultQuestionService implements QuestionService {
         return question;
     }
 
-    updateQuestion(id: string, input: CreateMcqInput): Question {
+    updateQuestion(id: string, input: CreateQuestionInput): Question {
         const existing = this.getExistingQuestion(id);
 
         if (input.type !== existing.type) {
             throw new TypeChangeNotAllowedError();
         }
+
+        this.rejectChoicesOnSpeed(input);
 
         const sameTitle = this.questionRepository.getByTitle(input.title);
 
@@ -99,18 +99,20 @@ export class DefaultQuestionService implements QuestionService {
             throw new ConflictError();
         }
 
-        const updated: Question = {
-            ...existing,
-            type: "MCQ",
+        const updatedFields = {
             theme_id: input.theme_id,
             title: input.title,
-            choices: input.choices,
             correct_answer: input.correct_answer,
             level: input.level,
             time_limit: input.time_limit,
             points: input.points,
             last_updated_at: this.clock.now().toISOString()
         };
+
+        const updated: Question =
+            input.type === "MCQ"
+                ? { ...existing, ...updatedFields, type: "MCQ", choices: input.choices }
+                : { ...existing, ...updatedFields, type: "SPEED" };
 
         this.questionRepository.update(updated);
 
@@ -141,6 +143,12 @@ export class DefaultQuestionService implements QuestionService {
         }
 
         return question;
+    }
+
+    private rejectChoicesOnSpeed(input: CreateQuestionInput): void {
+        if (input.type === "SPEED" && "choices" in input) {
+            throw new ValidationError("Question choices must be absent for a SPEED question.");
+        }
     }
 
     private normalizeTitle(title: string): string {
