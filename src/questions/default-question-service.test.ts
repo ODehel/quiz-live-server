@@ -9,6 +9,7 @@ import { Question } from "./question.interface";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { InvalidThemeError } from "./invalid-theme-error";
+import { TypeChangeNotAllowedError } from "./type-change-not-allowed-error";
 import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
 import { NotFoundError } from "../common/not-found-error";
 import { Pagination } from "../common/pagination.interface";
@@ -905,6 +906,83 @@ describe("US-005/CA-40 - When the service is asked to update a question by an un
     it("should not ask the repository to update anything", () => {
         expect(() => defaultQuestionService.updateQuestion(id, input)).toThrow();
 
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+});
+
+describe("US-005/CA-36 - When the service updates a SPEED question with an MCQ body", () => {
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695226",
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 2,
+        time_limit: 15,
+        points: 20,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedQuestion.theme_id,
+        title: storedQuestion.title,
+        choices: ["Pacifique", "Atlantique", "Indien", "Arctique"],
+        correct_answer: "Pacifique",
+        level: 2,
+        time_limit: 15,
+        points: 20,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+    });
+
+    it("should reject with a TypeChangeNotAllowedError", () => {
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow(TypeChangeNotAllowedError);
+    });
+
+    it("should not ask the repository to update anything", () => {
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, input)).toThrow();
+
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+});
+
+describe("US-005/CA-36 - When the service updates an MCQ question with a SPEED body", () => {
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695227",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const speedBody = {
+        type: "SPEED",
+        theme_id: storedQuestion.theme_id,
+        title: storedQuestion.title,
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    } as unknown as CreateMcqInput;
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+    });
+
+    it("should reject with a TypeChangeNotAllowedError and not ask the repository to update anything", () => {
+        expect(() => defaultQuestionService.updateQuestion(storedQuestion.id, speedBody)).toThrow(TypeChangeNotAllowedError);
         expect(questionRepository.update).not.toHaveBeenCalled();
     });
 });

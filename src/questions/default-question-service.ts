@@ -12,6 +12,7 @@ import { QuestionRepository } from "./question-repository.interface";
 import { QuestionService } from "./question-service.interface";
 import { Question } from "./question.interface";
 import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
+import { TypeChangeNotAllowedError } from "./type-change-not-allowed-error";
 import { ValidationError } from "./validation-error";
 
 const CHOICES_COUNT = 4;
@@ -87,6 +88,10 @@ export class DefaultQuestionService implements QuestionService {
 
     updateQuestion(id: string, input: CreateMcqInput): Question {
         const existing = this.getExistingQuestion(id);
+
+        if (input.type !== existing.type) {
+            throw new TypeChangeNotAllowedError();
+        }
 
         const updated: Question = {
             ...existing,
