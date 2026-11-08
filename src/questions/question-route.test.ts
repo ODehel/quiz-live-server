@@ -1416,3 +1416,59 @@ describe('US-005/CA-40 - Update a question by an unknown id', () => {
         });
     });
 });
+
+describe('US-005/CA-38 - Update a question with a body id that differs from the url', () => {
+    it('should reply 400 ID_MISMATCH with the standard error body and not update anything', async () => {
+        mockQuestionService.updateQuestion = vi.fn();
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: '018e4f5a-0000-0000-0000-000000000001',
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Lille'],
+                correct_answer: 'Paris',
+                level: 2,
+                time_limit: 15,
+                points: 20
+            })
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'ID_MISMATCH',
+            message: 'The ID in the request body does not match the URL parameter.'
+        });
+        expect(mockQuestionService.updateQuestion).not.toHaveBeenCalled();
+    });
+
+    it('should reply 200 when the body id is the same as the url id', async () => {
+        const updatedQuestion = { id: '019d92d2-e1f6-7d05-9803-3948dbc4c416' } as Question;
+        mockQuestionService.updateQuestion = vi.fn().mockReturnValue(updatedQuestion);
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: '019d92d2-e1f6-7d05-9803-3948dbc4c416',
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Lille'],
+                correct_answer: 'Paris',
+                level: 2,
+                time_limit: 15,
+                points: 20
+            })
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(updatedQuestion);
+    });
+});
