@@ -5,6 +5,7 @@ import { CreateSpeedInput } from "./create-speed-input.interface";
 import { InvalidThemeError } from "./invalid-theme-error";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
+import { TypeChangeNotAllowedError } from "./type-change-not-allowed-error";
 import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
 import { NotFoundError } from "../common/not-found-error";
 import { sendErrorBody } from "../common/send-error-body";
@@ -246,6 +247,12 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
                 status: 404,
                 error: 'NOT_FOUND',
                 message: 'The requested question was not found.'
+            });
+        } else if (error instanceof TypeChangeNotAllowedError) {
+            sendErrorBody(reply, {
+                status: 400,
+                error: 'TYPE_CHANGE_NOT_ALLOWED',
+                message: 'The type of an existing question cannot be changed.'
             });
         } else if (error instanceof ConflictError) {
             sendErrorBody(reply, {

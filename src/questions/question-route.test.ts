@@ -6,6 +6,7 @@ import { Question } from './question.interface';
 import { InvalidThemeError } from './invalid-theme-error';
 import { ValidationError } from './validation-error';
 import { ConflictError } from './conflict-error';
+import { TypeChangeNotAllowedError } from './type-change-not-allowed-error';
 import { NotFoundError } from '../common/not-found-error';
 import authenticationMiddleware from '../authentication/authentication-middleware';
 import { TokenValidator } from '../authentication/token-validator.interface';
@@ -1470,5 +1471,35 @@ describe('US-005/CA-38 - Update a question with a body id that differs from the 
 
         expect(response.statusCode).toBe(200);
         expect(response.json()).toEqual(updatedQuestion);
+    });
+});
+
+describe('US-005/CA-36 - Update a question with a type different from the stored one', () => {
+    it('should reply 400 TYPE_CHANGE_NOT_ALLOWED with the standard error body', async () => {
+        mockQuestionService.updateQuestion = vi.fn(() => {
+            throw new TypeChangeNotAllowedError();
+        });
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'SPEED',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                correct_answer: 'Paris',
+                level: 1,
+                time_limit: 30,
+                points: 10
+            })
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'TYPE_CHANGE_NOT_ALLOWED',
+            message: 'The type of an existing question cannot be changed.'
+        });
     });
 });
