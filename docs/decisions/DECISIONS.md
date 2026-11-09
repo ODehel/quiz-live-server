@@ -276,3 +276,16 @@ L'en-tête de chaque décision porte le **titre du commit** qui l'a livrée, pas
 **Décision.** Sur choix d'Olivier, un champ `null` compte comme absent. La garde `rejectMissingFields` passe après `rejectUnknownFields` et avant le `404` (même principe que #20 et #21). Elle exige `theme_id`, `title`, `correct_answer`, `level`, `time_limit`, `points`, et `choices` pour un MCQ seulement ; `choices` reste interdit sur un SPEED (#19). Elle lève `ValidationError` (`400 VALIDATION_ERROR`, `Question <champ> is required.`) en nommant le premier champ manquant dans l'ordre `theme_id`, `title`, `choices`, `correct_answer`, `level`, `time_limit`, `points`.
 
 **Conséquences.** Le message diffère de celui du `POST`, qui nomme tous les champs manquants (« are required. »). Aucune règle de forme ou de borne n'est reprise : elles relèvent de CA-35. Un body invalide ne révèle toujours pas si l'id existe.
+
+
+---
+
+## #23 — Un `PUT` de question applique les règles de forme du `POST`, par le même code, avant le `404` ; le `404` passe avant le `409`
+
+*`fix(questions): reject an invalid update` — US-005/CA-35.*
+
+**Contexte.** Après #22, un `PUT` portant tous ses champs mais un `level` de `99`, un titre de trois lettres ou une `correct_answer` absente des `choices` répondait encore `200` et écrivait la valeur en base. Le titre n'était pas normalisé (trim + collapse) avant la recherche du `409`, ni avant l'écriture.
+
+**Décision.** Le `POST` et le `PUT` partagent la méthode privée `validateFields` (titre normalisé puis borné, `correct_answer` rognée, `choices` pour un MCQ, plages de `level`, `time_limit`, `points`), donc les mêmes règles et les mêmes messages. Les valeurs rognées et normalisées sont celles qui sont écrites, comme au `POST`. Sur choix d'Olivier, le `404` passe avant le `409`. La validation de forme passe avant le `404` (même principe que #20, #21 et #22 : un body invalide ne révèle pas si l'id existe), après les champs inconnus et manquants. Ordre complet : `type`, champs inconnus, champs manquants, titre, réponses, plages, `404`, changement de type, `choices` sur un SPEED, `409`.
+
+**Conséquences.** Un seul `ValidationError` est levé à la fois, dans l'ordre titre, réponses, plages. Un body de type différent du type stocké, avec un champ de forme invalide, répond `VALIDATION_ERROR` et non `TYPE_CHANGE_NOT_ALLOWED`. Le type de chaque champ n'est pas contrôlé (un titre non-chaîne lève un `TypeError`, donc un `500`) : dette notée dans `DEBTS.md`, comme l'existence du thème. Le choix « validation avant `404` » est une lecture de la consigne d'Olivier, à confirmer en revue.

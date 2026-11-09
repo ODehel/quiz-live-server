@@ -1414,3 +1414,212 @@ describe("US-005/CA-39 - When the service updates a question and keeps its own t
         expect(questionRepository.update).toHaveBeenCalledWith(result);
     });
 });
+
+describe("US-005/CA-35 - When the service updates a question with a body that breaks a rule of the creation", () => {
+    const storedMcq: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695240",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale du Portugal ?",
+        choices: ["Lisbonne", "Porto", "Faro", "Braga"],
+        correct_answer: "Lisbonne",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const validMcqBody: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedMcq.theme_id,
+        title: "Quelle est la capitale de l'Espagne ?",
+        choices: ["Madrid", "Rome", "Vienne", "Oslo"],
+        correct_answer: "Madrid",
+        level: 4,
+        time_limit: 45,
+        points: 20,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedMcq);
+    });
+
+    describe("title", () => {
+        it.each([
+            ["shorter than 10 characters", "Trop cour", "Question title must be at least 10 characters long."],
+            ["longer than 250 characters", "Q" + "a".repeat(250), "Question title must be at most 250 characters long."],
+            ["not starting with an uppercase letter", "quelle est la capitale de l'Espagne ?", "Question title must start with an uppercase letter."],
+        ])("should reject a title %s with the ValidationError of the creation and not ask the repository to update anything", (_label, title, message) => {
+            const input = { ...validMcqBody, title };
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ValidationError);
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(message);
+            expect(questionRepository.update).not.toHaveBeenCalled();
+        });
+
+        it("should judge the length of the title after trimming and collapsing spaces", () => {
+            const input = { ...validMcqBody, title: "   Trop   cour   " };
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question title must be at least 10 characters long.");
+        });
+
+        it("should persist the title without leading, trailing or repeated spaces", () => {
+            const input = { ...validMcqBody, title: "  Quelle   est la capitale   de l'Espagne ?  " };
+
+            const result = defaultQuestionService.updateQuestion(storedMcq.id, input);
+
+            expect(result.title).toBe("Quelle est la capitale de l'Espagne ?");
+            expect(questionRepository.update).toHaveBeenCalledWith(result);
+        });
+
+        it("should look for a homonym with the normalized title", () => {
+            const otherQuestion: Question = { ...storedMcq, id: "019d6cdd-30db-7437-ac57-5826c0695241", title: "Quelle est la capitale de l'Espagne ?" };
+            vi.mocked(questionRepository.getByTitle).mockImplementation(title => title === otherQuestion.title ? otherQuestion : undefined);
+            const input = { ...validMcqBody, title: "  Quelle   est la capitale   de l'Espagne ?  " };
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ConflictError);
+            expect(questionRepository.update).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("MCQ choices and correct_answer", () => {
+        it.each([
+            ["fewer than 4 choices", ["Madrid", "Rome", "Vienne"], "Madrid", "Question choices must contain exactly 4 entries."],
+            ["more than 4 choices", ["Madrid", "Rome", "Vienne", "Oslo", "Lima"], "Madrid", "Question choices must contain exactly 4 entries."],
+            ["an empty choice", ["Madrid", "", "Vienne", "Oslo"], "Madrid", "Question choices must each be between 1 and 40 characters."],
+            ["a blank choice", ["Madrid", "   ", "Vienne", "Oslo"], "Madrid", "Question choices must each be between 1 and 40 characters."],
+            ["a choice longer than 40 characters", ["Madrid", "R".repeat(41), "Vienne", "Oslo"], "Madrid", "Question choices must each be between 1 and 40 characters."],
+            ["two choices differing only by case", ["Madrid", "madrid", "Vienne", "Oslo"], "Madrid", "Question choices must be distinct (case-insensitive)."],
+            ["two choices equal after trimming", ["Madrid", " Madrid ", "Vienne", "Oslo"], "Madrid", "Question choices must be distinct (case-insensitive)."],
+            ["a correct_answer matching no choice", ["Madrid", "Rome", "Vienne", "Oslo"], "Lisbonne", "Question correct_answer must match one of the choices (case-insensitive)."],
+        ])("should reject %s with the ValidationError of the creation and not ask the repository to update anything", (_label, choices, correctAnswer, message) => {
+            const input = { ...validMcqBody, choices, correct_answer: correctAnswer };
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ValidationError);
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(message);
+            expect(questionRepository.update).not.toHaveBeenCalled();
+        });
+
+        it("should persist trimmed choices and a trimmed correct_answer that matches a choice by case only", () => {
+            const input = { ...validMcqBody, choices: [" Madrid ", "Rome  ", "  Vienne", "Oslo"], correct_answer: "  madrid " };
+
+            const result = defaultQuestionService.updateQuestion(storedMcq.id, input);
+
+            if (result.type !== "MCQ") throw new Error("expected MCQ");
+            expect(result.choices).toEqual(["Madrid", "Rome", "Vienne", "Oslo"]);
+            expect(result.correct_answer).toBe("madrid");
+            expect(questionRepository.update).toHaveBeenCalledWith(result);
+        });
+    });
+
+    describe("SPEED correct_answer", () => {
+        const storedSpeed: Question = {
+            id: "019d6cdd-30db-7437-ac57-5826c0695242",
+            type: "SPEED",
+            theme_id: storedMcq.theme_id,
+            title: "Quel fleuve traverse Lisbonne ?",
+            correct_answer: "Tage",
+            level: 1,
+            time_limit: 30,
+            points: 10,
+            image_path: null,
+            audio_path: null,
+            created_at: "2026-04-01T09:00:00.000Z",
+            last_updated_at: null,
+        };
+        const validSpeedBody: CreateSpeedInput = {
+            type: "SPEED",
+            theme_id: storedMcq.theme_id,
+            title: "Quel fleuve traverse Madrid ?",
+            correct_answer: "Manzanares",
+            level: 4,
+            time_limit: 45,
+            points: 20,
+        };
+
+        beforeEach(() => {
+            vi.mocked(questionRepository.getById).mockReturnValue(storedSpeed);
+        });
+
+        it.each([
+            ["empty", ""],
+            ["only whitespace", "   "],
+            ["longer than 40 characters", "M".repeat(41)],
+        ])("should reject a correct_answer that is %s and not ask the repository to update anything", (_label, correctAnswer) => {
+            const input = { ...validSpeedBody, correct_answer: correctAnswer };
+
+            expect(() => defaultQuestionService.updateQuestion(storedSpeed.id, input)).toThrow(ValidationError);
+            expect(() => defaultQuestionService.updateQuestion(storedSpeed.id, input)).toThrow("Question correct_answer must be between 1 and 40 characters.");
+            expect(questionRepository.update).not.toHaveBeenCalled();
+        });
+
+        it("should persist the correct_answer without surrounding whitespace", () => {
+            const input = { ...validSpeedBody, correct_answer: "  Manzanares  " };
+
+            const result = defaultQuestionService.updateQuestion(storedSpeed.id, input);
+
+            expect(result.correct_answer).toBe("Manzanares");
+            expect(questionRepository.update).toHaveBeenCalledWith(result);
+        });
+    });
+
+    describe("level, time_limit and points", () => {
+        it.each([
+            ["level", 6, "Question level must be an integer between 1 and 5."],
+            ["level", 0, "Question level must be an integer between 1 and 5."],
+            ["level", 1.5, "Question level must be an integer between 1 and 5."],
+            ["time_limit", 61, "Question time_limit must be an integer between 5 and 60 seconds."],
+            ["time_limit", 4, "Question time_limit must be an integer between 5 and 60 seconds."],
+            ["time_limit", 10.5, "Question time_limit must be an integer between 5 and 60 seconds."],
+            ["points", 51, "Question points must be an integer between 1 and 50."],
+            ["points", 0, "Question points must be an integer between 1 and 50."],
+            ["points", 2.5, "Question points must be an integer between 1 and 50."],
+        ])("should reject %s set to %s with the ValidationError of the creation and not ask the repository to update anything", (field, value, message) => {
+            const input = { ...validMcqBody, [field]: value };
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ValidationError);
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(message);
+            expect(questionRepository.update).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ["level", 1], ["level", 5], ["time_limit", 5], ["time_limit", 60], ["points", 1], ["points", 50],
+        ])("should accept %s set to its bound %s", (field, value) => {
+            const input = { ...validMcqBody, [field]: value };
+
+            const result = defaultQuestionService.updateQuestion(storedMcq.id, input);
+
+            expect(result[field as "level" | "time_limit" | "points"]).toBe(value);
+        });
+    });
+
+    describe("order of the checks", () => {
+        it("should report an invalid field before looking for the question", () => {
+            vi.mocked(questionRepository.getById).mockReturnValue(undefined);
+            const input = { ...validMcqBody, level: 99 };
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ValidationError);
+        });
+
+        it("should report an unknown question before a title conflict", () => {
+            vi.mocked(questionRepository.getById).mockReturnValue(undefined);
+            vi.mocked(questionRepository.getByTitle).mockReturnValue({ ...storedMcq, id: "019d6cdd-30db-7437-ac57-5826c0695243" });
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, validMcqBody)).toThrow(NotFoundError);
+        });
+
+        it("should report an invalid title before an invalid correct_answer", () => {
+            const input = { ...validMcqBody, title: "Trop cour", correct_answer: "Lisbonne" };
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question title must be at least 10 characters long.");
+        });
+
+        it("should report an invalid correct_answer before an invalid level", () => {
+            const input = { ...validMcqBody, correct_answer: "Lisbonne", level: 99 };
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question correct_answer must match one of the choices (case-insensitive).");
+        });
+    });
+});
