@@ -34,25 +34,7 @@ export class DefaultQuestionService implements QuestionService {
 
         this.rejectChoicesOnSpeed(input);
 
-        const title = this.validateTitle(this.normalizeTitle(input.title));
-
-        const trimmedCorrectAnswer = input.correct_answer.trim();
-        if (input.type === "SPEED") {
-            if (this.isInvalidShortTextLength(trimmedCorrectAnswer)) {
-                throw new ValidationError(`Question correct_answer must be between ${SHORT_TEXT_MIN_LENGTH} and ${SHORT_TEXT_MAX_LENGTH} characters.`);
-            }
-        } else {
-            const trimmedChoices = input.choices.map(c => c.trim());
-            this.validateChoices(trimmedChoices);
-
-            if (trimmedChoices.every(c => c.toLowerCase() !== trimmedCorrectAnswer.toLowerCase())) {
-                throw new ValidationError("Question correct_answer must match one of the choices (case-insensitive).");
-            }
-        }
-
-        this.validateIntegerRange("level", input.level, 1, 5);
-        this.validateIntegerRange("time_limit", input.time_limit, 5, 60, " seconds");
-        this.validateIntegerRange("points", input.points, 1, 50);
+        const { title, correctAnswer: trimmedCorrectAnswer } = this.validateFields(input);
 
         if (!this.themeExistenceChecker.exists(input.theme_id)) {
             throw new InvalidThemeError();
@@ -93,6 +75,8 @@ export class DefaultQuestionService implements QuestionService {
 
         this.rejectMissingFields(input);
 
+        const { title, correctAnswer } = this.validateFields(input);
+
         const existing = this.getExistingQuestion(id);
 
         if (input.type !== existing.type) {
@@ -101,7 +85,7 @@ export class DefaultQuestionService implements QuestionService {
 
         this.rejectChoicesOnSpeed(input);
 
-        const sameTitle = this.questionRepository.getByTitle(input.title);
+        const sameTitle = this.questionRepository.getByTitle(title);
 
         if (sameTitle !== undefined && sameTitle.id !== id) {
             throw new ConflictError();
@@ -109,8 +93,8 @@ export class DefaultQuestionService implements QuestionService {
 
         const updatedFields = {
             theme_id: input.theme_id,
-            title: input.title,
-            correct_answer: input.correct_answer,
+            title: title,
+            correct_answer: correctAnswer,
             level: input.level,
             time_limit: input.time_limit,
             points: input.points,
@@ -119,7 +103,7 @@ export class DefaultQuestionService implements QuestionService {
 
         const updated: Question =
             input.type === "MCQ"
-                ? { ...existing, ...updatedFields, type: "MCQ", choices: input.choices }
+                ? { ...existing, ...updatedFields, type: "MCQ", choices: input.choices.map(c => c.trim()) }
                 : { ...existing, ...updatedFields, type: "SPEED" };
 
         this.questionRepository.update(updated);
@@ -197,6 +181,36 @@ export class DefaultQuestionService implements QuestionService {
         }
 
         return title;
+    }
+
+    private validateFields(input: CreateQuestionInput): { title: string, correctAnswer: string } {
+        const title = this.validateTitle(this.normalizeTitle(input.title));
+
+        const correctAnswer = this.validateAnswers(input);
+
+        this.validateIntegerRange("level", input.level, 1, 5);
+        this.validateIntegerRange("time_limit", input.time_limit, 5, 60, " seconds");
+        this.validateIntegerRange("points", input.points, 1, 50);
+
+        return { title, correctAnswer };
+    }
+
+    private validateAnswers(input: CreateQuestionInput): string {
+        const trimmedCorrectAnswer = input.correct_answer.trim();
+        if (input.type === "SPEED") {
+            if (this.isInvalidShortTextLength(trimmedCorrectAnswer)) {
+                throw new ValidationError(`Question correct_answer must be between ${SHORT_TEXT_MIN_LENGTH} and ${SHORT_TEXT_MAX_LENGTH} characters.`);
+            }
+        } else {
+            const trimmedChoices = input.choices.map(c => c.trim());
+            this.validateChoices(trimmedChoices);
+
+            if (trimmedChoices.every(c => c.toLowerCase() !== trimmedCorrectAnswer.toLowerCase())) {
+                throw new ValidationError("Question correct_answer must match one of the choices (case-insensitive).");
+            }
+        }
+
+        return trimmedCorrectAnswer;
     }
 
     private validateChoices(choices: string[]): void {
