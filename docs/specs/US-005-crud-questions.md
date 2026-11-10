@@ -78,7 +78,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-35 | Toutes les règles de validation du POST s'appliquent | Trim, collapse, regex, unicité, cohérence type/champs |
 | CA-36 | Le `type` envoyé doit correspondre au type actuel de la question | Changement de type → `400 TYPE_CHANGE_NOT_ALLOWED` |
 | CA-37 | Les données envoyées sont identiques à l'existant, une fois normalisées comme au CA-35 (trim, collapse) ; l'ordre des `choices` compte | `200 OK` avec la question inchangée, `last_updated_at` **non modifié** |
-| CA-38 | L'ID peut être présent dans le body ; s'il l'est, il doit correspondre à l'URL | Sinon → `400 ID_MISMATCH` |
+| CA-38 | L'ID peut être présent dans le body ; s'il l'est, il doit correspondre à l'URL. Un ID mal formé (dans l'URL ou dans le body) est refusé avant la comparaison | ID mal formé → `400 INVALID_UUID` ; ID bien formé mais différent de l'URL → `400 ID_MISMATCH` |
 | CA-39 | Le titre est déjà pris par une autre question | `409 QUESTION_ALREADY_EXISTS` |
 | CA-40 | ID inexistant | `404 NOT_FOUND` |
 | CA-41 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
@@ -677,14 +677,34 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/questions/$QUEST
 # Vérifier que last_updated_at n'a pas changé par rapport à avant l'appel
 ```
 
-**CA-38** — `id` dans le body ne correspond pas à l'URL → `400 ID_MISMATCH`
+**CA-38** — `id` dans le body ne correspond pas à l'URL → `400 ID_MISMATCH` ; `id` mal formé → `400 INVALID_UUID`
+
+> Précision (décision #30) : la forme des ID se contrôle **avant** leur comparaison, et avant tout autre contrôle du `PUT`. Dans l'ordre : (1) l'ID de l'URL n'est pas un UUID valide → `400 INVALID_UUID` (comme `GET` CA-24 et `DELETE` CA-46) ; (2) l'`id` du body est présent mais n'est pas un UUID valide → `400 INVALID_UUID`, même s'il diffère de l'URL ; (3) l'`id` du body est un UUID valide mais diffère de l'URL → `400 ID_MISMATCH`. Un `id` présent dans le body qui n'est pas une chaîne (`null`, nombre…) n'est pas un UUID valide : `400 INVALID_UUID`.
 
 ```bash
+# Cas (3) : id bien formé mais différent de l'URL → 400 ID_MISMATCH
 curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/questions/$QUESTION_SPD_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "id": "018e4f5a-0000-0000-0000-000000000001",
+    "type": "SPEED",
+    "theme_id": "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+    "title": "Quel est le plus grand océan du monde ?",
+    "correct_answer": "Pacifique",
+    "level": 2,
+    "time_limit": 15,
+    "points": 20
+  }'
+```
+
+```bash
+# Cas (2) : id du body mal formé → 400 INVALID_UUID (et non ID_MISMATCH)
+curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/questions/$QUESTION_SPD_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "pas-un-uuid",
     "type": "SPEED",
     "theme_id": "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
     "title": "Quel est le plus grand océan du monde ?",
