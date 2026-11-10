@@ -24,7 +24,6 @@ describe("US-003/CA-001 - Token generation", () => {
         const token = itoken.token;
         const decoded = jwt.verify(token, secretKey);
         expect(decoded).toHaveProperty("sub", userMock.id);
-        expect(decoded).toHaveProperty("role", userMock.role);
     });
 });
 
@@ -66,6 +65,18 @@ describe("US-003/CA-003 - Claims are correctly set", () => {
         expect(decoded).toHaveProperty("role");
         expect(decoded).toHaveProperty("iat");
         expect(decoded).toHaveProperty("exp");
+    });
+    it("should name the role of a player as buzzer", () => {
+        const tokenGenerator = new JwtGenerator(secretKey, duration);
+        const itoken = tokenGenerator.generateToken(userMock);
+        const decoded = jwt.verify(itoken.token, secretKey);
+        expect(decoded).toHaveProperty("role", "buzzer");
+    });
+    it("should name the role of an administrator as admin", () => {
+        const tokenGenerator = new JwtGenerator(secretKey, duration);
+        const itoken = tokenGenerator.generateToken({ ...userMock, role: UserRole.ADMIN });
+        const decoded = jwt.verify(itoken.token, secretKey);
+        expect(decoded).toHaveProperty("role", "admin");
     });
 });
 

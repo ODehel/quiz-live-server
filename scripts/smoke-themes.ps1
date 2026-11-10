@@ -216,7 +216,7 @@ try {
     while ($payload.Length % 4) { $payload += '=' }
     $claims = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)) | ConvertFrom-Json
     Check '  CA-3 claims : sub UUIDv7, exp > iat' (($claims.sub -match $UuidV7) -and ($claims.exp -gt $claims.iat)) ($claims | ConvertTo-Json -Compress)
-    Check '  CA-3 claim role = "admin"' ($claims.role -eq 'admin') ($claims | ConvertTo-Json -Compress) 'le claim role vaut 0 (UserRole.ADMIN numerique) au lieu de "admin"'
+    Check '  CA-3 claim role = "admin"' ($claims.role -eq 'admin') ($claims | ConvertTo-Json -Compress)
 
     # ------------------------------------------------------------ role
     Section 'Role insuffisant (US-004 CA-33)'
