@@ -14,6 +14,7 @@ import authenticationMiddleware from '../authentication/authentication-middlewar
 import { TokenValidator } from '../authentication/token-validator.interface';
 import { TokenDecoder } from '../authentication/token-decoder.interface';
 import rateLimitMiddleware from '../infrastructure/rate-limit-middleware';
+import { UserRole } from '../users/user-role';
 
 let app: FastifyInstance;
 let mockQuestionService: QuestionService;
@@ -778,6 +779,49 @@ describe('US-005/CA-50 - Create a question without authorization', () => {
         });
         expect(response.statusCode).toBe(401);
         expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-51 - Refuse a buzzer on every questions route', () => {
+    const questionId = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+    const body = JSON.stringify({
+        type: 'MCQ',
+        theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+        title: 'Quelle est la capitale de la France ?',
+        choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+        correct_answer: 'Paris',
+        level: 1,
+        time_limit: 30,
+        points: 10
+    });
+    const routes = [
+        { name: 'POST /api/v1/questions', method: 'POST', url: '/api/v1/questions', service: 'createQuestion', body },
+        { name: 'GET /api/v1/questions', method: 'GET', url: '/api/v1/questions', service: 'getAll', body: undefined },
+        { name: 'GET /api/v1/questions/:id', method: 'GET', url: `/api/v1/questions/${questionId}`, service: 'getQuestionById', body: undefined },
+        { name: 'PUT /api/v1/questions/:id', method: 'PUT', url: `/api/v1/questions/${questionId}`, service: 'updateQuestion', body },
+        { name: 'DELETE /api/v1/questions/:id', method: 'DELETE', url: `/api/v1/questions/${questionId}`, service: 'deleteQuestion', body: undefined }
+    ] as const;
+
+    beforeEach(() => {
+        mockTokenValidator = { validateToken: vi.fn().mockReturnValue(true), inspectToken: vi.fn() };
+        mockTokenDecoder = { decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER }) };
+        app = Fastify();
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware, rateLimitMiddleware: async () => { } });
+    });
+    it.each(routes)('should answer $name with the standard 403 body and not call the service', async ({ method, url, service, body }) => {
+        const response = await app.inject({
+            method,
+            url,
+            headers: { 'Authorization': 'Bearer a-buzzer-token', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+            body
+        });
+        expect(response.statusCode).toBe(403);
+        expect(response.json()).toEqual({
+            status: 403,
+            error: 'FORBIDDEN',
+            message: 'You do not have permission to perform this action.'
+        });
+        expect(mockQuestionService[service]).not.toHaveBeenCalled();
     });
 });
 
