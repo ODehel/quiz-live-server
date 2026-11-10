@@ -133,7 +133,17 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     app.put('/api/v1/questions/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
         const input = request.body as CreateMcqInput | CreateSpeedInput;
-        const idFromBody = (request.body as { id?: string }).id;
+        const idFromBody = (request.body as { id?: unknown }).id;
+
+        if (!uuidValidator.validate(id)) {
+            sendInvalidUuid(reply);
+            return;
+        }
+
+        if (idFromBody !== undefined && (typeof idFromBody !== 'string' || !uuidValidator.validate(idFromBody))) {
+            sendInvalidUuid(reply);
+            return;
+        }
 
         if (idFromBody !== undefined && idFromBody !== id) {
             sendIdMismatch(reply);

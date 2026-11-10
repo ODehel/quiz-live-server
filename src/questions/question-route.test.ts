@@ -1515,6 +1515,107 @@ describe('US-005/CA-38 - Update a question with a body id that differs from the 
     });
 });
 
+describe('US-005/CA-38 - Update a question by a malformed url id', () => {
+    it('should reply 400 INVALID_UUID with the standard error body without calling the service', async () => {
+        mockQuestionService.updateQuestion = vi.fn();
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/not-a-valid-uuid',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Lille'],
+                correct_answer: 'Paris',
+                level: 2,
+                time_limit: 15,
+                points: 20
+            })
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_UUID',
+            message: 'The provided ID is not a valid UUID.'
+        });
+        expect(mockQuestionService.updateQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-38 - Report a malformed url id before comparing it with the body id', () => {
+    it('should reply 400 INVALID_UUID and not ID_MISMATCH when the url id is malformed and the body id is a different valid UUID', async () => {
+        mockQuestionService.updateQuestion = vi.fn();
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/not-a-valid-uuid',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: '018e4f5a-0000-0000-0000-000000000001',
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Lille'],
+                correct_answer: 'Paris',
+                level: 2,
+                time_limit: 15,
+                points: 20
+            })
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_UUID',
+            message: 'The provided ID is not a valid UUID.'
+        });
+        expect(mockQuestionService.updateQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-38 - Update a question with a malformed body id', () => {
+    const urlId = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+
+    it.each([
+        ['a string that is not a UUID', 'not-a-valid-uuid'],
+        ['null', null],
+        ['a number', 42],
+        ['a boolean', true],
+        ['an array holding the url id', [urlId]],
+        ['an object', {}]
+    ])('should reply 400 INVALID_UUID without calling the service when the body id is %s', async (_label, bodyId) => {
+        mockQuestionService.updateQuestion = vi.fn();
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: `/api/v1/questions/${urlId}`,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: bodyId,
+                type: 'MCQ',
+                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+                title: 'Quelle est la capitale de la France ?',
+                choices: ['Paris', 'Lyon', 'Marseille', 'Lille'],
+                correct_answer: 'Paris',
+                level: 2,
+                time_limit: 15,
+                points: 20
+            })
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_UUID',
+            message: 'The provided ID is not a valid UUID.'
+        });
+        expect(mockQuestionService.updateQuestion).not.toHaveBeenCalled();
+    });
+});
+
 describe('US-005/CA-36 - Update a question with a type different from the stored one', () => {
     it('should reply 400 TYPE_CHANGE_NOT_ALLOWED with the standard error body', async () => {
         mockQuestionService.updateQuestion = vi.fn(() => {
