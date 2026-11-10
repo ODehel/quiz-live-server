@@ -97,6 +97,10 @@ export class DefaultQuestionService implements QuestionService {
             throw new ConflictError();
         }
 
+        if (this.carriesTheStoredData(input, existing)) {
+            return existing;
+        }
+
         const updatedFields = {
             theme_id: input.theme_id,
             title: title,
@@ -141,6 +145,19 @@ export class DefaultQuestionService implements QuestionService {
         }
 
         return question;
+    }
+
+    private carriesTheStoredData(input: CreateQuestionInput, existing: Question): boolean {
+        const sameChoices = input.type !== "MCQ" || existing.type !== "MCQ"
+            || (input.choices.length === existing.choices.length && input.choices.every((choice, index) => choice === existing.choices[index]));
+
+        return input.theme_id === existing.theme_id
+            && input.title === existing.title
+            && input.correct_answer === existing.correct_answer
+            && input.level === existing.level
+            && input.time_limit === existing.time_limit
+            && input.points === existing.points
+            && sameChoices;
     }
 
     private rejectInvalidType(input: CreateQuestionInput): void {

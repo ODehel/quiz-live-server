@@ -411,6 +411,61 @@ describe('US-005/CA-35 - An unknown theme_id is refused with INVALID_THEME on PU
 	});
 });
 
+describe('US-005/CA-37 - A PUT carrying the stored data leaves the question untouched on the assembled server', () => {
+	const themeId = '019d6c17-1c08-7161-9358-fe4a116fa000'
+	const questionId = '019d6c17-1c08-7161-9358-fe4a116fa001'
+	const storedLastUpdatedAt = '2026-01-05T08:00:00.000Z'
+	const putBody = (points: number) => ({
+		type: 'SPEED', theme_id: themeId, title: 'Quelle est la capitale de la Suisse', correct_answer: 'Berne', level: 3, time_limit: 30, points
+	})
+	let database: Database
+	let questionRepository: SqliteQuestionRepository
+	let server: QuizServer
+	beforeEach(() => {
+		database = new SqliteDatabase(':memory:')
+		const themeRepository = new SqliteThemeRepository(database)
+		themeRepository.insert({ id: themeId, name: 'Theme parent', created_at: '2026-01-01T00:00:00.000Z', last_updated_at: null })
+		questionRepository = new SqliteQuestionRepository(database)
+		questionRepository.insert({
+			id: questionId, type: 'SPEED', theme_id: themeId, title: 'Quelle est la capitale de la Suisse', correct_answer: 'Berne',
+			level: 3, time_limit: 30, points: 10, image_path: null, audio_path: null, created_at: '2026-01-01T10:00:00.000Z', last_updated_at: storedLastUpdatedAt
+		})
+		const realQuestionService: QuestionService = new DefaultQuestionService(
+			mockClock,
+			{ generate: vi.fn() },
+			questionRepository,
+			new ThemeRepositoryExistenceChecker(themeRepository),
+			new UuidFormatValidator()
+		)
+		const realRouteConfiguration: QuestionRouteConfiguration = {
+			questionService: realQuestionService,
+			tokenValidator: mockTokenValidator,
+			tokenDecoder: mockTokenDecoder,
+			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
+			rateLimitMiddleware: mockRateLimitMiddleware
+		};
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, realRouteConfiguration)
+	})
+	it('answers 200 with the question as stored and keeps last_updated_at unchanged', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PUT', url: `/api/v1/questions/${questionId}`, payload: JSON.stringify(putBody(10)), headers: { 'Content-Type': 'application/json' } })
+		expect(response.statusCode).toBe(200)
+		expect(response.json<Question>().last_updated_at).toBe(storedLastUpdatedAt)
+		expect(questionRepository.getById(questionId)?.last_updated_at).toBe(storedLastUpdatedAt)
+	})
+	it('sets last_updated_at to now when the PUT changes a field', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PUT', url: `/api/v1/questions/${questionId}`, payload: JSON.stringify(putBody(20)), headers: { 'Content-Type': 'application/json' } })
+		expect(response.statusCode).toBe(200)
+		expect(response.json<Question>().last_updated_at).not.toBe(storedLastUpdatedAt)
+		expect(questionRepository.getById(questionId)?.points).toBe(20)
+	})
+	afterEach(async () => {
+		await server.stop()
+		database.close()
+	});
+});
+
 describe('US-004/CA-14- The theme list is ordered most recent first on the assembled server', () => {
 	let database: Database
 	let server: QuizServer
