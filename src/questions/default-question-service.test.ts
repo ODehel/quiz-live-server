@@ -9,6 +9,8 @@ import { Question } from "./question.interface";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { InvalidThemeError } from "./invalid-theme-error";
+import { InvalidUuidError } from "./invalid-uuid-error";
+import { UuidValidator } from "../common/uuid-validator.interface";
 import { TypeChangeNotAllowedError } from "./type-change-not-allowed-error";
 import { UnknownFieldsError } from "./unknown-fields-error";
 import { ThemeExistenceChecker } from "./theme-existence-checker.interface";
@@ -20,6 +22,7 @@ let uuidGenerator: UuidGenerator;
 let questionRepository: QuestionRepository;
 let defaultQuestionService: DefaultQuestionService;
 let themeExistenceChecker: ThemeExistenceChecker;
+let uuidValidator: UuidValidator;
 
 beforeEach(() => {
     clock = { now: vi.fn().mockReturnValue(new Date("2026-04-08T13:32:00Z")) };
@@ -34,8 +37,9 @@ beforeEach(() => {
         delete: vi.fn()
     };
     themeExistenceChecker = { exists: vi.fn().mockReturnValue(true) };
+    uuidValidator = { validate: vi.fn().mockReturnValue(true) };
     defaultQuestionService = new DefaultQuestionService(
-        clock, uuidGenerator, questionRepository, themeExistenceChecker
+        clock, uuidGenerator, questionRepository, themeExistenceChecker, uuidValidator
     );
 });
 
@@ -1768,5 +1772,153 @@ describe("US-005/CA-35 - When the service updates a question with a field of the
 
             expect(() => defaultQuestionService.updateQuestion(storedSpeed.id, input)).toThrow("Question choices must be absent for a SPEED question.");
         });
+    });
+});
+
+describe("US-005/CA-35 - When the service updates a question with a malformed theme_id", () => {
+    const storedMcq: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695241",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale du Portugal ?",
+        choices: ["Lisbonne", "Porto", "Faro", "Braga"],
+        correct_answer: "Lisbonne",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const validMcqBody: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedMcq.theme_id,
+        title: "Quelle est la capitale de l'Espagne ?",
+        choices: ["Madrid", "Rome", "Vienne", "Oslo"],
+        correct_answer: "Madrid",
+        level: 4,
+        time_limit: 45,
+        points: 20,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedMcq);
+        vi.mocked(uuidValidator.validate).mockReturnValue(false);
+    });
+
+    it("should reject with an InvalidUuidError and not ask the repository to update anything", () => {
+        const input = { ...validMcqBody, theme_id: "not-a-valid-uuid" };
+
+        expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(InvalidUuidError);
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("should hand the theme_id of the body to the validator", () => {
+        const input = { ...validMcqBody, theme_id: "not-a-valid-uuid" };
+
+        expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow();
+
+        expect(uuidValidator.validate).toHaveBeenCalledWith("not-a-valid-uuid");
+    });
+
+    describe("order of the checks", () => {
+        it.each([
+            ["absent", undefined],
+            ["null", null],
+        ])("should report a theme_id that is %s as required, before judging its form", (_label, themeId) => {
+            const input = { ...validMcqBody, theme_id: themeId } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ValidationError);
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question theme_id is required.");
+            expect(uuidValidator.validate).not.toHaveBeenCalled();
+        });
+
+        it("should report an invalid type before the form of theme_id", () => {
+            const input = { ...validMcqBody, type: "OPEN" } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question type must be MCQ or SPEED.");
+        });
+
+        it("should report unknown fields before the form of theme_id", () => {
+            const input = { ...validMcqBody, image_path: "a.png" } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(UnknownFieldsError);
+        });
+
+        it("should report a malformed theme_id before a mistyped title", () => {
+            const input = { ...validMcqBody, title: 42 } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(InvalidUuidError);
+        });
+
+        it("should report a malformed theme_id before a title that breaks a rule of the creation", () => {
+            const input = { ...validMcqBody, title: "Trop cour" };
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(InvalidUuidError);
+        });
+
+        it("should report a malformed theme_id before looking for the question", () => {
+            vi.mocked(questionRepository.getById).mockReturnValue(undefined);
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, validMcqBody)).toThrow(InvalidUuidError);
+            expect(questionRepository.getById).not.toHaveBeenCalled();
+        });
+    });
+});
+
+describe("US-005/CA-8 - When the service creates a question with a malformed theme_id", () => {
+    const validMcqInput: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "not-a-valid-uuid",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+
+    beforeEach(() => {
+        vi.mocked(uuidValidator.validate).mockReturnValue(false);
+    });
+
+    it("should reject with an InvalidUuidError and not ask the repository to insert anything", () => {
+        expect(() => defaultQuestionService.createQuestion(validMcqInput)).toThrow(InvalidUuidError);
+        expect(questionRepository.insert).not.toHaveBeenCalled();
+    });
+
+    it("should hand the theme_id of the input to the validator", () => {
+        expect(() => defaultQuestionService.createQuestion(validMcqInput)).toThrow();
+
+        expect(uuidValidator.validate).toHaveBeenCalledWith("not-a-valid-uuid");
+    });
+
+    it("should report it before an invalid type", () => {
+        const input = { ...validMcqInput, type: "OPEN" } as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(InvalidUuidError);
+    });
+
+    it("should report it before choices on a SPEED question", () => {
+        const input = {
+            type: "SPEED",
+            theme_id: "not-a-valid-uuid",
+            title: "Quelle est la capitale de la France ?",
+            choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+            correct_answer: "Paris",
+            level: 1,
+            time_limit: 30,
+            points: 10,
+        } as unknown as CreateQuestionInput;
+
+        expect(() => defaultQuestionService.createQuestion(input)).toThrow(InvalidUuidError);
+    });
+
+    it("should report it before a theme that does not exist, without asking whether the theme exists", () => {
+        vi.mocked(themeExistenceChecker.exists).mockReturnValue(false);
+
+        expect(() => defaultQuestionService.createQuestion(validMcqInput)).toThrow(InvalidUuidError);
+        expect(themeExistenceChecker.exists).not.toHaveBeenCalled();
     });
 });

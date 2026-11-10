@@ -28,6 +28,7 @@ import { DefaultQuestionService } from './questions/default-question-service'
 import { Question } from './questions/question.interface'
 import { DefaultThemeService } from './themes/default-theme-service'
 import { Theme } from './themes/theme.interface'
+import { UuidFormatValidator } from './infrastructure/uuid-format-validator'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -281,7 +282,8 @@ describe('US-005/CA-27 - The question list is ordered most recent first on the a
 			mockClock,
 			{ generate: vi.fn() }, // la création n'est pas l'objet de ce test
 			questionRepository,
-			{ exists: vi.fn() }
+			{ exists: vi.fn() },
+			{ validate: vi.fn() }
 		)
 		const listingRouteConfiguration: QuestionRouteConfiguration = {
 			questionService: listingQuestionService,
@@ -298,6 +300,58 @@ describe('US-005/CA-27 - The question list is ordered most recent first on the a
 		expect(response.statusCode).toBe(200)
 		const createdAt = response.json<{ data: Question[] }>().data.map(question => question.created_at)
 		expect(createdAt).toEqual(['2026-01-02T10:00:00.000Z', '2026-01-01T10:00:00.000Z'])
+	})
+	afterEach(async () => {
+		await server.stop()
+		database.close()
+	});
+});
+
+describe('US-005/CA-8 - A malformed theme_id is refused with INVALID_UUID on the assembled server', () => {
+	const themeId = '019d6c17-1c08-7161-9358-fe4a116fa000'
+	const questionId = '019d6c17-1c08-7161-9358-fe4a116fa001'
+	const questionBody = {
+		type: 'SPEED', theme_id: 'not-a-valid-uuid', title: 'Quelle est la capitale de la France',
+		correct_answer: 'Paris', level: 3, time_limit: 30, points: 10
+	}
+	const invalidUuid = { status: 400, error: 'INVALID_UUID', message: 'The provided ID is not a valid UUID.' }
+	let database: Database
+	let server: QuizServer
+	beforeEach(() => {
+		database = new SqliteDatabase(':memory:')
+		new SqliteThemeRepository(database).insert({ id: themeId, name: 'Theme parent', created_at: '2026-01-01T00:00:00.000Z', last_updated_at: null })
+		const questionRepository = new SqliteQuestionRepository(database)
+		questionRepository.insert({
+			id: questionId, type: 'SPEED', theme_id: themeId, title: 'Quelle est la capitale de la Suisse', correct_answer: 'Berne',
+			level: 3, time_limit: 30, points: 10, image_path: null, audio_path: null, created_at: '2026-01-01T10:00:00.000Z', last_updated_at: null
+		})
+		const realQuestionService: QuestionService = new DefaultQuestionService(
+			mockClock,
+			{ generate: vi.fn() },
+			questionRepository,
+			{ exists: vi.fn().mockReturnValue(true) },
+			new UuidFormatValidator()
+		)
+		const realRouteConfiguration: QuestionRouteConfiguration = {
+			questionService: realQuestionService,
+			tokenValidator: mockTokenValidator,
+			tokenDecoder: mockTokenDecoder,
+			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
+			rateLimitMiddleware: mockRateLimitMiddleware
+		};
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, realRouteConfiguration)
+	})
+	it('refuses a POST whose theme_id is malformed', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'POST', url: '/api/v1/questions', payload: JSON.stringify(questionBody), headers: { 'Content-Type': 'application/json' } })
+		expect(response.statusCode).toBe(400)
+		expect(response.json()).toEqual(invalidUuid)
+	})
+	it('refuses a PUT whose theme_id is malformed', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PUT', url: `/api/v1/questions/${questionId}`, payload: JSON.stringify(questionBody), headers: { 'Content-Type': 'application/json' } })
+		expect(response.statusCode).toBe(400)
+		expect(response.json()).toEqual(invalidUuid)
 	})
 	afterEach(async () => {
 		await server.stop()
