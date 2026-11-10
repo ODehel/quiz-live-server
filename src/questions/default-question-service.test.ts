@@ -1084,6 +1084,89 @@ describe("US-005/CA-37 - When the service updates an MCQ question with exactly t
     });
 });
 
+describe("US-005/CA-37 - When the service updates an MCQ question whose only difference is extra spaces", () => {
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695244",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: "images/france.png",
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: "2026-04-05T08:00:00.000Z",
+    };
+    const identicalInput: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedQuestion.theme_id,
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+    });
+
+    it.each<[string, Partial<CreateMcqInput>]>([
+        ["title", { title: "  Quelle est   la capitale  de la France ?  " }],
+        ["correct_answer", { correct_answer: "  Paris " }],
+        ["a choice", { choices: ["Paris", " Lyon  ", "Marseille", "Toulouse"] }],
+    ])("should return the stored question as it is and not ask the repository to update anything when only the %s has extra spaces", (_field, change) => {
+        const result = defaultQuestionService.updateQuestion(storedQuestion.id, { ...identicalInput, ...change });
+
+        expect(result).toEqual(storedQuestion);
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+});
+
+describe("US-005/CA-37 - When the service updates an MCQ question whose only change is the order of its choices", () => {
+    let result: Question;
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695245",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: "2026-04-05T08:00:00.000Z",
+    };
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedQuestion.theme_id,
+        title: storedQuestion.title,
+        choices: ["Lyon", "Paris", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    const expected: Question = { ...storedQuestion, choices: input.choices, last_updated_at: "2026-04-08T13:32:00.000Z" };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+        result = defaultQuestionService.updateQuestion(storedQuestion.id, input);
+    });
+
+    it("should return and persist the question with the new order and last_updated_at set to now", () => {
+        expect(result).toEqual(expected);
+        expect(questionRepository.update).toHaveBeenCalledWith(expected);
+    });
+});
+
 describe("US-005/CA-37 - When the service updates a SPEED question changing exactly one field", () => {
     const storedQuestion: Question = {
         id: "019d6cdd-30db-7437-ac57-5826c0695243",
