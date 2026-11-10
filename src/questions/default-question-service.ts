@@ -97,7 +97,7 @@ export class DefaultQuestionService implements QuestionService {
             throw new ConflictError();
         }
 
-        if (this.carriesTheStoredData(input, existing)) {
+        if (this.carriesTheStoredData(input, existing, title, correctAnswer)) {
             return existing;
         }
 
@@ -147,13 +147,13 @@ export class DefaultQuestionService implements QuestionService {
         return question;
     }
 
-    private carriesTheStoredData(input: CreateQuestionInput, existing: Question): boolean {
+    private carriesTheStoredData(input: CreateQuestionInput, existing: Question, title: string, correctAnswer: string): boolean {
         const sameChoices = input.type !== "MCQ" || existing.type !== "MCQ"
-            || (input.choices.length === existing.choices.length && input.choices.every((choice, index) => choice === existing.choices[index]));
+            || (input.choices.length === existing.choices.length && input.choices.every((choice, index) => choice.trim() === existing.choices[index]));
 
         return input.theme_id === existing.theme_id
-            && input.title === existing.title
-            && input.correct_answer === existing.correct_answer
+            && title === existing.title
+            && correctAnswer === existing.correct_answer
             && input.level === existing.level
             && input.time_limit === existing.time_limit
             && input.points === existing.points
