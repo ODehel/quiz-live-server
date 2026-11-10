@@ -1,4 +1,5 @@
 import { User } from "../users/user.interface";
+import { toRoleLabel } from "../users/role-label";
 import { Token } from "./token.interface";
 import { TokenGenerator } from "./token-generator.interface";
 import jwt from "jsonwebtoken";
@@ -15,7 +16,7 @@ export class JwtGenerator implements TokenGenerator {
     generateToken(user: User): Token {
         const payload = {
                 sub: user.id,
-                role: user.role
+                role: toRoleLabel(user.role)
             };
             const options: jwt.SignOptions = {
                 expiresIn: this.duration,

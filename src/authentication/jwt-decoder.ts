@@ -1,4 +1,4 @@
-import { UserRole } from "../users/user-role";
+import { fromRoleLabel } from "../users/role-label";
 import { DecodedToken } from "./decoded-token.interface";
 import { TokenDecoder } from "./token-decoder.interface";
 import jwt from "jsonwebtoken";
@@ -10,12 +10,10 @@ export class JwtDecoder implements TokenDecoder {
         if (typeof payLoad !== 'object' || payLoad === null) {
             return undefined;
         }
-        const themePayLoad: ThemePayload = payLoad as ThemePayload;
-        
-        return { role: themePayLoad.role };
+        const role = fromRoleLabel(payLoad.role);
+        if (role === undefined) {
+            return undefined;
+        }
+        return { role };
     }
-}
-
-interface ThemePayload extends jwt.JwtPayload {
-    role: UserRole;
 }
