@@ -1623,3 +1623,150 @@ describe("US-005/CA-35 - When the service updates a question with a body that br
         });
     });
 });
+
+describe("US-005/CA-35 - When the service updates a question with a field of the wrong type", () => {
+    const storedMcq: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695231",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale du Portugal ?",
+        choices: ["Lisbonne", "Porto", "Faro", "Braga"],
+        correct_answer: "Lisbonne",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const validMcqBody: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedMcq.theme_id,
+        title: "Quelle est la capitale de l'Espagne ?",
+        choices: ["Madrid", "Rome", "Vienne", "Oslo"],
+        correct_answer: "Madrid",
+        level: 4,
+        time_limit: 45,
+        points: 20,
+    };
+    const storedSpeed: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695232",
+        type: "SPEED",
+        theme_id: storedMcq.theme_id,
+        title: "Quel fleuve traverse Lisbonne ?",
+        correct_answer: "Tage",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const validSpeedBody: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: storedMcq.theme_id,
+        title: "Quel fleuve traverse Madrid ?",
+        correct_answer: "Manzanares",
+        level: 4,
+        time_limit: 45,
+        points: 20,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedMcq);
+    });
+
+    describe("title", () => {
+        it.each([
+            ["a number", 42],
+            ["a boolean", true],
+            ["an array", ["Quelle est la capitale ?"]],
+            ["an object", { text: "Quelle est la capitale ?" }],
+        ])("should reject a title that is %s with a ValidationError and not ask the repository to update anything", (_label, title) => {
+            const input = { ...validMcqBody, title } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ValidationError);
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question title must be a string.");
+            expect(questionRepository.update).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("correct_answer", () => {
+        const notStrings: [string, unknown][] = [
+            ["a number", 42],
+            ["a boolean", true],
+            ["an array", ["Madrid"]],
+            ["an object", { text: "Madrid" }],
+        ];
+
+        it.each(notStrings)("should reject an MCQ correct_answer that is %s with a ValidationError and not ask the repository to update anything", (_label, correctAnswer) => {
+            const input = { ...validMcqBody, correct_answer: correctAnswer } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ValidationError);
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question correct_answer must be a string.");
+            expect(questionRepository.update).not.toHaveBeenCalled();
+        });
+
+        it.each(notStrings)("should reject a SPEED correct_answer that is %s with a ValidationError and not ask the repository to update anything", (_label, correctAnswer) => {
+            vi.mocked(questionRepository.getById).mockReturnValue(storedSpeed);
+            const input = { ...validSpeedBody, correct_answer: correctAnswer } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedSpeed.id, input)).toThrow(ValidationError);
+            expect(() => defaultQuestionService.updateQuestion(storedSpeed.id, input)).toThrow("Question correct_answer must be a string.");
+            expect(questionRepository.update).not.toHaveBeenCalled();
+        });
+
+        it("should report a mistyped correct_answer before a mistyped title", () => {
+            const input = { ...validMcqBody, title: 42, correct_answer: 42 } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question correct_answer must be a string.");
+        });
+    });
+
+    describe("choices", () => {
+        it.each([
+            ["a string", "Madrid"],
+            ["a number", 42],
+            ["a boolean", true],
+            ["an object", { 0: "Madrid" }],
+        ])("should reject MCQ choices that are %s with a ValidationError and not ask the repository to update anything", (_label, choices) => {
+            const input = { ...validMcqBody, choices } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ValidationError);
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question choices must be an array.");
+            expect(questionRepository.update).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ["numbers", [1, 2, 3, 4]],
+            ["a single null", ["Madrid", "Rome", "Vienne", null]],
+        ])("should reject MCQ choices made of %s with a ValidationError and not ask the repository to update anything", (_label, choices) => {
+            const input = { ...validMcqBody, choices } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow(ValidationError);
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question choices must contain only strings.");
+            expect(questionRepository.update).not.toHaveBeenCalled();
+        });
+
+        it("should report mistyped choices before a mistyped title", () => {
+            const input = { ...validMcqBody, title: 42, choices: "Madrid" } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question choices must be an array.");
+        });
+
+        it("should report a mistyped correct_answer before mistyped choices", () => {
+            const input = { ...validMcqBody, correct_answer: 42, choices: "Madrid" } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, input)).toThrow("Question correct_answer must be a string.");
+        });
+
+        it("should leave the choices of a SPEED body to the rule that forbids them", () => {
+            vi.mocked(questionRepository.getById).mockReturnValue(storedSpeed);
+            const input = { ...validSpeedBody, choices: "Madrid" } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedSpeed.id, input)).toThrow("Question choices must be absent for a SPEED question.");
+        });
+    });
+});

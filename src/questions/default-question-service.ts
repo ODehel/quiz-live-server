@@ -183,7 +183,28 @@ export class DefaultQuestionService implements QuestionService {
         return title;
     }
 
+    private rejectInvalidFieldTypes(input: CreateQuestionInput): void {
+        if (typeof input.correct_answer !== "string") {
+            throw new ValidationError("Question correct_answer must be a string.");
+        }
+
+        if (input.type === "MCQ") {
+            if (!Array.isArray(input.choices)) {
+                throw new ValidationError("Question choices must be an array.");
+            }
+            if (input.choices.some(c => typeof c !== "string")) {
+                throw new ValidationError("Question choices must contain only strings.");
+            }
+        }
+
+        if (typeof input.title !== "string") {
+            throw new ValidationError("Question title must be a string.");
+        }
+    }
+
     private validateFields(input: CreateQuestionInput): { title: string, correctAnswer: string } {
+        this.rejectInvalidFieldTypes(input);
+
         const title = this.validateTitle(this.normalizeTitle(input.title));
 
         const correctAnswer = this.validateAnswers(input);
