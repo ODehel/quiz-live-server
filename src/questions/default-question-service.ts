@@ -40,9 +40,7 @@ export class DefaultQuestionService implements QuestionService {
 
         const { title, correctAnswer: trimmedCorrectAnswer } = this.validateFields(input);
 
-        if (!this.themeExistenceChecker.exists(input.theme_id)) {
-            throw new InvalidThemeError();
-        }
+        this.rejectUnknownTheme(input);
 
         if (this.questionRepository.getByTitle(title) !== undefined) {
             throw new ConflictError();
@@ -90,6 +88,8 @@ export class DefaultQuestionService implements QuestionService {
         }
 
         this.rejectChoicesOnSpeed(input);
+
+        this.rejectUnknownTheme(input);
 
         const sameTitle = this.questionRepository.getByTitle(title);
 
@@ -168,6 +168,12 @@ export class DefaultQuestionService implements QuestionService {
     private rejectMalformedThemeId(input: CreateQuestionInput): void {
         if (!this.uuidValidator.validate(input.theme_id)) {
             throw new InvalidUuidError();
+        }
+    }
+
+    private rejectUnknownTheme(input: CreateQuestionInput): void {
+        if (!this.themeExistenceChecker.exists(input.theme_id)) {
+            throw new InvalidThemeError();
         }
     }
 
