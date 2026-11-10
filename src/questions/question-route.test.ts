@@ -4,6 +4,7 @@ import questionRoute from './question-route';
 import { QuestionService } from './question-service.interface';
 import { Question } from './question.interface';
 import { InvalidThemeError } from './invalid-theme-error';
+import { InvalidUuidError } from './invalid-uuid-error';
 import { ValidationError } from './validation-error';
 import { ConflictError } from './conflict-error';
 import { TypeChangeNotAllowedError } from './type-change-not-allowed-error';
@@ -196,32 +197,6 @@ describe('US-005/CA-6 - Reject a question with an invalid type', () => {
             error: 'VALIDATION_ERROR',
             message: 'Question type must be MCQ or SPEED.'
         });
-    });
-});
-
-describe('US-005/CA-8 - Reject a question with a malformed theme_id', () => {
-    it('should reject a question whose theme_id is not a valid UUID with a 400 INVALID_UUID response', async () => {
-        const response = await app.inject({
-            method: 'POST',
-            url: '/api/v1/questions',
-            payload: {
-                type: 'SPEED',
-                theme_id: 'not-a-valid-uuid',
-                title: 'Qui a peint la Joconde ?',
-                correct_answer: 'Léonard de Vinci',
-                level: 3,
-                time_limit: 30,
-                points: 10
-            }
-        });
-
-        expect(response.statusCode).toBe(400);
-        expect(response.json()).toEqual({
-            status: 400,
-            error: 'INVALID_UUID',
-            message: 'The provided ID is not a valid UUID.'
-        });
-        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
     });
 });
 
@@ -1742,5 +1717,53 @@ describe('US-005/CA-41 - Write a question with a content type that is not JSON',
         expect(response.statusCode).toBe(415);
         expect(response.json()).toEqual(unsupportedMediaType);
         expect(mockQuestionService.updateQuestion).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-005/CA-35 - Translate the malformed theme_id refused by the service', () => {
+    const invalidUuidBody = {
+        status: 400,
+        error: 'INVALID_UUID',
+        message: 'The provided ID is not a valid UUID.'
+    };
+    const body = {
+        type: 'SPEED',
+        theme_id: 'not-a-valid-uuid',
+        title: 'Quel est le plus grand océan du monde ?',
+        correct_answer: 'Pacifique',
+        level: 3,
+        time_limit: 20,
+        points: 25
+    };
+
+    it('should reply 400 INVALID_UUID to a PUT when the service refuses its theme_id', async () => {
+        mockQuestionService.updateQuestion = vi.fn(() => {
+            throw new InvalidUuidError();
+        });
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/019d92d2-e1f6-7d05-9803-3948dbc4c418',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual(invalidUuidBody);
+    });
+
+    it('should reply 400 INVALID_UUID to a POST when the service refuses its theme_id', async () => {
+        mockQuestionService.createQuestion = vi.fn(() => {
+            throw new InvalidUuidError();
+        });
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            payload: { ...body, theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a' } // bien formé pour la route : seul le service peut le refuser
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual(invalidUuidBody);
     });
 });

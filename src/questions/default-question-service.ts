@@ -8,6 +8,8 @@ import { ConflictError } from "./conflict-error";
 import { CreateMcqInput } from "./create-mcq-input.interface";
 import { CreateSpeedInput } from "./create-speed-input.interface";
 import { InvalidThemeError } from "./invalid-theme-error";
+import { InvalidUuidError } from "./invalid-uuid-error";
+import { UuidValidator } from "../common/uuid-validator.interface";
 import { QuestionRepository } from "./question-repository.interface";
 import { QuestionService } from "./question-service.interface";
 import { Question } from "./question.interface";
@@ -26,10 +28,12 @@ const UPDATE_REQUIRED_MCQ_FIELDS = ["theme_id", "title", "choices", "correct_ans
 export type CreateQuestionInput = CreateMcqInput | CreateSpeedInput;
 
 export class DefaultQuestionService implements QuestionService {
-    constructor(private clock: Clock, private uuidGenerator: UuidGenerator, private questionRepository: QuestionRepository, private themeExistenceChecker: ThemeExistenceChecker) {
+    constructor(private clock: Clock, private uuidGenerator: UuidGenerator, private questionRepository: QuestionRepository, private themeExistenceChecker: ThemeExistenceChecker, private uuidValidator: UuidValidator) {
     }
 
     createQuestion(input: CreateQuestionInput): Question {
+        this.rejectMalformedThemeId(input);
+
         this.rejectInvalidType(input);
 
         this.rejectChoicesOnSpeed(input);
@@ -74,6 +78,8 @@ export class DefaultQuestionService implements QuestionService {
         this.rejectUnknownFields(input);
 
         this.rejectMissingFields(input);
+
+        this.rejectMalformedThemeId(input);
 
         const { title, correctAnswer } = this.validateFields(input);
 
@@ -156,6 +162,12 @@ export class DefaultQuestionService implements QuestionService {
         const missing = required.find(field => record[field] === undefined || record[field] === null);
         if (missing !== undefined) {
             throw new ValidationError(`Question ${missing} is required.`);
+        }
+    }
+
+    private rejectMalformedThemeId(input: CreateQuestionInput): void {
+        if (!this.uuidValidator.validate(input.theme_id)) {
+            throw new InvalidUuidError();
         }
     }
 

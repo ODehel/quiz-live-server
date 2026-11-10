@@ -13,6 +13,7 @@ import { DefaultThemeService } from './themes/default-theme-service';
 import { Uuidv7Generator } from './infrastructure/uuidv7-generator';
 import { SqliteThemeRepository } from './themes/sqlite-theme-repository';
 import { Uuidv7Validator } from './infrastructure/uuidv7-validator';
+import { UuidFormatValidator } from './infrastructure/uuid-format-validator';
 import { JwtValidator } from './authentication/jwt-validator';
 import authenticationMiddleware from './authentication/authentication-middleware';
 import { ProcessEnvironment } from './common/process-environment';
@@ -73,7 +74,7 @@ const wsRouteConfiguration: WsRouteConfiguration = {
 const questionRouteConfiguration: QuestionRouteConfiguration = {
     tokenDecoder: new JwtDecoder(),
     tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
-    questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), new SqliteQuestionRepository(database), new ThemeRepositoryExistenceChecker(themeRepository)),
+    questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), new SqliteQuestionRepository(database), new ThemeRepositoryExistenceChecker(themeRepository), new UuidFormatValidator()),
     middleware: authenticationMiddleware,
     rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
