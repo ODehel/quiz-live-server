@@ -1775,7 +1775,7 @@ describe('US-005/CA-39 - Update a question with the title of another question', 
     });
 });
 
-describe('US-005/CA-41 - Write a question with a content type that is not JSON', () => {
+describe('US-005/CA-20 and CA-41 - Write a question with a content type that is not JSON', () => {
     const unsupportedMediaType = { code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 };
     const validBody = JSON.stringify({
         type: 'MCQ',
