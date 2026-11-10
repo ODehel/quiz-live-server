@@ -968,6 +968,169 @@ describe("US-005/CA-34 - When the service updates a SPEED question with a body c
     });
 });
 
+describe("US-005/CA-37 - When the service updates a SPEED question with exactly the stored data", () => {
+    let result: Question;
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695240",
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 2,
+        time_limit: 20,
+        points: 15,
+        image_path: "images/ocean.png",
+        audio_path: "audio/ocean.mp3",
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: "2026-04-05T08:00:00.000Z",
+    };
+    const input: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: storedQuestion.theme_id,
+        title: storedQuestion.title,
+        correct_answer: storedQuestion.correct_answer,
+        level: 2,
+        time_limit: 20,
+        points: 15,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+        result = defaultQuestionService.updateQuestion(storedQuestion.id, input);
+    });
+
+    it("should return the stored question as it is, with last_updated_at unchanged, and not ask the repository to update anything", () => {
+        expect(result).toEqual(storedQuestion);
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+});
+
+describe("US-005/CA-37 - When the service updates an MCQ question whose only change is one of its choices", () => {
+    let result: Question;
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695241",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: "2026-04-05T08:00:00.000Z",
+    };
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedQuestion.theme_id,
+        title: storedQuestion.title,
+        choices: ["Paris", "Lyon", "Marseille", "Nice"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    const expected: Question = { ...storedQuestion, choices: input.choices, last_updated_at: "2026-04-08T13:32:00.000Z" };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+        result = defaultQuestionService.updateQuestion(storedQuestion.id, input);
+    });
+
+    it("should return and persist the question with the new choices and last_updated_at set to now", () => {
+        expect(result).toEqual(expected);
+        expect(questionRepository.update).toHaveBeenCalledWith(expected);
+    });
+});
+
+describe("US-005/CA-37 - When the service updates an MCQ question with exactly the stored data", () => {
+    let result: Question;
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695242",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: "images/france.png",
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: "2026-04-05T08:00:00.000Z",
+    };
+    const input: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: storedQuestion.theme_id,
+        title: storedQuestion.title,
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+        result = defaultQuestionService.updateQuestion(storedQuestion.id, input);
+    });
+
+    it("should return the stored question as it is, with last_updated_at unchanged, and not ask the repository to update anything", () => {
+        expect(result).toEqual(storedQuestion);
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+});
+
+describe("US-005/CA-37 - When the service updates a SPEED question changing exactly one field", () => {
+    const storedQuestion: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695243",
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 2,
+        time_limit: 20,
+        points: 15,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: "2026-04-05T08:00:00.000Z",
+    };
+    const identicalInput: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: storedQuestion.theme_id,
+        title: storedQuestion.title,
+        correct_answer: storedQuestion.correct_answer,
+        level: 2,
+        time_limit: 20,
+        points: 15,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedQuestion);
+    });
+
+    it.each([
+        ["theme_id", { theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9b" }],
+        ["title", { title: "Quel est le plus petit océan du monde ?" }],
+        ["correct_answer", { correct_answer: "Atlantique" }],
+        ["level", { level: 3 }],
+        ["time_limit", { time_limit: 25 }],
+        ["points", { points: 20 }],
+    ])("should persist the question with last_updated_at set to now when only %s differs", (_field, change) => {
+        const input: CreateSpeedInput = { ...identicalInput, ...change };
+
+        const result = defaultQuestionService.updateQuestion(storedQuestion.id, input);
+
+        const expected: Question = { ...storedQuestion, ...change, last_updated_at: "2026-04-08T13:32:00.000Z" };
+        expect(result).toEqual(expected);
+        expect(questionRepository.update).toHaveBeenCalledWith(expected);
+    });
+});
+
 describe("US-005/CA-40 - When the service is asked to update a question by an unknown id", () => {
     const id = "018e4f5a-0000-0000-0000-000000000000";
     const input: CreateMcqInput = {
