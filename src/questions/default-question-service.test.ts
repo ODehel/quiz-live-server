@@ -1922,3 +1922,102 @@ describe("US-005/CA-8 - When the service creates a question with a malformed the
         expect(themeExistenceChecker.exists).not.toHaveBeenCalled();
     });
 });
+
+describe("US-005/CA-35 - When the service updates a question with a theme_id that references no existing theme", () => {
+    const unknownThemeId = "018e4f5a-0000-0000-0000-000000000000";
+    const storedMcq: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695241",
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale du Portugal ?",
+        choices: ["Lisbonne", "Porto", "Faro", "Braga"],
+        correct_answer: "Lisbonne",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+    const validMcqBody: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: unknownThemeId,
+        title: "Quelle est la capitale de l'Espagne ?",
+        choices: ["Madrid", "Rome", "Vienne", "Oslo"],
+        correct_answer: "Madrid",
+        level: 4,
+        time_limit: 45,
+        points: 20,
+    };
+    const storedSpeed: Question = {
+        id: "019d6cdd-30db-7437-ac57-5826c0695242",
+        type: "SPEED",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 2,
+        time_limit: 15,
+        points: 20,
+        image_path: null,
+        audio_path: null,
+        created_at: "2026-04-01T09:00:00.000Z",
+        last_updated_at: null,
+    };
+
+    beforeEach(() => {
+        vi.mocked(questionRepository.getById).mockReturnValue(storedMcq);
+        vi.mocked(themeExistenceChecker.exists).mockReturnValue(false);
+    });
+
+    it("should reject with an InvalidThemeError and not ask the repository to update anything", () => {
+        expect(() => defaultQuestionService.updateQuestion(storedMcq.id, validMcqBody)).toThrow(InvalidThemeError);
+        expect(questionRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("should hand the theme_id of the body to the existence checker", () => {
+        expect(() => defaultQuestionService.updateQuestion(storedMcq.id, validMcqBody)).toThrow();
+
+        expect(themeExistenceChecker.exists).toHaveBeenCalledWith(unknownThemeId);
+    });
+
+    describe("order of the checks", () => {
+        it("should report an unknown question before looking at the theme", () => {
+            vi.mocked(questionRepository.getById).mockReturnValue(undefined);
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, validMcqBody)).toThrow(NotFoundError);
+            expect(themeExistenceChecker.exists).not.toHaveBeenCalled();
+        });
+
+        it("should report a change of type before looking at the theme", () => {
+            vi.mocked(questionRepository.getById).mockReturnValue(storedSpeed);
+
+            expect(() => defaultQuestionService.updateQuestion(storedSpeed.id, validMcqBody)).toThrow(TypeChangeNotAllowedError);
+            expect(themeExistenceChecker.exists).not.toHaveBeenCalled();
+        });
+
+        it("should report choices on a SPEED body before looking at the theme", () => {
+            vi.mocked(questionRepository.getById).mockReturnValue(storedSpeed);
+            const input = {
+                type: "SPEED",
+                theme_id: unknownThemeId,
+                title: "Quel est le plus petit océan du monde ?",
+                choices: ["Arctique", "Indien", "Atlantique", "Pacifique"],
+                correct_answer: "Arctique",
+                level: 2,
+                time_limit: 15,
+                points: 20,
+            } as unknown as CreateQuestionInput;
+
+            expect(() => defaultQuestionService.updateQuestion(storedSpeed.id, input)).toThrow("Question choices must be absent for a SPEED question.");
+            expect(themeExistenceChecker.exists).not.toHaveBeenCalled();
+        });
+
+        it("should report the theme before a title taken by another question, without searching the title", () => {
+            vi.mocked(questionRepository.getByTitle).mockReturnValue({ ...storedSpeed, title: validMcqBody.title });
+
+            expect(() => defaultQuestionService.updateQuestion(storedMcq.id, validMcqBody)).toThrow(InvalidThemeError);
+            expect(questionRepository.getByTitle).not.toHaveBeenCalled();
+        });
+    });
+});

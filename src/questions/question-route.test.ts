@@ -1767,3 +1767,33 @@ describe('US-005/CA-35 - Translate the malformed theme_id refused by the service
         expect(response.json()).toEqual(invalidUuidBody);
     });
 });
+
+describe('US-005/CA-35 - Reject an update referencing a non-existent theme', () => {
+    it('should translate an InvalidThemeError into a 400 INVALID_THEME response', async () => {
+        mockQuestionService.updateQuestion = vi.fn(() => {
+            throw new InvalidThemeError();
+        });
+
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/v1/questions/019d92d2-e1f6-7d05-9803-3948dbc4c418',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'SPEED',
+                theme_id: '018e4f5a-0000-0000-0000-000000000000',
+                title: 'Quel est le plus grand océan du monde ?',
+                correct_answer: 'Pacifique',
+                level: 3,
+                time_limit: 20,
+                points: 25
+            })
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+            status: 400,
+            error: 'INVALID_THEME',
+            message: 'The provided theme_id does not reference an existing theme.'
+        });
+    });
+});

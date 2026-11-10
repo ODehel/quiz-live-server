@@ -25,6 +25,7 @@ import SqliteDatabase, { Database } from 'better-sqlite3'
 import { SqliteThemeRepository } from './themes/sqlite-theme-repository'
 import { SqliteQuestionRepository } from './questions/sqlite-question-repository'
 import { DefaultQuestionService } from './questions/default-question-service'
+import { ThemeRepositoryExistenceChecker } from './questions/theme-repository-existence-checker'
 import { Question } from './questions/question.interface'
 import { DefaultThemeService } from './themes/default-theme-service'
 import { Theme } from './themes/theme.interface'
@@ -359,7 +360,58 @@ describe('US-005/CA-8 - A malformed theme_id is refused with INVALID_UUID on the
 	});
 });
 
-describe('US-004/CA-14 - The theme list is ordered most recent first on the assembled server', () => {
+describe('US-005/CA-35 - An unknown theme_id is refused with INVALID_THEME on PUT on the assembled server', () => {
+	const themeId = '019d6c17-1c08-7161-9358-fe4a116fa000'
+	const questionId = '019d6c17-1c08-7161-9358-fe4a116fa001'
+	const putBody = (theme_id: string) => ({
+		type: 'SPEED', theme_id, title: 'Quelle est la capitale de la Suède', correct_answer: 'Stockholm', level: 3, time_limit: 30, points: 10
+	})
+	const invalidTheme = { status: 400, error: 'INVALID_THEME', message: 'The provided theme_id does not reference an existing theme.' }
+	let database: Database
+	let server: QuizServer
+	beforeEach(() => {
+		database = new SqliteDatabase(':memory:')
+		const themeRepository = new SqliteThemeRepository(database)
+		themeRepository.insert({ id: themeId, name: 'Theme parent', created_at: '2026-01-01T00:00:00.000Z', last_updated_at: null })
+		const questionRepository = new SqliteQuestionRepository(database)
+		questionRepository.insert({
+			id: questionId, type: 'SPEED', theme_id: themeId, title: 'Quelle est la capitale de la Suisse', correct_answer: 'Berne',
+			level: 3, time_limit: 30, points: 10, image_path: null, audio_path: null, created_at: '2026-01-01T10:00:00.000Z', last_updated_at: null
+		})
+		const realQuestionService: QuestionService = new DefaultQuestionService(
+			mockClock,
+			{ generate: vi.fn() },
+			questionRepository,
+			new ThemeRepositoryExistenceChecker(themeRepository),
+			new UuidFormatValidator()
+		)
+		const realRouteConfiguration: QuestionRouteConfiguration = {
+			questionService: realQuestionService,
+			tokenValidator: mockTokenValidator,
+			tokenDecoder: mockTokenDecoder,
+			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
+			rateLimitMiddleware: mockRateLimitMiddleware
+		};
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, realRouteConfiguration)
+	})
+	it('refuses a PUT whose theme_id is well formed but references no theme', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PUT', url: `/api/v1/questions/${questionId}`, payload: JSON.stringify(putBody('018e4f5a-0000-0000-0000-000000000000')), headers: { 'Content-Type': 'application/json' } })
+		expect(response.statusCode).toBe(400)
+		expect(response.json()).toEqual(invalidTheme)
+	})
+	it('accepts a PUT whose theme_id references an existing theme', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PUT', url: `/api/v1/questions/${questionId}`, payload: JSON.stringify(putBody(themeId)), headers: { 'Content-Type': 'application/json' } })
+		expect(response.statusCode).toBe(200)
+	})
+	afterEach(async () => {
+		await server.stop()
+		database.close()
+	});
+});
+
+describe('US-004/CA-14- The theme list is ordered most recent first on the assembled server', () => {
 	let database: Database
 	let server: QuizServer
 	beforeEach(() => {
