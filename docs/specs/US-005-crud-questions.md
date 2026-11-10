@@ -77,7 +77,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-34 | Modifier une question SPEED avec tous les champs valides | `200 OK` avec la question mise à jour, `last_updated_at` mis à jour |
 | CA-35 | Toutes les règles de validation du POST s'appliquent | Trim, collapse, regex, unicité, cohérence type/champs |
 | CA-36 | Le `type` envoyé doit correspondre au type actuel de la question | Changement de type → `400 TYPE_CHANGE_NOT_ALLOWED` |
-| CA-37 | Les données envoyées sont identiques à l'existant | `200 OK` avec la question inchangée, `last_updated_at` **non modifié** |
+| CA-37 | Les données envoyées sont identiques à l'existant, une fois normalisées comme au CA-35 (trim, collapse) ; l'ordre des `choices` compte | `200 OK` avec la question inchangée, `last_updated_at` **non modifié** |
 | CA-38 | L'ID peut être présent dans le body ; s'il l'est, il doit correspondre à l'URL | Sinon → `400 ID_MISMATCH` |
 | CA-39 | Le titre est déjà pris par une autre question | `409 QUESTION_ALREADY_EXISTS` |
 | CA-40 | ID inexistant | `404 NOT_FOUND` |
@@ -657,6 +657,8 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/questions/$QUEST
 ```
 
 **CA-37** — Données identiques à l'existant → `200 OK`, `last_updated_at` non modifié
+
+> Précision (décision #29) : « identiques » se juge sur les valeurs **après** la normalisation du CA-35, celles qui seraient écrites. Un body qui ne diffère du stocké que par des espaces superflus (titre, réponse, `choices`) est donc identique. L'**ordre** des `choices` compte : les buzzers affichent les propositions A/B/C/D dans l'ordre du tableau (US-011 CA-10), un autre ordre est un changement.
 
 ```bash
 # Envoyer exactement les mêmes données que la question actuelle
