@@ -107,12 +107,10 @@ Voir les [Conventions techniques](../shared/CONVENTIONS-TECHNIQUES.md) pour la s
 ```sql
 CREATE TABLE T_USER_USR
 (
-    USR_ID              TEXT PRIMARY KEY,
-    USR_USERNAME        TEXT NOT NULL UNIQUE COLLATE NOCASE,
-    USR_PASSWORD        TEXT NOT NULL,  -- hashed with bcrypt
-    USR_ROLE            TEXT NOT NULL DEFAULT 'buzzer' CHECK (USR_ROLE IN ('admin', 'buzzer')),
-    USR_CREATED_AT      TEXT NOT NULL,
-    USR_LAST_UPDATED_AT TEXT DEFAULT NULL
+    USR_ID            TEXT PRIMARY KEY,
+    USR_LOGIN         TEXT NOT NULL UNIQUE,  -- UNIQUE sensible à la casse (pas de COLLATE NOCASE)
+    USR_HASH_PASSWORD TEXT NOT NULL,  -- hashed with bcrypt
+    USR_ROLE          TEXT NOT NULL DEFAULT 'buzzer' CHECK (USR_ROLE IN ('admin', 'buzzer'))
 );
 ```
 
@@ -190,7 +188,7 @@ Voir [Annexe — Authentification et autorisation — Payload JWT](../shared/AUT
 ```
 Client → POST /api/v1/token { username, password }
   → 1. Validation du body (champs requis, pas de champs inconnus)
-  → 2. Recherche de l'utilisateur par username (COLLATE NOCASE)
+  → 2. Recherche de l'utilisateur par username, sensible à la casse, sur `USR_LOGIN`
   → 3. Vérification du mot de passe avec bcrypt.compare()
   → 4. Si échec (étape 2 ou 3) → 401 INVALID_CREDENTIALS (message générique)
   → 5. Génération du JWT (sub, role, iat, exp) signé avec HS256

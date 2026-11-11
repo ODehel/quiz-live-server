@@ -76,7 +76,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | # | Critère | Résultat attendu |
 |---|---|---|
 | CA-27 | En niveau `DEBUG`, chaque requête SQL exécutée est loggée avec la requête, les paramètres et la durée en ms | Événement `SQL_QUERY` — absent en `INFO` et au-dessus |
-| CA-28 | Les valeurs de paramètres SQL potentiellement sensibles (mots de passe hachés) ne sont jamais loggées | Le champ `USR_PASSWORD` est masqué (`"[REDACTED]"`) dans les logs SQL |
+| CA-28 | Les valeurs de paramètres SQL potentiellement sensibles (mots de passe hachés) ne sont jamais loggées | Le champ `USR_HASH_PASSWORD` est masqué (`"[REDACTED]"`) dans les logs SQL |
 
 ### Nettoyage au démarrage
 
@@ -450,7 +450,7 @@ En environnement `test`, le logger est instancié avec `{ enabled: false }`. Auc
 
 ### Données sensibles — revue systématique
 
-Le logging SQL en `DEBUG` est le seul endroit où des données issues de la base peuvent apparaître dans les logs. Le champ `USR_PASSWORD` (hash bcrypt) doit être masqué via une fonction `redactSensitiveParams(params)` appliquée avant le log. Les tokens JWT ne doivent jamais apparaître dans les logs HTTP (ni dans `req.headers.authorization`).
+Le logging SQL en `DEBUG` est le seul endroit où des données issues de la base peuvent apparaître dans les logs. Le champ `USR_HASH_PASSWORD` (hash bcrypt) doit être masqué via une fonction `redactSensitiveParams(params)` appliquée avant le log. Les tokens JWT ne doivent jamais apparaître dans les logs HTTP (ni dans `req.headers.authorization`).
 
 ### Performance — pino multistream
 
