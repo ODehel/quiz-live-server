@@ -41,7 +41,8 @@ const database = new Database(processEnvironment.sqliteDbPath);
 const quizServerConfiguration: QuizServerConfiguration = {
     clock: clock,
     network: new OsNetwork(),
-    port: processEnvironment.port
+    port: processEnvironment.port,
+    rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 
 const userRepository = new SqliteUserRepository(database);
