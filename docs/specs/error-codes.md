@@ -26,7 +26,7 @@ Codes communs à **toutes les US**, appliquées globalement par le serveur :
 | `METHOD_NOT_ALLOWED` | `405` | `"HTTP method <METHOD> is not allowed on this resource."` | Méthode HTTP non supportée. Message dynamique : `<METHOD>` est la méthode de la requête, écrite telle que reçue (décision #33) |
 | `FST_ERR_CTP_INVALID_MEDIA_TYPE` | `415` | `"Unsupported Media Type"` | Content-Type incorrect. Corps natif de Fastify, non personnalisé (décision #11) : `{ "code": "FST_ERR_CTP_INVALID_MEDIA_TYPE", "error": "Unsupported Media Type", "message": "Unsupported Media Type", "statusCode": 415 }` |
 | `RATE_LIMIT_EXCEEDED` | `429` | `"Too many requests. Please retry in 60 seconds."` | Dépassement du rate limit (header `Retry-After: 60`) |
-| `INTERNAL_SERVER_ERROR` | `500` | `"An unexpected error occurred. Please try again later."` | Erreur serveur (aucun détail technique exposé). Inclut un champ `correlation_id` (UUIDv7) pour traçabilité — voir US-022 CA-19 |
+| `INTERNAL_SERVER_ERROR` | `500` | `"An unexpected error occurred. Please try again later."` | Erreur serveur (aucun détail technique exposé). Inclut un champ `correlation_id` (UUIDv7) pour traçabilité — voir US-022 CA-19, livré avec US-022 (décision #34) |
 
 ---
 
@@ -120,7 +120,7 @@ Toutes les réponses d'erreur de l'API suivent ce format JSON standardisé :
 }
 ```
 
-> **Cas particulier — Erreur 500** : les réponses `INTERNAL_SERVER_ERROR` incluent un champ supplémentaire `correlation_id` (UUIDv7) pour faciliter la traçabilité dans les logs serveur (voir US-022 CA-19).
+> **Cas particulier — Erreur 500** : les réponses `INTERNAL_SERVER_ERROR` incluent un champ supplémentaire `correlation_id` (UUIDv7) pour faciliter la traçabilité dans les logs serveur (voir US-022 CA-19). Ce champ est livré avec US-022 : tant que le middleware `correlationId` (US-022 CA-16) n'existe pas, le corps n'a que `status`, `error` et `message` (décision #34).
 >
 > ```json
 > {
