@@ -119,6 +119,28 @@ Content-Type: application/json
 
 ---
 
+### Route inconnue (404 NOT_FOUND)
+
+| Critère | Résultat attendu |
+|---|---|
+| **Une URL qui ne correspond à aucune ressource de l'API**, quelle que soit la méthode | `404 NOT_FOUND`, corps standard à trois champs (décision #35) |
+| Aucun token n'est exigé : token absent, invalide, expiré, de rôle `buzzer` ou `admin` | Même `404` (il passe avant l'authentification et le contrôle de rôle) |
+| Le message ne reprend ni la méthode ni l'URL de la requête | Message fixe, `<resource>` vaut `resource` |
+
+**Format de la réponse `404 NOT_FOUND` d'une route inconnue :**
+
+```json
+{
+  "status": 404,
+  "error": "NOT_FOUND",
+  "message": "The requested resource was not found."
+}
+```
+
+Une ressource qui existe mais dont l'identifiant est inconnu (`GET /api/v1/themes/<uuid>`) garde son message propre (« The requested theme was not found. »). Le `405` ne s'applique qu'à une ressource qui existe (#31 à #33).
+
+---
+
 ### Erreurs serveur (500 INTERNAL_SERVER_ERROR)
 
 | Critère | Résultat attendu |
@@ -288,6 +310,21 @@ curl -s -v -w "\n→ HTTP %{http_code}\n" -X OPTIONS "$BASE_URL/api/v1/themes" \
 curl -s -I -w "→ HTTP %{http_code}\n" "$BASE_URL/api/v1/themes" \
   -H "Authorization: Bearer $TOKEN"
 # Attendu : 405 METHOD_NOT_ALLOWED avec header "Allow: GET, POST" (sans HEAD)
+```
+
+---
+
+### CA-UnknownRoute — Route inconnue → `404 NOT_FOUND`
+
+```bash
+# Sans token : le 404 ne demande pas d'authentification (décision #35)
+curl -s -w "\n→ HTTP %{http_code}\n" -X GET "$BASE_URL/api/v1/does-not-exist"
+# Attendu : 404 NOT_FOUND, message "The requested resource was not found." (pas de 401)
+
+# Avec un token buzzer, méthode d'écriture : le 404 passe avant le 403
+curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/does-not-exist" \
+  -H "Authorization: Bearer $TOKEN_BUZZER"
+# Attendu : 404 NOT_FOUND (pas de 403)
 ```
 
 ---
