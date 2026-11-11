@@ -63,8 +63,9 @@ Cette annexe centralise les **critères d'acceptation (CA) de sécurité transve
 
 ```json
 {
+  "status": 429,
   "error": "RATE_LIMIT_EXCEEDED",
-  "message": "Too many requests. Please retry after 60 seconds."
+  "message": "Too many requests. Please retry in 60 seconds."
 }
 ```
 
