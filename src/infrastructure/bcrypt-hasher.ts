@@ -1,10 +1,11 @@
 import { Hasher } from "../common/hasher.interface"
 import bcrypt from 'bcryptjs'
 
+const COST_FACTOR = 12;
+
 export class BcryptHasher implements Hasher {
     async hash(password: string): Promise<string> {
-        const saltRounds = 10;
-        return bcrypt.hash(password, saltRounds);
+        return bcrypt.hash(password, COST_FACTOR);
     }
 
     async compare(password: string, hash: string): Promise<boolean> {
