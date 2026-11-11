@@ -32,6 +32,19 @@ import { DefaultQuestionService } from './questions/default-question-service';
 import { ThemeRepositoryExistenceChecker } from './questions/theme-repository-existence-checker';
 import { SqliteQuestionRepository } from './questions/sqlite-question-repository';
 import Database from 'better-sqlite3';
+import { JwtSettings, readJwtSettings } from './authentication/jwt-settings';
+
+function exitWithStartupFailure(error: unknown): never {
+    console.error("Server starting failed: " + (error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+}
+
+let jwtSettings: JwtSettings;
+try {
+    jwtSettings = readJwtSettings(process.env);
+} catch (error: unknown) {
+    exitWithStartupFailure(error);
+}
 
 const clock = new SystemClock();
 
@@ -50,19 +63,19 @@ const themeRepository = new SqliteThemeRepository(database);
 const hasher = new BcryptHasher();
 const tokenRouteConfiguration: TokenRouteConfiguration = {
     authenticationService: new JwtAuthenticationService(userRepository, hasher),
-    tokenGenerator: new JwtGenerator(processEnvironment.jwtSecretKey, processEnvironment.jwtExpirationTime),
+    tokenGenerator: new JwtGenerator(jwtSettings.secret, jwtSettings.expiration),
     rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 const themeRouteConfiguration: ThemeRouteConfiguration = {
     themeService: new DefaultThemeService(clock, new Uuidv7Generator(), themeRepository),
     uuidValidator: new Uuidv7Validator(),
-    tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
+    tokenValidator: new JwtValidator(jwtSettings.secret),
     tokenDecoder: new JwtDecoder(),
     middleware: authenticationMiddleware,
     rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 const wsRouteConfiguration: WsRouteConfiguration = {
-    tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
+    tokenValidator: new JwtValidator(jwtSettings.secret),
     scheduler: new SystemScheduler(),
     subjectExtractor: new JwtSubjectExtractor(),
     participantResolver: new UserRepositoryParticipantResolver(userRepository),
@@ -74,13 +87,10 @@ const wsRouteConfiguration: WsRouteConfiguration = {
 };
 const questionRouteConfiguration: QuestionRouteConfiguration = {
     tokenDecoder: new JwtDecoder(),
-    tokenValidator: new JwtValidator(processEnvironment.jwtSecretKey),
+    tokenValidator: new JwtValidator(jwtSettings.secret),
     questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), new SqliteQuestionRepository(database), new ThemeRepositoryExistenceChecker(themeRepository), new UuidFormatValidator()),
     middleware: authenticationMiddleware,
     rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration, questionRouteConfiguration);
-server.start().catch((error: unknown) => {
-    console.error("Server starting failed: " + (error instanceof Error ? error.message : String(error)));
-    process.exit(1);
-});
+server.start().catch(exitWithStartupFailure);
