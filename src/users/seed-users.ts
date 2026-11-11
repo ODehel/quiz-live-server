@@ -5,6 +5,9 @@ import { UserRepository } from "./user-repository.interface"
 import { UserRole } from "./user-role"
 import { SeedUserConfiguration } from "./seed-user-configuration.interface";
 
+const ADMIN_LOGIN = 'admin';
+const BUZZER_LOGINS = Array.from({ length: 10 }, (_, i) => `quiz_buzzer_${String(i + 1).padStart(2, '0')}`);
+
 export class SeedUsers {
     private repository: UserRepository;
     private hasher: Hasher;
@@ -16,30 +19,40 @@ export class SeedUsers {
     }
 
     public async seed(configuration: SeedUserConfiguration) {
-        if (this.passwordsCantValidate(configuration)) {
-            throw new Error("Invalid password");
-        }
         const userCount = await this.repository.count()
-        if (userCount === 0) {
-            const buzzers = await Promise.all(
-                Array.from({ length: 10 }, async (_, i) => ({
-                    id: uuidv7(),
-                    username: `quiz_buzzer_${String(i + 1).padStart(2, '0')}`,
-                    password: await this.hasher.hash(configuration.playerDefaultPassword),
-                    role: UserRole.PLAYER
-                }))
-            );
-            const defaultUsers = [
-                ...buzzers,
-                { id: uuidv7(), username: 'admin', password: await this.hasher.hash(configuration.adminPassword), role: UserRole.ADMIN }
-            ]
-            for (const user of defaultUsers) {
-                await this.repository.insert(user)
-            }
+        if (userCount !== 0) {
+            return;
+        }
+        const passwords = this.readValidPasswords(configuration);
+        const buzzers = await Promise.all(
+            BUZZER_LOGINS.map(async (login) => ({
+                id: uuidv7(),
+                username: login,
+                password: await this.hasher.hash(passwords.get(login)!),
+                role: UserRole.PLAYER
+            }))
+        );
+        const defaultUsers = [
+            ...buzzers,
+            { id: uuidv7(), username: ADMIN_LOGIN, password: await this.hasher.hash(passwords.get(ADMIN_LOGIN)!), role: UserRole.ADMIN }
+        ]
+        for (const user of defaultUsers) {
+            await this.repository.insert(user)
         }
     }
 
-    private passwordsCantValidate(configuration: SeedUserConfiguration) {
-        return !this.passwordValidator.validate(configuration.adminPassword) || !this.passwordValidator.validate(configuration.playerDefaultPassword);
+    private readValidPasswords(configuration: SeedUserConfiguration): Map<string, string> {
+        const passwords = new Map<string, string>();
+        for (const login of [ADMIN_LOGIN, ...BUZZER_LOGINS]) {
+            const password = configuration.seedPasswordFor(login);
+            if (password === undefined) {
+                throw new Error(`Missing password for account ${login}`);
+            }
+            if (!this.passwordValidator.validate(password)) {
+                throw new Error(`Invalid password for account ${login}`);
+            }
+            passwords.set(login, password);
+        }
+        return passwords;
     }
 }
