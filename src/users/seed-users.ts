@@ -4,6 +4,7 @@ import { PasswordValidator } from "./password-validator.interface";
 import { UserRepository } from "./user-repository.interface"
 import { UserRole } from "./user-role"
 import { SeedUserConfiguration } from "./seed-user-configuration.interface";
+import { readBcryptCost } from "./bcrypt-cost";
 
 export type SeedResult = { created: true } | { created: false; message: string };
 
@@ -27,17 +28,18 @@ export class SeedUsers {
             return { created: false, message: TABLE_NOT_EMPTY_MESSAGE };
         }
         const passwords = this.readValidPasswords(configuration);
+        const cost = readBcryptCost(configuration.bcryptCost());
         const buzzers = await Promise.all(
             BUZZER_LOGINS.map(async (login) => ({
                 id: uuidv7(),
                 username: login,
-                password: await this.hasher.hash(passwords.get(login)!),
+                password: await this.hasher.hash(passwords.get(login)!, cost),
                 role: UserRole.PLAYER
             }))
         );
         const defaultUsers = [
             ...buzzers,
-            { id: uuidv7(), username: ADMIN_LOGIN, password: await this.hasher.hash(passwords.get(ADMIN_LOGIN)!), role: UserRole.ADMIN }
+            { id: uuidv7(), username: ADMIN_LOGIN, password: await this.hasher.hash(passwords.get(ADMIN_LOGIN)!, cost), role: UserRole.ADMIN }
         ]
         for (const user of defaultUsers) {
             await this.repository.insert(user)
