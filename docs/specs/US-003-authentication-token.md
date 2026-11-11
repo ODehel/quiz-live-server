@@ -73,7 +73,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | # | Critère | Résultat attendu |
 |---|---|---|
 | CA-19 | `JWT_SECRET` est absent, vide ou de moins de 32 caractères | `npm start` refuse de démarrer : le serveur n'écoute sur aucun port, le processus se termine avec le code de sortie `1`, et la console affiche un message qui nomme `JWT_SECRET` et la règle (32 caractères minimum) sans reprendre la valeur. Ex : `Server starting failed: JWT_SECRET is required and must contain at least 32 characters.` |
-| CA-20 | `JWT_EXPIRATION` est renseignée mais n'est pas un entier strictement positif écrit en chiffres seulement (`abc`, `3600s`, `1.5`, `1e3`, `0`, `-5`, ` 3600`) | Même refus de démarrer qu'au CA-19, avec un message qui nomme `JWT_EXPIRATION` et la règle (entier strictement positif, en secondes). Absente ou vide, la variable vaut `3600` (CA-4) |
+| CA-20 | `JWT_EXPIRATION` est renseignée mais n'est pas un entier strictement positif écrit en chiffres seulement (`abc`, `3600s`, `1.5`, `1e3`, `0`, `-5`, ` 3600`) | Même refus de démarrer qu'au CA-19, avec un message qui nomme `JWT_EXPIRATION` et la règle (entier strictement positif, en secondes). Absente ou vide, la variable vaut `3600` (CA-4). Aucune borne haute n'est imposée : toute durée entière strictement positive est acceptée (décision #42) |
 
 > **Note :** Les critères relatifs au seed des comptes utilisateurs (`npm run seed`) ont été extraits vers la **[US-002 — Seed des comptes utilisateurs](US-002-seed-users.md)**.
 
