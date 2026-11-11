@@ -132,10 +132,13 @@ Content-Type: application/json
 
 ```json
 {
+  "status": 500,
   "error": "INTERNAL_SERVER_ERROR",
   "message": "An unexpected error occurred. Please try again later."
 }
 ```
+
+Corps standard à trois champs, comme toute autre erreur de l'API (décision #34). Le champ `correlation_id` (US-022 CA-19) s'y ajoute quand US-022 est livrée ; tant qu'elle ne l'est pas, le corps n'a que ces trois champs et ce n'est pas un écart.
 
 **Logging structuré côté serveur (exemple) :**
 
