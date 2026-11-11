@@ -1,4 +1,3 @@
 export interface SeedUserConfiguration {
-    adminPassword: string;
-    playerDefaultPassword: string;
+    seedPasswordFor(login: string): string | undefined;
 }

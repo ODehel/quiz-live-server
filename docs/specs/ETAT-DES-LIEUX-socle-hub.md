@@ -88,7 +88,8 @@ comportement cassé en production réelle.
   - **CA-3** : claims présents, mais `role` mis à la valeur **enum numérique**
     (`0`/`1`) et non `"admin"`/`"buzzer"` comme la spec l'exige ; le test ne
     vérifie que la *présence* du claim. → voir **Dette E**.
-  - **CA-4** : durée injectée ; défaut 1h + `JWT_EXPIRATION` non prouvés.
+  - **CA-4** : défaut 1h et lecture de `JWT_EXPIRATION` prouvés (`process-environment.test.ts`) ;
+    le générateur ne prouve pas que `exp - iat` égale la durée injectée.
   - **CA-11** : teste body *absent*, pas JSON *malformé*.
   - **CA-12** : 400 oui, mais code `UNKNOWN_FIELDS` non asserté.
   - **CA-13** : 429 oui ; header `Retry-After:60` et « par IP » non prouvés.
