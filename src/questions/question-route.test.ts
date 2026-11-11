@@ -756,29 +756,55 @@ describe('error-codes/VALIDATION_ERROR - Reject a question missing a required fi
     });
 });
 
-describe('US-005/CA-50 - Create a question without authorization', () => {
+describe('US-005/CA-50 - Refuse a missing or rejected token on every questions route', () => {
+    const questionId = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+    const body = JSON.stringify({
+        type: 'MCQ',
+        theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+        title: 'Quelle est la capitale de la France ?',
+        choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+        correct_answer: 'Paris',
+        level: 1,
+        time_limit: 30,
+        points: 10
+    });
+    const routes = [
+        { name: 'POST /api/v1/questions', method: 'POST', url: '/api/v1/questions', service: 'createQuestion', body },
+        { name: 'GET /api/v1/questions', method: 'GET', url: '/api/v1/questions', service: 'getAll', body: undefined },
+        { name: 'GET /api/v1/questions/:id', method: 'GET', url: `/api/v1/questions/${questionId}`, service: 'getQuestionById', body: undefined },
+        { name: 'PUT /api/v1/questions/:id', method: 'PUT', url: `/api/v1/questions/${questionId}`, service: 'updateQuestion', body },
+        { name: 'DELETE /api/v1/questions/:id', method: 'DELETE', url: `/api/v1/questions/${questionId}`, service: 'deleteQuestion', body: undefined }
+    ] as const;
+    const tokens = [
+        { tokenName: 'without a token', authorization: undefined, validatorAnswer: true },
+        { tokenName: 'with a token the validator rejects', authorization: 'Bearer an-invalid-or-expired-token', validatorAnswer: false }
+    ] as const;
+    const cases = routes.flatMap((route) => tokens.map((token) => ({ ...route, ...token })));
+
     beforeEach(() => {
+        mockTokenDecoder = { decode: vi.fn() };
+    });
+    it.each(cases)('should answer $name $tokenName with the standard 401 body and not call the service', async ({ method, url, service, body, authorization, validatorAnswer }) => {
+        // Without a token the validator would accept anything: only the absence of the token may produce the 401.
+        mockTokenValidator = { validateToken: vi.fn().mockReturnValue(validatorAnswer), inspectToken: vi.fn() };
         app = Fastify();
         app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware, rateLimitMiddleware: async () => { } });
-    });
-    it('should reject the creation with a 401 error', async () => {
         const response = await app.inject({
-            method: 'POST',
-            url: '/api/v1/questions',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'MCQ',
-                theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
-                title: 'Quelle est la capitale de la France ?',
-                choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
-                correct_answer: 'Paris',
-                level: 1,
-                time_limit: 30,
-                points: 10
-            })
+            method,
+            url,
+            headers: {
+                ...(authorization === undefined ? {} : { 'Authorization': authorization }),
+                ...(body === undefined ? {} : { 'Content-Type': 'application/json' })
+            },
+            body
         });
         expect(response.statusCode).toBe(401);
-        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+        expect(response.json()).toEqual({
+            status: 401,
+            error: 'UNAUTHORIZED',
+            message: 'Authentication token is missing or invalid.'
+        });
+        expect(mockQuestionService[service]).not.toHaveBeenCalled();
     });
 });
 
