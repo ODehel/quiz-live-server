@@ -3,15 +3,11 @@ import { Environment } from "./environment.interface";
 export class ProcessEnvironment implements Environment {
     port: number;
     sqliteDbPath: string;
-    jwtSecretKey: string;
-    jwtExpirationTime: number;
     maxRequestsPerMinute: number;
 
     constructor() {
         this.port = parseInt(process.env.PORT ?? "3000");
         this.sqliteDbPath = process.env.SQLITE_DB_PATH || "quiz.db";
-        this.jwtSecretKey = process.env.JWT_SECRET || "MySecretKey";
-        this.jwtExpirationTime = parseInt(process.env.JWT_EXPIRATION ?? "3600");
         this.maxRequestsPerMinute = parseInt(process.env.MAX_REQUESTS_PER_MINUTE ?? "100");
     }
 

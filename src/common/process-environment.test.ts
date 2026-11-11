@@ -10,31 +10,23 @@ describe("environment variables test", () => {
     beforeEach(() => {
         process.env.PORT = "3000";
         process.env.SQLITE_DB_PATH = "./simple_path";
-        process.env.JWT_SECRET = "aSecretTestKey";
-        process.env.JWT_EXPIRATION = "400";
         process.env.MAX_REQUESTS_PER_MINUTE = "5";
     });
     it("should provide environment values", () => {
         const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
         expect(processEnvironment.port).toBe(3000);
         expect(processEnvironment.sqliteDbPath).toBe("./simple_path");
-        expect(processEnvironment.jwtSecretKey).toBe("aSecretTestKey");
-        expect(processEnvironment.jwtExpirationTime).toBe(400);
         expect(processEnvironment.maxRequestsPerMinute).toBe(5);
     });
-    it("should default the token lifetime to one hour", () => {
-        delete process.env.JWT_EXPIRATION;
+    it("should not hold the JWT settings, which only the hub start reads", () => {
         const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
-        expect(processEnvironment.jwtExpirationTime).toBe(3600);
+        expect(processEnvironment).not.toHaveProperty("jwtSecretKey");
+        expect(processEnvironment).not.toHaveProperty("jwtExpirationTime");
     });
-    it("should ignore the former names of the token variables", () => {
+    it("US-003/CA-19 should not refuse the seed when the JWT secret is missing or the lifetime is invalid", () => {
         delete process.env.JWT_SECRET;
-        delete process.env.JWT_EXPIRATION;
-        process.env.JWT_SECRET_KEY = "aFormerSecretKey";
-        process.env.JWT_EXPIRATION_TIME = "900";
-        const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
-        expect(processEnvironment.jwtSecretKey).not.toBe("aFormerSecretKey");
-        expect(processEnvironment.jwtExpirationTime).toBe(3600);
+        process.env.JWT_EXPIRATION = "abc";
+        expect(() => new ProcessEnvironment()).not.toThrow();
     });
     it("should read each seed password from its own variable", () => {
         seedPasswordVariables.forEach((variable) => { process.env[variable] = `value-of-${variable}`; });
@@ -67,8 +59,6 @@ describe("environment variables test", () => {
         }
         delete process.env.JWT_SECRET;
         delete process.env.JWT_EXPIRATION;
-        delete process.env.JWT_SECRET_KEY;
-        delete process.env.JWT_EXPIRATION_TIME;
         delete process.env.MAX_REQUESTS_PER_MINUTE;
     });
 });
