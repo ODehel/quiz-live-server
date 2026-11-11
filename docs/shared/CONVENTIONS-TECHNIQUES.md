@@ -176,15 +176,15 @@ Toutes les routes REST du projet utilisent le préfixe `/api/v1`.
 
 | Variable | Rôle | Obligatoire | Défaut | US source |
 |---|---|---|---|---|
-| `JWT_SECRET` | Secret de signature des tokens JWT (HS256) : 32 caractères minimum | ✅ Oui, aucun défaut | — | [US-003](../specs/US-003-authentication-token.md) (CA-2, tableau des variables), [Authentification](AUTHENTIFICATION.md) |
-| `JWT_EXPIRATION` | Durée de validité d'un token, en secondes | Non | `3600` | [US-003](../specs/US-003-authentication-token.md) (CA-4), [Authentification](AUTHENTIFICATION.md) |
+| `JWT_SECRET` | Secret de signature des tokens JWT (HS256) : 32 caractères minimum ; absent, vide ou plus court, le hub refuse de démarrer | ✅ Oui, aucun défaut | — | [US-003](../specs/US-003-authentication-token.md) (CA-2, tableau des variables), [Authentification](AUTHENTIFICATION.md) |
+| `JWT_EXPIRATION` | Durée de validité d'un token, en secondes : entier strictement positif ; absente ou vide, elle vaut `3600`, renseignée autrement, le hub refuse de démarrer | Non | `3600` | [US-003](../specs/US-003-authentication-token.md) (CA-4), [Authentification](AUTHENTIFICATION.md) |
 | `PORT` | Port d'écoute du serveur | Non | `3000` | [US-001](../specs/US-001-server-startup.md) (CA-5) |
 | `SQLITE_DB_PATH` | Chemin du fichier de la base SQLite | Non | `quiz.db` | Décision #39 |
 | `MAX_REQUESTS_PER_MINUTE` | Plafond de requêtes par minute et par adresse IP, au-delà duquel le serveur répond `429` | Non | `100` | [Sécurité transversale](SECURITE-TRANSVERSALE.md) (`CA-RateLimit`), [US-003](../specs/US-003-authentication-token.md) (CA-13) ; nom : décision #39 |
 | `SEED_PASSWORD_ADMIN` | Mot de passe du compte `admin` pour le seed : 12 caractères minimum | ✅ Oui, aucun défaut | — | [US-002](../specs/US-002-seed-users.md) (CA-2, CA-4) |
 | `SEED_PASSWORD_BUZZER_01` à `SEED_PASSWORD_BUZZER_10` | Mot de passe du compte `quiz_buzzer_01` à `quiz_buzzer_10` pour le seed : 12 caractères minimum (dix variables, une par compte) | ✅ Oui, aucun défaut | — | [US-002](../specs/US-002-seed-users.md) (CA-2, CA-4) |
 
-Le script de seed refuse de s'exécuter si l'un des onze mots de passe manque ou ne respecte pas la politique ([US-002](../specs/US-002-seed-users.md)). « Sans défaut » veut dire qu'aucune valeur de repli n'existe dans le code.
+Le script de seed refuse de s'exécuter si l'un des onze mots de passe manque ou ne respecte pas la politique ([US-002](../specs/US-002-seed-users.md)). Le hub refuse de démarrer (code de sortie `1`, message qui nomme la variable) si `JWT_SECRET` ou `JWT_EXPIRATION` ne respecte pas sa règle ([US-003](../specs/US-003-authentication-token.md), CA-19 et CA-20). « Sans défaut » veut dire qu'aucune valeur de repli n'existe dans le code.
 
 D'autres US citent encore des variables (`NODE_ENV` dans [US-022](../specs/US-022-logging.md), `BCRYPT_COST` dans [US-002](../specs/US-002-seed-users.md), `SERVER_BASE_URL` dans [US-017](../specs/US-017-jingles-management.md)) : elles ne sont pas reprises ici tant que leur US n'est pas cadrée, et le nom qu'elles portent n'est pas remis en cause.
 
