@@ -649,3 +649,126 @@ describe('CA-UnknownRoute (decision #35) - An unknown route is rate limited on t
 		await server.stop()
 	})
 });
+
+describe('US-005/CA-53 - US-004/CA-35 - US-003/CA-16 (decisions #31 to #33) - An unsupported method on a protected route is answered after authentication and role on the assembled server', () => {
+	let server: QuizServer
+	let tokenValidator: TokenValidator
+	let tokenDecoder: TokenDecoder
+	beforeEach(() => {
+		tokenValidator = { validateToken: vi.fn((token: string) => token !== 'invalid'), inspectToken: vi.fn() }
+		tokenDecoder = { decode: vi.fn((token: string) => ({ role: token === 'admin' ? UserRole.ADMIN : UserRole.PLAYER })) }
+		const protectedThemeConfiguration: ThemeRouteConfiguration = { ...mockThemeRouteConfiguration, tokenValidator, tokenDecoder, middleware: authenticationMiddleware }
+		const protectedQuestionConfiguration: QuestionRouteConfiguration = { ...mockQuestionRouteConfiguration, tokenValidator, tokenDecoder, middleware: authenticationMiddleware }
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, protectedThemeConfiguration, mockWsRouteConfiguration, protectedQuestionConfiguration)
+	})
+	it('answers 401 UNAUTHORIZED, without an Allow header, when the token is missing', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PATCH', url: '/api/v1/themes' })
+		expect(response.statusCode).toBe(401)
+		expect(response.headers['allow']).toBeUndefined()
+		expect(response.json()).toEqual({ status: 401, error: 'UNAUTHORIZED', message: 'Authentication token is missing or invalid.' })
+	})
+	it('answers 403 FORBIDDEN, without an Allow header, to a buzzer token with a write method', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PATCH', url: '/api/v1/themes', headers: { authorization: 'Bearer buzzer' } })
+		expect(response.statusCode).toBe(403)
+		expect(response.headers['allow']).toBeUndefined()
+		expect(response.json()).toEqual({ status: 403, error: 'FORBIDDEN', message: 'You do not have permission to perform this action.' })
+	})
+	it('answers 405 METHOD_NOT_ALLOWED with the Allow header and the standard body to an admin token', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PATCH', url: '/api/v1/themes', headers: { authorization: 'Bearer admin' } })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('GET, POST')
+		expect(response.json()).toEqual({ status: 405, error: 'METHOD_NOT_ALLOWED', message: 'HTTP method PATCH is not allowed on this resource.' })
+	})
+	it('answers 405 to a buzzer token with a method that is not a write method', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'OPTIONS', url: '/api/v1/themes', headers: { authorization: 'Bearer buzzer' } })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('GET, POST')
+		expect(response.json()).toEqual({ status: 405, error: 'METHOD_NOT_ALLOWED', message: 'HTTP method OPTIONS is not allowed on this resource.' })
+	})
+	it('answers 405 to HEAD on a GET route, without HEAD in the Allow header', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'HEAD', url: '/api/v1/themes', headers: { authorization: 'Bearer admin' } })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('GET, POST')
+	})
+	it('lists the methods of a resource with a path parameter', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'POST', url: '/api/v1/questions/018e4f5a-0000-0000-0000-000000000000', headers: { authorization: 'Bearer admin' } })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('GET, PUT, DELETE')
+	})
+	it.each([
+		['/health'],
+		['/ws']
+	])('keeps answering 404 NOT_FOUND to an unsupported method on %s, which is outside the API resources', async (url) => {
+		await server.start()
+		const response = await server.inject({ method: 'POST', url })
+		expect(response.statusCode).toBe(404)
+		expect(response.json()).toEqual(unknownRouteBody)
+	})
+	it.each([
+		['PUT', '/api/v1/themes'],
+		['PATCH', '/api/v1/themes'],
+		['DELETE', '/api/v1/themes'],
+		['POST', '/api/v1/themes/018e4f5a-0000-0000-0000-000000000000']
+	])('answers 403 FORBIDDEN to a buzzer token with %s on %s', async (method, url) => {
+		await server.start()
+		const response = await server.inject({ method: method as 'PUT' | 'PATCH' | 'DELETE' | 'POST', url, headers: { authorization: 'Bearer buzzer' } })
+		expect(response.statusCode).toBe(403)
+	})
+	it('answers 401 UNAUTHORIZED, without an Allow header, when the token is invalid', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PATCH', url: '/api/v1/themes', headers: { authorization: 'Bearer invalid' } })
+		expect(response.statusCode).toBe(401)
+		expect(response.headers['allow']).toBeUndefined()
+		expect(response.json()).toEqual({ status: 401, error: 'UNAUTHORIZED', message: 'Authentication token is missing or invalid.' })
+	})
+	it('ignores the query string to find the resource', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PATCH', url: '/api/v1/themes?page=2', headers: { authorization: 'Bearer admin' } })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('GET, POST')
+	})
+	it('keeps the supported methods working (a GET is not answered with 405)', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'GET', url: '/api/v1/themes', headers: { authorization: 'Bearer admin' } })
+		expect(response.statusCode).not.toBe(405)
+	})
+	it('treats a path as a known resource when the router itself would route it to one (an empty id, as GET /api/v1/themes/ is)', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PATCH', url: '/api/v1/themes/', headers: { authorization: 'Bearer admin' } })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('GET, PUT, DELETE')
+	})
+	it('does not take a path that merely ends like a resource for a known resource', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PATCH', url: '/prefix/api/v1/themes', headers: { authorization: 'Bearer admin' } })
+		expect(response.statusCode).toBe(404)
+		expect(response.json()).toEqual(unknownRouteBody)
+	})
+	afterEach(async () => {
+		await server.stop()
+	})
+});
+
+describe('US-005/CA-53 - US-004/CA-35 - US-003/CA-16 (decisions #31 to #33) - An unsupported method on a public route is answered with 405 directly on the assembled server', () => {
+	let server: QuizServer
+	beforeEach(() => {
+		const protectedThemeConfiguration: ThemeRouteConfiguration = { ...mockThemeRouteConfiguration, middleware: authenticationMiddleware }
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, protectedThemeConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+	})
+	it('answers 405 METHOD_NOT_ALLOWED with Allow: POST on the token route, without a token', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PUT', url: '/api/v1/token' })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('POST')
+		expect(response.json()).toEqual({ status: 405, error: 'METHOD_NOT_ALLOWED', message: 'HTTP method PUT is not allowed on this resource.' })
+	})
+	afterEach(async () => {
+		await server.stop()
+	})
+});

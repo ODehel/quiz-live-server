@@ -468,7 +468,7 @@ try {
     Section 'Transversal'
 
     $r = Invoke-Api -Method PATCH -Path "/api/v1/themes/$idAlpha" -Body '{"name":"Patch"}' -Token $script:Token
-    Check 'CA-35 methode non supportee (PATCH) -> 405' ($r.Status -eq 405) "$($r.Status) $($r.Raw)" '404 Not Found natif de Fastify : le 405 est absent (dette connue)'
+    Check 'CA-35 methode non supportee (PATCH) -> 405' ($r.Status -eq 405) "$($r.Status) $($r.Raw)"
     Log '  (CA-34 rate limit et CA-36 erreur 500 : non declenchables sans perturber le hub ; couverts par les tests unitaires)' 'DarkGray'
 }
 catch {

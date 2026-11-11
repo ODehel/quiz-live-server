@@ -11,6 +11,7 @@ import { WsRouteConfiguration } from './websocket/ws-route-configuration.interfa
 import { QuestionRouteConfiguration } from './questions/question-route-configuration.interface';
 import questionRoute from './questions/question-route';
 import notFoundRoute from './routes/not-found-route';
+import { RouteCatalog } from './routes/route-catalog';
 
 export class QuizServer {
     private app: FastifyInstance;
@@ -19,13 +20,14 @@ export class QuizServer {
     private themeRouteConfiguration: ThemeRouteConfiguration;
     private wsRouteConfiguration: WsRouteConfiguration;
     private questionRouteConfiguration: QuestionRouteConfiguration;
+    private routeCatalog: RouteCatalog = new RouteCatalog();
 
     constructor(configuration: QuizServerConfiguration,
         tokenRouteConfiguration: TokenRouteConfiguration,
         themeRouteConfiguration: ThemeRouteConfiguration,
         wsRouteConfiguration: WsRouteConfiguration,
         questionRouteConfiguration: QuestionRouteConfiguration) {
-        this.app = Fastify({ logger: true });
+        this.app = Fastify({ logger: true, exposeHeadRoutes: false });
         this.configuration = configuration;
         this.tokenRouteConfiguration = tokenRouteConfiguration;
         this.themeRouteConfiguration = themeRouteConfiguration;
@@ -49,13 +51,18 @@ export class QuizServer {
     }
 
     private registerRoutes() {
+        this.app.addHook('onRoute', (routeOptions) => {
+            if (routeOptions.url.startsWith('/api/v1/')) {
+                [routeOptions.method].flat().forEach(method => this.routeCatalog.add(method, routeOptions.url));
+            }
+        });
         this.app.register(fastifyWebsocket);
         this.app.register(healthRoute);
         this.app.register(wsRoute, this.wsRouteConfiguration);
         this.app.register(tokenRoute, this.tokenRouteConfiguration);
         this.app.register(themeRoute, this.themeRouteConfiguration);
         this.app.register(questionRoute, this.questionRouteConfiguration);
-        this.app.register(notFoundRoute, { rateLimitMiddleware: this.configuration.rateLimitMiddleware });
+        this.app.register(notFoundRoute, { rateLimitMiddleware: this.configuration.rateLimitMiddleware, routeCatalog: this.routeCatalog, tokenValidator: this.themeRouteConfiguration.tokenValidator, tokenDecoder: this.themeRouteConfiguration.tokenDecoder, publicUrls: ['/api/v1/token'] });
     }
 
     private formatDateNow() {
