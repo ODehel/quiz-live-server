@@ -20,4 +20,9 @@ describe("BcryptHasher", () => {
         expect(existingHash).toMatch(/^\$2b\$10\$/);
         expect(await new BcryptHasher().compare("Correct-Horse-9", existingHash)).toBe(true);
     });
+
+    it("US-002/CA-6 should hash with the cost it is given", async () => {
+        const hash: string = await new BcryptHasher().hash("Correct-Horse-9", 5);
+        expect(hash).toMatch(/^\$2b\$05\$/);
+    });
 });

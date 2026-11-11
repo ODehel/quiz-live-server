@@ -14,4 +14,8 @@ export class ProcessEnvironment implements Environment {
     seedPasswordFor(login: string): string | undefined {
         return process.env[`SEED_PASSWORD_${login.replace(/^quiz_/, "").toUpperCase()}`];
     }
+
+    bcryptCost(): string | undefined {
+        return process.env.BCRYPT_COST;
+    }
 }

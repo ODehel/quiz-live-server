@@ -49,7 +49,16 @@ describe("environment variables test", () => {
         expect(processEnvironment.seedPasswordFor("admin")).toBeUndefined();
         expect(processEnvironment.seedPasswordFor("quiz_buzzer_01")).toBeUndefined();
     });
+    it("US-002/CA-6 should provide BCRYPT_COST as written, without judging it", () => {
+        process.env.BCRYPT_COST = "abc";
+        const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
+        expect(processEnvironment.bcryptCost()).toBe("abc");
+    });
+    it("US-002/CA-6 should provide no BCRYPT_COST when the variable is not set", () => {
+        expect(new ProcessEnvironment().bcryptCost()).toBeUndefined();
+    });
     afterEach(() => {
+        delete process.env.BCRYPT_COST;
         delete process.env.PORT;
         delete process.env.SQLITE_DB_PATH;
         delete process.env.BUZZER_DEFAULT_PASSWORD;
