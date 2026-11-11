@@ -10,6 +10,7 @@ import { ThemeRouteConfiguration } from './themes/theme-route-configuration.inte
 import { WsRouteConfiguration } from './websocket/ws-route-configuration.interface';
 import { QuestionRouteConfiguration } from './questions/question-route-configuration.interface';
 import questionRoute from './questions/question-route';
+import notFoundRoute from './routes/not-found-route';
 
 export class QuizServer {
     private app: FastifyInstance;
@@ -54,6 +55,7 @@ export class QuizServer {
         this.app.register(tokenRoute, this.tokenRouteConfiguration);
         this.app.register(themeRoute, this.themeRouteConfiguration);
         this.app.register(questionRoute, this.questionRouteConfiguration);
+        this.app.register(notFoundRoute, { rateLimitMiddleware: this.configuration.rateLimitMiddleware });
     }
 
     private formatDateNow() {

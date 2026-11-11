@@ -30,6 +30,8 @@ import { Question } from './questions/question.interface'
 import { DefaultThemeService } from './themes/default-theme-service'
 import { Theme } from './themes/theme.interface'
 import { UuidFormatValidator } from './infrastructure/uuid-format-validator'
+import authenticationMiddleware from './authentication/authentication-middleware'
+import rateLimitMiddleware from './infrastructure/rate-limit-middleware'
 
 const mockClock: Clock = {
 	now: () => new Date('2026-04-02T14:32:07')
@@ -61,7 +63,8 @@ const port: number = 3000
 const mockQuizServerConfiguration: QuizServerConfiguration = {
 	clock: mockClock,
 	network: mockNetwork,
-	port: port
+	port: port,
+	rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: 1000 }) }
 }
 
 const mockAuthenticationService = {
@@ -563,4 +566,86 @@ describe('US-004/CA-29 - An unknown theme answers 404 on DELETE on the assembled
 		await server.stop()
 		database.close()
 	});
+});
+
+const unknownRouteBody = { status: 404, error: 'NOT_FOUND', message: 'The requested resource was not found.' }
+
+describe('CA-UnknownRoute (decision #35) - An unknown route answers 404 NOT_FOUND on the assembled server', () => {
+	let server: QuizServer
+	beforeEach(() => {
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+	})
+	it('answers 404 NOT_FOUND with the standard body, without a token', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'GET', url: '/api/v1/does-not-exist' })
+		expect(response.statusCode).toBe(404)
+		expect(response.json()).toEqual(unknownRouteBody)
+	})
+	afterEach(async () => {
+		await server.stop()
+	})
+});
+
+describe('CA-UnknownRoute (decision #35) - An unknown route is answered before authentication and role on the assembled server', () => {
+	let server: QuizServer
+	let tokenValidator: TokenValidator
+	let tokenDecoder: TokenDecoder
+	beforeEach(() => {
+		tokenValidator = { validateToken: vi.fn((token: string) => token !== 'invalid'), inspectToken: vi.fn() }
+		tokenDecoder = { decode: vi.fn((token: string) => ({ role: token === 'admin' ? UserRole.ADMIN : UserRole.PLAYER })) }
+		const protectedThemeConfiguration: ThemeRouteConfiguration = { ...mockThemeRouteConfiguration, tokenValidator, tokenDecoder, middleware: authenticationMiddleware }
+		const protectedQuestionConfiguration: QuestionRouteConfiguration = { ...mockQuestionRouteConfiguration, tokenValidator, tokenDecoder, middleware: authenticationMiddleware }
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, protectedThemeConfiguration, mockWsRouteConfiguration, protectedQuestionConfiguration)
+	})
+	it('keeps the authentication live on a known route (control)', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'GET', url: '/api/v1/themes' })
+		expect(response.statusCode).toBe(401)
+	})
+	it.each([
+		['without a token', 'GET', undefined],
+		['with an invalid token', 'GET', 'Bearer invalid'],
+		['with a buzzer token and a write method', 'POST', 'Bearer buzzer'],
+		['with an admin token', 'GET', 'Bearer admin'],
+		['with an unsupported method', 'PATCH', undefined]
+	])('answers 404 NOT_FOUND %s', async (_label, method, authorization) => {
+		await server.start()
+		const response = await server.inject({ method: method as 'GET' | 'POST' | 'PATCH', url: '/api/v1/does-not-exist', headers: authorization ? { authorization } : {} })
+		expect(response.statusCode).toBe(404)
+		expect(response.json()).toEqual(unknownRouteBody)
+	})
+	it('does not repeat the method or the url of the request in the message', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'GET', url: '/api/v1/does-not-exist?x=<script>' })
+		const { message } = response.json<{ message: string }>()
+		expect(message).not.toContain('does-not-exist')
+		expect(message).not.toContain('GET')
+	})
+	afterEach(async () => {
+		await server.stop()
+	})
+});
+
+describe('CA-UnknownRoute (decision #35) - An unknown route is rate limited on the assembled server', () => {
+	let server: QuizServer
+	beforeEach(() => {
+		const limitedConfiguration: QuizServerConfiguration = {
+			...mockQuizServerConfiguration,
+			rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: 2 }) }
+		}
+		server = new QuizServer(limitedConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+	})
+	it('answers 429 RATE_LIMIT_EXCEEDED once the limit is passed, with Retry-After and the standard body', async () => {
+		await server.start()
+		const first = await server.inject({ method: 'GET', url: '/api/v1/does-not-exist' })
+		const second = await server.inject({ method: 'GET', url: '/api/v1/does-not-exist' })
+		const third = await server.inject({ method: 'GET', url: '/api/v1/does-not-exist' })
+		expect([first.statusCode, second.statusCode]).toEqual([404, 404])
+		expect(third.statusCode).toBe(429)
+		expect(third.headers['retry-after']).toBe('60')
+		expect(third.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' })
+	})
+	afterEach(async () => {
+		await server.stop()
+	})
 });

@@ -9,6 +9,7 @@ import { QuizServerConfiguration } from "../quiz-server-configuration.interface"
 import { Token } from "../authentication/token.interface";
 import { TokenDecoder } from "../authentication/token-decoder.interface";
 import { FastifyInstance } from "fastify";
+import rateLimitMiddleware from "../infrastructure/rate-limit-middleware";
 import { TokenValidator } from "../authentication/token-validator.interface";
 import { UuidValidator } from "../common/uuid-validator.interface";
 import { ThemeService } from "../themes/theme-service.interface";
@@ -75,7 +76,8 @@ describe("WebSocket", () => {
         mockQuizServerConfiguration = {
             clock: mockClock,
             network: mockNetwork,
-            port: port
+            port: port,
+            rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: 1000 }); }
         }
         mockAuthenticationService = {
             authenticate: vi.fn().mockResolvedValue({ id: 'user-id', username: 'User Name', password: 'user-password', role: 'PLAYER' })
