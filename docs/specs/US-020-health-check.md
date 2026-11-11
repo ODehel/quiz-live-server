@@ -155,7 +155,7 @@ src/
 
 | Code erreur | Code HTTP | Message | Contexte |
 |---|---|---|---|
-| `METHOD_NOT_ALLOWED` | `405` | `"Method Not Allowed."` | Méthode HTTP autre que `GET` |
+| `METHOD_NOT_ALLOWED` | `405` | `"HTTP method <METHOD> is not allowed on this resource."` | Méthode HTTP autre que `GET` (message dynamique, décision #33) |
 | `INTERNAL_SERVER_ERROR` | `500` | `"An unexpected error occurred. Please try again later."` | Erreur serveur inattendue |
 
 ---

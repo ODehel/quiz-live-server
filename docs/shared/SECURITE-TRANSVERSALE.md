@@ -101,10 +101,13 @@ Une route **publique** (`/api/v1/token`, US-003 CA-16) n'a ni `401` ni `403` : e
 
 ```json
 {
+  "status": 405,
   "error": "METHOD_NOT_ALLOWED",
-  "message": "Method not allowed on this resource."
+  "message": "HTTP method PATCH is not allowed on this resource."
 }
 ```
+
+Corps standard à trois champs, comme toute autre erreur de l'API (décision #33). Le message est dynamique : `<METHOD>` est la méthode de la requête (ici `PATCH`), écrite telle que reçue.
 
 **Headers de la réponse :**
 
