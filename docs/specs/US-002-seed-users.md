@@ -35,6 +35,13 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 |---|---|---|
 | CA-5 | Tests unitaires et d'intégration | Couverture de tests ≥ 90% |
 
+### Coût bcrypt et message du seed
+
+| # | Critère | Résultat attendu |
+|---|---|---|
+| CA-6 | `BCRYPT_COST` est renseignée mais n'est pas un entier de 4 à 31 écrit en chiffres seulement (`abc`, `12.5`, `3`, `32`, `-1`, ` 12`) | Le seed refuse de s'exécuter : aucun compte n'est créé, le processus se termine avec le code de sortie `1`, et la console affiche un message qui nomme `BCRYPT_COST` et la règle (entier de 4 à 31). Ex : `User seeding failed: BCRYPT_COST must be an integer between 4 and 31.` Absente ou vide, la variable vaut `12` |
+| CA-7 | La table `T_USER_USR` contient déjà au moins un compte | Le seed ne modifie rien (CA-3), affiche une ligne qui dit qu'aucun compte n'a été créé parce que la table n'est pas vide, et se termine avec le code de sortie `0`. Ex : `Seed ignoré — la table T_USER_USR contient déjà des comptes.` |
+
 ---
 
 ## 🔄 Diagramme de flux
@@ -80,7 +87,7 @@ npm run seed
 | Longueur minimale | 12 caractères |
 | Longueur maximale | 72 caractères (limite bcrypt) |
 | Algorithme de hachage | bcrypt (sel automatique) |
-| Facteur de coût bcrypt | 12 (recommandation OWASP) |
+| Facteur de coût bcrypt | 12 par défaut (recommandation OWASP), réglable par `BCRYPT_COST` (entier de 4 à 31, CA-6) |
 
 Le script refuse de s'exécuter si un mot de passe lu dans les variables d'environnement ne respecte pas la politique. Le message d'erreur identifie le compte concerné sans exposer le mot de passe.
 
@@ -90,7 +97,7 @@ Le script refuse de s'exécuter si un mot de passe lu dans les variables d'envir
 src/
   seed.js              ← script de seed principal
   seed/__tests__/
-    seed.test.js       ← tests unitaires et d'intégration CA-1 à CA-5
+    seed.test.js       ← tests unitaires et d'intégration CA-1 à CA-7
 ```
 
 ---
@@ -104,13 +111,14 @@ Le script `src/seed.js` suit les étapes suivantes :
 ```
 1. Connexion à la base de données SQLite
 2. Vérification : la table T_USER_USR est-elle vide ?
-   → Non : arrêt immédiat (idempotence — CA-3)
+   → Non : arrêt immédiat (idempotence — CA-3), avec le message du CA-7 et le code de sortie 0
    → Oui : suite
-3. Lecture des 11 mots de passe depuis les variables d'environnement
-4. Validation de chaque mot de passe (≥ 12 caractères, ≤ 72 caractères)
-   → Invalide ou manquant : arrêt avec message d'erreur (CA-4)
-   → Tous valides : suite
-5. Hachage de chaque mot de passe avec bcrypt (facteur de coût : 12)
+3. Lecture des 11 mots de passe et de BCRYPT_COST depuis les variables d'environnement
+4. Validation de chaque mot de passe (≥ 12 caractères, ≤ 72 caractères), puis de BCRYPT_COST (entier de 4 à 31)
+   → Mot de passe invalide ou manquant : arrêt avec message d'erreur (CA-4)
+   → BCRYPT_COST invalide : arrêt avec message d'erreur (CA-6)
+   → Tout valide : suite
+5. Hachage de chaque mot de passe avec bcrypt (facteur de coût : BCRYPT_COST, 12 par défaut)
 6. Génération de 11 UUIDv7 (un par compte)
 7. Insertion des 11 comptes dans T_USER_USR
 8. Affichage du résultat : "Seed terminé — 11 comptes créés."
@@ -164,7 +172,7 @@ SEED_PASSWORD_BUZZER_10=<mot_de_passe_buzzer_10_min_12_car>
 | Création des 11 comptes (1 admin + 10 buzzers) via script de seed | Création dynamique de comptes via API REST |
 | Lecture des mots de passe depuis les variables d'environnement | Interface de gestion des utilisateurs |
 | Validation de la politique de mot de passe (OWASP, ≥ 12 caractères) | Modification des comptes après création |
-| Hachage bcrypt (facteur de coût : 12) | Suppression des comptes |
+| Hachage bcrypt (facteur de coût : 12 par défaut, réglable par `BCRYPT_COST`) | Suppression des comptes |
 | Idempotence (pas de doublon si le seed est rejoué) | Authentification (gérée par US-003) |
 | Génération des UUIDv7 | Déploiement / CI-CD |
 | Tests unitaires et d'intégration (couverture ≥ 90%) | |
@@ -191,6 +199,6 @@ La table `T_USER_USR` et son schéma sont définis dans l'US-003. Le script de s
 
 ### Facteur de coût bcrypt
 
-Le facteur de coût bcrypt est fixé à **12**, conformément aux recommandations OWASP (2024). Ce facteur peut être ajusté via une variable d'environnement `BCRYPT_COST` pour adapter les performances selon l'environnement (ex. : `10` en tests pour accélérer l'exécution).
+Le facteur de coût bcrypt vaut **12** par défaut, conformément aux recommandations OWASP (2024). Ce facteur peut être ajusté via une variable d'environnement `BCRYPT_COST` pour adapter les performances selon l'environnement (ex. : `10` en tests pour accélérer l'exécution). La variable est un entier de 4 à 31 (bornes de bcrypt), écrit en chiffres seulement ; absente ou vide, elle vaut `12` ; renseignée autrement, le seed refuse de s'exécuter (CA-6, décision #42). Seul le seed hache un mot de passe : le hub ne lit pas `BCRYPT_COST`, la comparaison d'un mot de passe lisant le coût dans le hash stocké.
 
 ---
