@@ -84,6 +84,7 @@ Content-Type: application/json
 | **Méthode HTTP non supportée** sur une ressource | `405 METHOD_NOT_ALLOWED` |
 | **Header `Allow`** doit lister les méthodes supportées pour cette ressource | Exemple : `Allow: GET, POST` |
 | Les routes supportent une combinaison de : `GET`, `POST`, `PUT`, `PATCH`, `DELETE` | Autres méthodes (`HEAD`, `OPTIONS`, etc.) → `405` |
+| **`HEAD` n'est jamais supporté**, même sur une route `GET` (décision #32) | `HEAD` → `405` ; le header `Allow` ne liste jamais `HEAD` ni `OPTIONS` |
 
 **Priorité sur une route protégée** (décision #31) — l'authentification et le rôle sont jugés **avant** la méthode. Un `405` ne se rend qu'à un appelant qui aurait eu accès à la ressource :
 
@@ -276,6 +277,11 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X PATCH "$BASE_URL/api/v1/themes" \
 curl -s -v -w "\n→ HTTP %{http_code}\n" -X OPTIONS "$BASE_URL/api/v1/themes" \
   -H "Authorization: Bearer $TOKEN_BUZZER"
 # Attendu : 405 METHOD_NOT_ALLOWED avec header "Allow: GET, POST"
+
+# CA-MethodNotAllowed — HEAD n'est jamais supporté, même sur une route GET (décision #32)
+curl -s -I -w "→ HTTP %{http_code}\n" "$BASE_URL/api/v1/themes" \
+  -H "Authorization: Bearer $TOKEN"
+# Attendu : 405 METHOD_NOT_ALLOWED avec header "Allow: GET, POST" (sans HEAD)
 ```
 
 ---
