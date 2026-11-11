@@ -5,6 +5,9 @@ import { UserRepository } from "./user-repository.interface"
 import { UserRole } from "./user-role"
 import { SeedUserConfiguration } from "./seed-user-configuration.interface";
 
+export type SeedResult = { created: true } | { created: false; message: string };
+
+const TABLE_NOT_EMPTY_MESSAGE = "Seed ignoré — la table T_USER_USR contient déjà des comptes.";
 const ADMIN_LOGIN = 'admin';
 const BUZZER_LOGINS = Array.from({ length: 10 }, (_, i) => `quiz_buzzer_${String(i + 1).padStart(2, '0')}`);
 
@@ -18,10 +21,10 @@ export class SeedUsers {
         this.passwordValidator = passwordValidator;
     }
 
-    public async seed(configuration: SeedUserConfiguration) {
+    public async seed(configuration: SeedUserConfiguration): Promise<SeedResult> {
         const userCount = await this.repository.count()
         if (userCount !== 0) {
-            return;
+            return { created: false, message: TABLE_NOT_EMPTY_MESSAGE };
         }
         const passwords = this.readValidPasswords(configuration);
         const buzzers = await Promise.all(
@@ -39,6 +42,7 @@ export class SeedUsers {
         for (const user of defaultUsers) {
             await this.repository.insert(user)
         }
+        return { created: true };
     }
 
     private readValidPasswords(configuration: SeedUserConfiguration): Map<string, string> {

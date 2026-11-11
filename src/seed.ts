@@ -11,7 +11,11 @@ const userRepository: SqliteUserRepository = new SqliteUserRepository(new Databa
 const hasher = new BcryptHasher();
 const passwordValidator = new OwaspPasswordValidator();
 const seedUsers: SeedUsers = new SeedUsers(userRepository, hasher, passwordValidator);
-seedUsers.seed(environment).catch((error: unknown) => {
+seedUsers.seed(environment).then((result) => {
+    if (!result.created) {
+        console.log(result.message);
+    }
+}).catch((error: unknown) => {
     console.error("User seeding failed: " + (error instanceof Error ? error.message : String(error)));
     process.exit(1);
 });

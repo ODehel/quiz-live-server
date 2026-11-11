@@ -51,8 +51,34 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
     it("should stop before reading the passwords if there are already some accounts", async () => {
         vi.mocked(mockRepository.count).mockResolvedValue(1);
         const configuration = configurationWith({ admin: undefined });
-        await expect(userSeed.seed(configuration)).resolves.toBeUndefined();
+        await userSeed.seed(configuration);
         expect(configuration.seedPasswordFor).not.toHaveBeenCalled();
+    });
+    it("should report that the accounts were created when the table is empty", async () => {
+        const result = await userSeed.seed(mockEnvironment);
+        expect(result).toEqual({ created: true });
+    });
+});
+
+describe("CA-7 - le seed dit qu'aucun compte n'a été créé quand la table n'est pas vide", () => {
+    let userSeed: SeedUsers;
+    let mockRepository: UserRepository;
+    beforeEach(() => {
+        mockRepository = {
+            count: vi.fn().mockResolvedValue(5),
+            insert: vi.fn().mockResolvedValue(undefined),
+            retrieveByLogin: vi.fn().mockResolvedValue(undefined),
+            retrieveById: vi.fn().mockResolvedValue(undefined)
+        };
+        userSeed = new SeedUsers(mockRepository, { hash: vi.fn(), compare: vi.fn() }, { validate: vi.fn() });
+    });
+    it("should say that nothing was created because the table is not empty", async () => {
+        const result = await userSeed.seed(mockEnvironment);
+        expect(result).toEqual({
+            created: false,
+            message: "Seed ignoré — la table T_USER_USR contient déjà des comptes."
+        });
+        expect(mockRepository.insert).not.toHaveBeenCalled();
     });
 });
 
