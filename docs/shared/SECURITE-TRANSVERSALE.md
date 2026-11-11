@@ -55,6 +55,7 @@ Cette annexe centralise les **critères d'acceptation (CA) de sécurité transve
 |---|---|
 | **Limite globale** : max **100 requêtes par minute par adresse IP** | Dépassement → `429 RATE_LIMIT_EXCEEDED` |
 | **Header de réessai** : `Retry-After: 60` (secondes avant la prochaine tentative) | Obligatoire dans la réponse 429 |
+| **La valeur est constante** : toujours `60`, quelle que soit la position de la requête dans la fenêtre (décision #36) | Jamais le temps restant de la fenêtre : un `429` obtenu 3 secondes après le premier répond encore `Retry-After: 60`, pas `57` |
 | La limite s'applique à **toutes les routes** (authentifiées ou non) | Même `/api/v1/token` est limité |
 | Le comptage se fait **par adresse IP source** | Les proxys/load-balancers doivent transmettre `X-Forwarded-For` |
 
@@ -278,6 +279,15 @@ for i in $(seq 1 101); do
   fi
 done
 # Attendu : 101ème requête → 429 avec header Retry-After: 60
+```
+
+```bash
+# CA-RateLimit — la valeur est constante (décision #36) : un 429 obtenu quelques secondes
+# plus tard, dans la même fenêtre, répond encore Retry-After: 60 (jamais 57, 54...)
+sleep 3
+curl -s -i -X GET "$BASE_URL/api/v1/themes" \
+  -H "Authorization: Bearer $TOKEN" | grep -i "Retry-After"
+# Attendu : Retry-After: 60
 ```
 
 ---
