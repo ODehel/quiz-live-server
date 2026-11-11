@@ -85,6 +85,17 @@ Content-Type: application/json
 | **Header `Allow`** doit lister les méthodes supportées pour cette ressource | Exemple : `Allow: GET, POST` |
 | Les routes supportent une combinaison de : `GET`, `POST`, `PUT`, `PATCH`, `DELETE` | Autres méthodes (`HEAD`, `OPTIONS`, etc.) → `405` |
 
+**Priorité sur une route protégée** (décision #31) — l'authentification et le rôle sont jugés **avant** la méthode. Un `405` ne se rend qu'à un appelant qui aurait eu accès à la ressource :
+
+| Cas (route protégée, méthode non supportée) | Résultat attendu |
+|---|---|
+| Token absent, invalide ou expiré | `401 UNAUTHORIZED` (jamais `405` : un anonyme n'apprend pas quelles méthodes existent) |
+| Token valide, rôle `buzzer`, méthode d'écriture (`POST`, `PUT`, `PATCH`, `DELETE`) | `403 FORBIDDEN` |
+| Token valide, rôle `admin` | `405 METHOD_NOT_ALLOWED` avec header `Allow` |
+| Token valide, rôle `buzzer`, méthode qui n'est pas une méthode d'écriture (`GET`, `HEAD`, `OPTIONS`, etc.) | `405 METHOD_NOT_ALLOWED` avec header `Allow` |
+
+Une route **publique** (`/api/v1/token`, US-003 CA-16) n'a ni `401` ni `403` : elle répond `405` directement. Le rate limiting (`429`) s'applique à toutes les routes, y compris sur une méthode non supportée.
+
 **Format de la réponse `405 METHOD_NOT_ALLOWED` :**
 
 ```json
@@ -248,6 +259,22 @@ done
 # Exemple : PATCH sur une route qui ne supporte que GET/POST
 curl -s -v -w "\n→ HTTP %{http_code}\n" -X PATCH "$BASE_URL/api/v1/themes" \
   -H "Authorization: Bearer $TOKEN"
+# Attendu : 405 METHOD_NOT_ALLOWED avec header "Allow: GET, POST"
+```
+
+```bash
+# CA-MethodNotAllowed — sans token : le 401 passe avant le 405 (décision #31)
+curl -s -w "\n→ HTTP %{http_code}\n" -X PATCH "$BASE_URL/api/v1/themes"
+# Attendu : 401 UNAUTHORIZED (pas de header Allow)
+
+# CA-MethodNotAllowed — token buzzer, méthode d'écriture : le 403 passe avant le 405
+curl -s -w "\n→ HTTP %{http_code}\n" -X PATCH "$BASE_URL/api/v1/themes" \
+  -H "Authorization: Bearer $TOKEN_BUZZER"
+# Attendu : 403 FORBIDDEN (pas de header Allow)
+
+# CA-MethodNotAllowed — token buzzer, méthode qui n'est pas une méthode d'écriture
+curl -s -v -w "\n→ HTTP %{http_code}\n" -X OPTIONS "$BASE_URL/api/v1/themes" \
+  -H "Authorization: Bearer $TOKEN_BUZZER"
 # Attendu : 405 METHOD_NOT_ALLOWED avec header "Allow: GET, POST"
 ```
 
