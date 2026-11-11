@@ -59,6 +59,8 @@ Cette annexe centralise les **critères d'acceptation (CA) de sécurité transve
 | La limite s'applique à **toutes les routes** (authentifiées ou non) | Même `/api/v1/token` est limité |
 | Le comptage se fait **par adresse IP source** | Les proxys/load-balancers doivent transmettre `X-Forwarded-For` |
 
+Le plafond de 100 est la valeur par défaut de la variable `MAX_REQUESTS_PER_MINUTE` ([tableau des variables d'environnement](CONVENTIONS-TECHNIQUES.md#-variables-denvironnement), décision #39).
+
 **Format de la réponse `429 RATE_LIMIT_EXCEEDED` :**
 
 ```json

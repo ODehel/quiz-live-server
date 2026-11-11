@@ -129,6 +129,8 @@ Voir [US-002 — Seed des comptes utilisateurs](US-002-seed-users.md) pour la li
 | `JWT_SECRET` | Secret de signature JWT (min 32 caractères) | ✅ Oui | — |
 | `JWT_EXPIRATION` | Durée de validité du token en secondes | Non | `3600` |
 
+Tableau d'ensemble de toutes les variables du hub : [Conventions techniques — Variables d'environnement](../shared/CONVENTIONS-TECHNIQUES.md#-variables-denvironnement) (décision #39). `JWT_SECRET` est obligatoire et n'a pas de défaut.
+
 ### Versioning API
 
 Voir [Conventions techniques — Versioning API](../shared/CONVENTIONS-TECHNIQUES.md#-versioning-api).

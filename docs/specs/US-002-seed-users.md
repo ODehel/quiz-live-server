@@ -134,6 +134,8 @@ Le script `src/seed.js` suit les étapes suivantes :
 
 ### Format du fichier `.env`
 
+Les noms des onze variables sont fixés par le [tableau des variables d'environnement](../shared/CONVENTIONS-TECHNIQUES.md#-variables-denvironnement) (décision #39) ; aucune n'a de défaut.
+
 Le fichier `.env` doit être créé à la racine du projet. Il n'est **pas versionné** (ajouté au `.gitignore`).
 
 ```dotenv
