@@ -22,7 +22,7 @@ Codes communs à **toutes les US**, appliquées globalement par le serveur :
 | `IMMUTABLE_FIELD` | `400` | `"<field> cannot be changed after creation."` | Tentative de modification d'un champ immuable |
 | `UNAUTHORIZED` | `401` | `"Authentication token is missing or invalid."` | Token absent/expiré/invalide |
 | `FORBIDDEN` | `403` | `"You do not have permission to perform this action."` | Rôle insuffisant ou permission manquante |
-| `NOT_FOUND` | `404` | `"The requested <resource> was not found."` | Ressource inexistante (dynamique selon le contexte) |
+| `NOT_FOUND` | `404` | `"The requested <resource> was not found."` | Ressource inexistante (dynamique selon le contexte). Route inconnue : `<resource>` vaut `resource`, soit `"The requested resource was not found."` (décision #35) |
 | `METHOD_NOT_ALLOWED` | `405` | `"HTTP method <METHOD> is not allowed on this resource."` | Méthode HTTP non supportée. Message dynamique : `<METHOD>` est la méthode de la requête, écrite telle que reçue (décision #33) |
 | `FST_ERR_CTP_INVALID_MEDIA_TYPE` | `415` | `"Unsupported Media Type"` | Content-Type incorrect. Corps natif de Fastify, non personnalisé (décision #11) : `{ "code": "FST_ERR_CTP_INVALID_MEDIA_TYPE", "error": "Unsupported Media Type", "message": "Unsupported Media Type", "statusCode": 415 }` |
 | `RATE_LIMIT_EXCEEDED` | `429` | `"Too many requests. Please retry in 60 seconds."` | Dépassement du rate limit (header `Retry-After: 60`) |
