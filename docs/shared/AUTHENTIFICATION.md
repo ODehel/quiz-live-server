@@ -18,6 +18,8 @@ Toutes les routes protégées exigent un **JSON Web Token (JWT)** transmis via l
 | Émission | `POST /api/v1/token` ([US-003](../specs/US-003-authentication-token.md)) |
 | Renouvellement WebSocket | Message `auth_refresh` ([US-021](../specs/US-021-token-refresh.md)) |
 
+> Les noms, le caractère obligatoire et les défauts de `JWT_SECRET` et `JWT_EXPIRATION` sont fixés par le [tableau des variables d'environnement](CONVENTIONS-TECHNIQUES.md#-variables-denvironnement) (décision #39). `JWT_SECRET` est obligatoire et n'a pas de défaut.
+
 ---
 
 ## 🪪 Structure du payload JWT
