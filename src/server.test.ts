@@ -1,3 +1,5 @@
+import { createServer } from 'node:net'
+import { networkInterfaces } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from 'vitest'
 import { QuizServer } from './quiz-server'
 import { Clock } from './common/clock.interface'
@@ -151,15 +153,33 @@ const mockQuestionRouteConfiguration: QuestionRouteConfiguration = {
 	rateLimitMiddleware: mockRateLimitMiddleware
 }
 
+async function reserveFreePort(): Promise<number> {
+	const reservation = createServer()
+	await new Promise<void>((resolve) => reservation.listen(0, '127.0.0.1', resolve))
+	const { port } = reservation.address() as { port: number }
+	await new Promise<void>((resolve) => reservation.close(() => resolve()))
+	return port
+}
+
+const firstExternalIPv4Address = Object.values(networkInterfaces()).flat()
+	.find(iface => iface?.family === 'IPv4' && !iface.internal)?.address
+
 describe('CA-1 - Le serveur démarre sans erreur', () => {
 	let server: QuizServer
-	beforeEach(() => {
-		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
+	let configuredPort: number
+	beforeEach(async () => {
+		configuredPort = await reserveFreePort()
+		server = new QuizServer({ ...mockQuizServerConfiguration, port: configuredPort }, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
 	})
-	it('should start and remain listening without error', async () => {
+	it('should start and answer a real request on the configured port', async () => {
 		await server.start()
-		const response = await server.inject('/health')
-		expect(response.statusCode).toBe(200)
+		const response = await fetch(`http://127.0.0.1:${configuredPort}/health`)
+		expect(response.status).toBe(200)
+	})
+	it.skipIf(firstExternalIPv4Address === undefined)('should answer on the network address of the machine, not only on loopback', async () => {
+		await server.start()
+		const response = await fetch(`http://${firstExternalIPv4Address}:${configuredPort}/health`)
+		expect(response.status).toBe(200)
 	})
 	afterEach(async () => {
 		await server.stop()
