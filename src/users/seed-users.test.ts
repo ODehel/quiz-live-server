@@ -5,6 +5,8 @@ import { UserRole } from './user-role';
 import { Hasher } from '../common/hasher.interface';
 import { PasswordValidator } from './password-validator.interface';
 import { SeedUserConfiguration } from './seed-user-configuration.interface';
+import { SqliteUserRepository } from './sqlite-user-repository';
+import Database from 'better-sqlite3';
 import { BcryptHasher } from '../infrastructure/bcrypt-hasher';
 
 const logins = ['admin', ...Array.from({ length: 10 }, (_, i) => `quiz_buzzer_${String(i + 1).padStart(2, '0')}`)];
@@ -242,5 +244,31 @@ describe("CA-6 - le seed refuse un BCRYPT_COST invalide et applique le coût au 
         for (const call of vi.mocked(mockRepository.insert).mock.calls) {
             expect(call[0].password).toMatch(/^\$2b\$04\$/);
         }
+    });
+});
+
+describe("Seed with the SQLite repository - rôle stocké sous son libellé", () => {
+    let database: Database.Database;
+    let userSeed: SeedUsers;
+    beforeEach(() => {
+        database = new Database(':memory:');
+        userSeed = new SeedUsers(
+            new SqliteUserRepository(database),
+            { hash: vi.fn((password: string) => Promise.resolve(`hashed_${password}`)), compare: vi.fn() },
+            { validate: vi.fn().mockReturnValue(true) }
+        );
+    });
+    const storedRoles = () => database.prepare("SELECT USR_LOGIN, USR_ROLE FROM T_USER_USR ORDER BY USR_LOGIN").all();
+    it("should store the admin label for the admin account and the buzzer label for the ten buzzer accounts", async () => {
+        await userSeed.seed(mockEnvironment);
+        const expected = logins.map(login => ({ USR_LOGIN: login, USR_ROLE: login === 'admin' ? 'admin' : 'buzzer' })).sort((a, b) => a.USR_LOGIN.localeCompare(b.USR_LOGIN));
+        expect(storedRoles()).toEqual(expected);
+    });
+    it("should leave the stored accounts untouched when seeded a second time", async () => {
+        await userSeed.seed(mockEnvironment);
+        const before = storedRoles();
+        const result = await userSeed.seed(mockEnvironment);
+        expect(result.created).toBe(false);
+        expect(storedRoles()).toEqual(before);
     });
 });
