@@ -8,15 +8,25 @@ const seedPasswordVariables = [
 
 describe("environment variables test", () => {
     beforeEach(() => {
-        process.env.PORT = "3000";
+        process.env.PORT = "8080";
         process.env.SQLITE_DB_PATH = "./simple_path";
         process.env.MAX_REQUESTS_PER_MINUTE = "5";
     });
     it("should provide environment values", () => {
         const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
-        expect(processEnvironment.port).toBe(3000);
+        expect(processEnvironment.port).toBe(8080);
         expect(processEnvironment.sqliteDbPath).toBe("./simple_path");
         expect(processEnvironment.maxRequestsPerMinute).toBe(5);
+    });
+    it("US-001/CA-5 should listen on port 3000 when PORT is not set", () => {
+        delete process.env.PORT;
+        expect(new ProcessEnvironment().port).toBe(3000);
+    });
+    it("US-001/CA-5 should listen on the port written in PORT, whatever it is", () => {
+        process.env.PORT = "8080";
+        expect(new ProcessEnvironment().port).toBe(8080);
+        process.env.PORT = "4321";
+        expect(new ProcessEnvironment().port).toBe(4321);
     });
     it("should not hold the JWT settings, which only the hub start reads", () => {
         const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
