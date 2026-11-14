@@ -46,7 +46,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-8 | `SQLITE_DB_PATH` est définie mais vide (chaîne vide) | Le seed refuse de s'exécuter : aucune base n'est ouverte, aucun fichier n'est créé ni modifié, aucun compte n'est créé, le processus se termine avec le code de sortie `1`, et la sortie d'erreur affiche un message qui nomme `SQLITE_DB_PATH` et la règle (le chemin de la base ne peut pas être vide) sans reprendre la valeur. Ex, non normatif : `User seeding failed: SQLITE_DB_PATH cannot be empty.` Absente, la variable vaut `quiz.db`. À la différence de `BCRYPT_COST` (CA-6) et de `JWT_EXPIRATION` (US-003 CA-20), et comme `PORT` (US-001 CA-7) et comme le hub ([US-001](US-001-server-startup.md) CA-10), une chaîne vide est refusée et ne vaut pas absente (décisions #57 et #59). Ce contrôle passe en premier, avant l'ouverture de la base, donc avant la vérification de la table (CA-7), des mots de passe (CA-4) et de `BCRYPT_COST` (CA-6) : quand `SQLITE_DB_PATH` est vide et qu'un de ces contrôles échouerait aussi, une seule erreur est rapportée, celle de `SQLITE_DB_PATH`, avec le code de sortie `1`, et la ligne du CA-7 n'est pas affichée. Le `SQLITE_DB_PATH=` vide d'un fichier `.env` est refusé comme toute chaîne vide (décisions #52 et #59) |
+| CA-8 | `SQLITE_DB_PATH` est définie mais vide (chaîne vide), ou faite uniquement d'espaces (un ou plusieurs espaces U+0020 et rien d'autre, `"   "` par exemple) | Le seed refuse de s'exécuter : aucune base n'est ouverte, aucun fichier n'est créé ni modifié, aucun compte n'est créé, le processus se termine avec le code de sortie `1`, et la sortie d'erreur affiche un message qui nomme `SQLITE_DB_PATH` et la règle (le chemin de la base ne peut être ni vide ni fait uniquement d'espaces) sans reprendre la valeur. Ex, non normatif : `User seeding failed: SQLITE_DB_PATH cannot be empty or made only of spaces.` Absente, la variable vaut `quiz.db`. À la différence de `BCRYPT_COST` (CA-6) et de `JWT_EXPIRATION` (US-003 CA-20), et comme `PORT` (US-001 CA-7) et comme le hub ([US-001](US-001-server-startup.md) CA-10), une chaîne vide est refusée et ne vaut pas absente (décisions #57 et #59) ; une valeur faite uniquement d'espaces est refusée de la même façon, même refus et même place dans l'ordre des contrôles que la chaîne vide (décision #60). Seuls les espaces U+0020 sont visés : une tabulation seule, un mélange d'espaces et de tabulation, un chemin non vide qui a des espaces en tête ou en fin (` quiz.db`) et un saut de ligne ne sont pas spécifiés (sondés, non décidés : décision #60 et `DEBTS.md`). Ce contrôle passe en premier, avant l'ouverture de la base, donc avant la vérification de la table (CA-7), des mots de passe (CA-4) et de `BCRYPT_COST` (CA-6) : quand `SQLITE_DB_PATH` est vide ou faite uniquement d'espaces et qu'un de ces contrôles échouerait aussi, une seule erreur est rapportée, celle de `SQLITE_DB_PATH`, avec le code de sortie `1`, et la ligne du CA-7 n'est pas affichée. Le `SQLITE_DB_PATH=` vide d'un fichier `.env` est refusé comme toute chaîne vide (décisions #52 et #59) |
 
 ---
 
@@ -116,7 +116,7 @@ Le script `src/seed.js` suit les étapes suivantes :
 
 ```
 1. Lecture de SQLITE_DB_PATH, puis connexion à la base de données SQLite
-   → SQLITE_DB_PATH définie mais vide : arrêt avant toute ouverture, code de sortie 1 (CA-8)
+   → SQLITE_DB_PATH définie mais vide, ou faite uniquement d'espaces : arrêt avant toute ouverture, code de sortie 1 (CA-8)
    → Absente : quiz.db
 2. Vérification : la table T_USER_USR est-elle vide ?
    → Non : arrêt immédiat (idempotence — CA-3), avec le message du CA-7 et le code de sortie 0
@@ -183,7 +183,7 @@ SEED_PASSWORD_BUZZER_10=<mot_de_passe_buzzer_10_min_12_car>
 | Hachage bcrypt (facteur de coût : 12 par défaut, réglable par `BCRYPT_COST`) | Suppression des comptes |
 | Idempotence (pas de doublon si le seed est rejoué) | Authentification (gérée par US-003) |
 | Génération des UUIDv7 | Déploiement / CI-CD |
-| Refus de s'exécuter quand `SQLITE_DB_PATH` est définie mais vide (CA-8) | |
+| Refus de s'exécuter quand `SQLITE_DB_PATH` est définie mais vide, ou faite uniquement d'espaces (CA-8) | |
 | Tests unitaires et d'intégration (couverture ≥ 90%) | |
 
 ---
