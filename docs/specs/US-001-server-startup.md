@@ -26,8 +26,9 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-2 | La console affiche l'heure de lancement au format `HH:mm:ss` | Ex : `🚀 Server started at 14:32:07` |
 | CA-3 | La console affiche la première adresse IPv4 locale non-loopback trouvée et le port d'écoute | Ex : `📡 Listening on http://192.168.1.42:3000` |
 | CA-4 | Si aucune interface réseau IPv4 non-loopback n'est trouvée, un message de fallback est affiché | Ex : `⚠️ No network interface found, listening on http://localhost:3000` |
-| CA-5 | Le port d'écoute est configurable via la variable d'environnement `PORT` (défaut : `3000`) | `PORT=8080 npm start` → écoute sur le port 8080 |
+| CA-5 | Le port d'écoute est configurable via la variable d'environnement `PORT` (défaut : `3000`) | `PORT=8080 npm start` → écoute sur le port 8080. Absente, la variable vaut `3000`. Définie mais invalide : voir CA-7 |
 | CA-6 | Les tests couvrent les cas : démarrage normal, absence d'interface réseau, port personnalisé | Couverture de tests ≥ 90% |
+| CA-7 | `PORT` est définie mais n'est pas un entier de 1 à 65535 écrit en chiffres seulement (chaîne vide, `abc`, `8080abc`, `80.5`, `1e3`, `0`, `-1`, `65536`, ` 8080`) | `npm start` refuse de démarrer : le serveur n'écoute sur aucun port, le processus se termine avec le code de sortie `1`, et la console affiche un message qui nomme `PORT` et la règle (entier de 1 à 65535) sans reprendre la valeur. Ex : `Server starting failed: PORT must be an integer between 1 and 65535.` Absente, la variable vaut `3000` (CA-5). À la différence de `JWT_EXPIRATION` (US-003 CA-20) et de `BCRYPT_COST` (US-002 CA-6), une chaîne vide est refusée et ne vaut pas absente (décision #45) |
 
 ---
 
