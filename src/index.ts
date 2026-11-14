@@ -33,6 +33,7 @@ import { ThemeRepositoryExistenceChecker } from './questions/theme-repository-ex
 import { SqliteQuestionRepository } from './questions/sqlite-question-repository';
 import Database from 'better-sqlite3';
 import { JwtSettings, readJwtSettings } from './authentication/jwt-settings';
+import { readPort } from './common/read-port';
 
 function exitWithStartupFailure(error: unknown): never {
     console.error("Server starting failed: " + (error instanceof Error ? error.message : String(error)));
@@ -40,8 +41,10 @@ function exitWithStartupFailure(error: unknown): never {
 }
 
 let jwtSettings: JwtSettings;
+let port: number;
 try {
     jwtSettings = readJwtSettings(process.env);
+    port = readPort(process.env);
 } catch (error: unknown) {
     exitWithStartupFailure(error);
 }
@@ -54,7 +57,7 @@ const database = new Database(processEnvironment.sqliteDbPath);
 const quizServerConfiguration: QuizServerConfiguration = {
     clock: clock,
     network: new OsNetwork(),
-    port: processEnvironment.port,
+    port: port,
     rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
 };
 
