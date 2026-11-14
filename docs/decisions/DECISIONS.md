@@ -532,3 +532,83 @@ L'en-tête de chaque décision porte le **titre du commit** qui l'a livrée, pas
 **Décision.** Sur choix d'Olivier (2026-11-14, porte 1) : le CA-7 liste ces sept cas en plus des neuf d'avant, tous refusés comme eux (même refus : le hub ne démarre pas, code de sortie `1`, message qui nomme `PORT` et la règle sans reprendre la valeur, aucun port n'écoute) ; « en chiffres seulement » s'entend de chiffres ASCII de `0` à `9`, sans signe, sans espace ni tabulation, sans préfixe ni séparateur. Les zéros en tête sont acceptés et c'est un énoncé du CDC (`08080` vaut 8080 et le hub écoute sur 8080 ; `00` vaut 0 et est refusé par la borne basse) : ce n'est plus un choix de Claude à challenger, la décision #45 ne l'est donc plus sur ce point. Ligne `PORT` du tableau des variables de `CONVENTIONS-TECHNIQUES.md` alignée. Non retenu : refuser les zéros en tête, que le code accepte et que `JWT_EXPIRATION` (#41) et `BCRYPT_COST` (#42) acceptent aussi.
 
 **Conséquences.** Rien n'est codé dans cette session : le comportement observable ne change pas, le CDC inscrit ce que le hub fait déjà. `DEBTS.md` consigne le `test(environment)` qui reste : `read-port.test.ts` couvre déjà l'espace en tête, l'espace en fin, le `+` et les zéros en tête, pas la tabulation, l'hexadécimal, les deux écritures de chiffres ni le séparateur. Inchangé et hors de cette décision : le libellé du message reste un exemple, l'ordre des contrôles entre `PORT` et les variables JWT, un port déjà occupé, l'interface d'écoute, `JWT_EXPIRATION` (US-003 CA-20) et `BCRYPT_COST` (US-002 CA-6), dont les CA disent aussi « en chiffres seulement » sans préciser l'écriture des chiffres.
+
+## #47 — L'heure de lancement est l'heure locale de la machine, pas l'UTC
+
+*`docs(specs): settle the startup behaviours that US-001 leaves unspecified` — US-001/CA-2.*
+
+**Contexte.** US-001 CA-2 demande l'heure de lancement au format `HH:mm:ss` sans dire dans quel fuseau. Le hub affiche l'heure locale de la machine (`getHours`) ; la sonde du 2026-11-14 (base jetable) l'a constaté sur le hub réel. La dette « Heure de lancement : locale ou UTC » le consignait.
+
+**Décision.** Sur choix d'Olivier (2026-11-14) : l'heure de lancement est l'heure locale de la machine (US-001 CA-2). Le CDC s'aligne sur le comportement réel. Écartée : l'UTC.
+
+**Conséquences.** Le code est déjà conforme, rien n'est codé dans cette session. Le test existant fige une horloge construite en heure locale ; il ne dépend donc pas du fuseau. La dette « Heure de lancement » est soldée, donc supprimée de `DEBTS.md`.
+
+## #48 — Un hub qui ne peut pas se mettre en écoute refuse de démarrer (nouveau CA-8)
+
+*`docs(specs): settle the startup behaviours that US-001 leaves unspecified` — US-001/CA-8 (nouveau).*
+
+**Contexte.** La décision #45 laissait « un port déjà occupé » non décidé. Sondé le 2026-11-14 (base jetable) : quand le port est pris, le processus se termine avec le code `1` et la sortie d'erreur porte `Server starting failed: listen EADDRINUSE: address already in use 0.0.0.0:<port>` ; rien n'écoute. Le code de sortie et le préfixe sont ceux de tout échec de démarrage.
+
+**Décision.** Sur choix d'Olivier (2026-11-14) : nouveau CA-8, dans le style du CA-7. Si le serveur ne peut pas se mettre en écoute (port déjà occupé, ou toute autre erreur système d'écoute), `npm start` refuse de démarrer : code de sortie `1`, message `Server starting failed: <cause>` sur la sortie d'erreur, rien n'écoute. La cause est celle du système ; le libellé `listen EADDRINUSE: …` est un exemple non normatif (décision #53).
+
+**Conséquences.** Le code est déjà conforme, rien n'est codé. Le port occupé n'a aucun test : seule la sonde manuelle le couvre (`DEBTS.md`, « `index.ts` et `seed.ts` sans test »). Le CA-8 prend le numéro suivant le CA-7, le CA-6 étant retiré (décision #54).
+
+## #49 — Quand `PORT` et `JWT_*` sont invalides ensemble, seule l'erreur des variables `JWT_*` est rapportée
+
+*`docs(specs): settle the startup behaviours that US-001 leaves unspecified` — US-001/CA-7.*
+
+**Contexte.** La décision #45 notait que le CA-7 ne fixe pas l'ordre des contrôles entre `PORT` et les variables JWT. Sondé le 2026-11-14 (base jetable) : `PORT=abc` avec un `JWT_SECRET` trop court ne rapporte que le secret ; le code lit `JWT_*` puis `PORT`, dans le même `try`, et s'arrête à la première erreur.
+
+**Décision.** Sur choix d'Olivier (2026-11-14) : quand `PORT` et `JWT_SECRET` / `JWT_EXPIRATION` sont invalides ensemble, une seule erreur est rapportée, celle des variables `JWT_*` d'abord. Le serveur refuse de démarrer dans les deux cas (code `1`).
+
+**Conséquences.** Le code est déjà conforme, rien n'est codé. Aucun test ne fixe cet ordre (`DEBTS.md`). L'ordre entre `JWT_SECRET` et `JWT_EXPIRATION` eux-mêmes n'est pas fixé par cette décision, ni par US-003 CA-19 et CA-20.
+
+## #50 — Les messages de démarrage sortent sur la sortie standard, les messages d'échec sur la sortie d'erreur
+
+*`docs(specs): settle the startup behaviours that US-001 leaves unspecified` — US-001/CA-2, CA-3, CA-4, CA-7, CA-8.*
+
+**Contexte.** Le CDC ne dit pas sur quel flux sortent les messages. Sondé le 2026-11-14 (base jetable) : au démarrage normal, la sortie standard porte `🚀 Server started at HH:mm:ss` et `📡 Listening on http://<IP>:<PORT>`, plus des lignes JSON de journalisation de Fastify (`Server listening at http://…`) ; en échec, la sortie d'erreur porte `Server starting failed: <cause>` et le code de sortie vaut `1`.
+
+**Décision.** Sur choix d'Olivier (2026-11-14) : les messages de démarrage (CA-2, CA-3, CA-4) sortent sur la sortie standard ; le message d'échec (CA-7, CA-8 et refus des variables `JWT_*`, US-003 CA-19 et CA-20) sur la sortie d'erreur. Les lignes JSON `Server listening at …` que Fastify écrit sur la sortie standard au démarrage normal ne sont ni prescrites ni interdites : elles ne font partie d'aucun CA (point de vigilance d'US-001).
+
+**Conséquences.** Le code est déjà conforme, rien n'est codé. `src/index.test.ts` lit le message d'échec du `PORT` invalide sur la sortie standard et la sortie d'erreur mêlées : le flux de chaque message n'est pas asserté (`DEBTS.md`). US-003 n'est pas modifiée par cette session : son CA-19 et son CA-20 ne nomment pas le flux, la précision vit ici et dans US-001.
+
+## #51 — Le hub écoute sur toutes les interfaces IPv4
+
+*`docs(specs): settle the startup behaviours that US-001 leaves unspecified` — US-001/CA-1.*
+
+**Contexte.** Le CDC ne dit pas sur quelle adresse le hub écoute. Le code écoute sur `0.0.0.0` (constaté le 2026-11-14, base jetable, dans le libellé `listen EADDRINUSE: … 0.0.0.0:<port>` de la décision #48).
+
+**Décision.** Sur choix d'Olivier (2026-11-14) : le hub écoute sur toutes les interfaces IPv4 (`0.0.0.0`), pas seulement sur le loopback (US-001 CA-1). Le point de vigilance d'US-001 sur une éventuelle variable `HOST` reste inchangé (YAGNI).
+
+**Conséquences.** Le code est déjà conforme, rien n'est codé. Aucun test ne vérifie l'adresse d'écoute sur le processus réel.
+
+## #52 — Un fichier `.env` est lu au démarrage ; la variable d'environnement réelle prime
+
+*`docs(specs): settle the startup behaviours that US-001 leaves unspecified` — US-001/CA-5 et CA-7, tableau des variables de `CONVENTIONS-TECHNIQUES.md`.*
+
+**Contexte.** `index.ts` charge `dotenv/config` : un fichier `.env` alimente les variables, sans que le CDC le dise. Sondé le 2026-11-14 (base jetable) : `PORT=4888` dans l'environnement bat `PORT=4777` dans `.env`. Un `PORT=` vide dans `.env` est une chaîne vide, que la décision #45 refuse.
+
+**Décision.** Sur choix d'Olivier (2026-11-14) : un fichier `.env` est lu au démarrage ; la variable d'environnement réelle prime sur `.env`. Un `PORT=` vide dans `.env` est refusé comme toute chaîne vide (US-001 CA-7, décision #45). La règle vaut pour toutes les variables du tableau de `CONVENTIONS-TECHNIQUES.md`, qui la rappelle.
+
+**Conséquences.** Le code est déjà conforme, rien n'est codé. Aucun test ne couvre le rôle de `.env` ni sa priorité (`DEBTS.md`). Où le fichier est cherché n'est pas prescrit.
+
+## #53 — Les libellés « Ex : » sont des exemples non normatifs ; le repli du CA-4 affiche `localhost:<PORT>`
+
+*`docs(specs): settle the startup behaviours that US-001 leaves unspecified` — US-001/CA-2, CA-3, CA-4, CA-8.*
+
+**Contexte.** Le CA-7 dit déjà que son libellé est un exemple ; les CA-2, CA-3 et CA-4 écrivent « Ex : » sans le dire, et l'exemple du CA-4 ne montre que le port `3000`. Constaté le 2026-11-14 : le message de repli affiche le `PORT` configuré.
+
+**Décision.** Sur choix d'Olivier (2026-11-14) : les libellés « Ex : » des CA-2, CA-3 et CA-4 sont des exemples non normatifs, comme celui du CA-7 (et celui du CA-8). Sont normatifs : le format `HH:mm:ss`, l'adresse IPv4 et le port. Le message de repli du CA-4 affiche `localhost:<PORT>`, le `PORT` configuré, pas toujours `3000`.
+
+**Conséquences.** Le code est déjà conforme, rien n'est codé. Les tests de `src/server.test.ts` assertent déjà les libellés actuels : ils ne deviennent pas normatifs pour autant.
+
+## #54 — CA-6 d'US-001 (couverture ≥ 90 %) est retiré, la numérotation est conservée
+
+*`docs(specs): settle the startup behaviours that US-001 leaves unspecified` — US-001/CA-6.*
+
+**Contexte.** CA-6 (« Les tests couvrent les cas : démarrage normal, absence d'interface réseau, port personnalisé ; couverture ≥ 90 % ») n'est pas un comportement observable du hub : la couverture relève de la méthode TDD (`docs/method/WORKFLOW.md`, `CONVENTIONS-TECHNIQUES.md`). Le CA-7 est cité par les décisions #45 et #46, par `CONVENTIONS-TECHNIQUES.md`, par les tests et par les handoffs.
+
+**Décision.** Sur choix d'Olivier (2026-11-14) : la ligne CA-6 est supprimée du tableau d'US-001, une note datée sous le tableau dit que CA-6 est retiré et que la numérotation est conservée ; il n'y a donc pas de CA-6, le nouveau CA est le CA-8. Le bandeau « Exigence de couverture » est retiré d'US-001 (il justifiait ce seul CA) ; la ligne « Tests unitaires avec couverture ≥ 90% » du périmètre aussi. Les autres US gardent leur CA de couverture et leur bandeau.
+
+**Conséquences.** Rien n'est codé. Dette consignée dans `DEBTS.md` : les vingt et une autres US portent encore un CA de couverture et le bandeau. Références à CA-6 d'US-001 laissées en l'état : `docs/specs/ETAT-DES-LIEUX-socle-hub.md` (relevé daté, hors périmètre, session des diagrammes) et les handoffs passés.
