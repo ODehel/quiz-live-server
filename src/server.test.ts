@@ -1,5 +1,5 @@
 import { createServer } from 'node:net'
-import { networkInterfaces } from 'node:os'
+import { networkInterfaces, type NetworkInterfaceInfo } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from 'vitest'
 import { QuizServer } from './quiz-server'
 import { Clock } from './common/clock.interface'
@@ -186,58 +186,115 @@ describe('CA-1 - Le serveur démarre sans erreur', () => {
 	})
 })
 
+function anInterface(address: string, family: 'IPv4' | 'IPv6', internal: boolean): NetworkInterfaceInfo {
+	return family === 'IPv4'
+		? { address, netmask: '255.255.255.0', family, mac: '00:00:00:00:00:00', internal, cidr: `${address}/24` }
+		: { address, netmask: 'ffff:ffff:ffff:ffff::', family, mac: '00:00:00:00:00:00', internal, cidr: `${address}/64`, scopeid: 0 }
+}
+
+function aNetworkWith(interfaces: NodeJS.Dict<NetworkInterfaceInfo[]>): Network {
+	return { networkInterfaces: () => interfaces }
+}
+
 describe('CA-2 - La console affiche l`heure de lancement', () => {
 	let server: QuizServer
 	let spy: MockInstance<typeof console.log>
+	function aServerStartedAt(time: string): QuizServer {
+		return new QuizServer({ ...mockQuizServerConfiguration, clock: { now: () => new Date(`2026-04-02T${time}`) } }, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+	}
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
+		spy.mockClear() // les appels des autres blocs ne doivent pas valider ces assertions
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
 	})
 	it('should display a message with current hour within console', async () => {
 		await server.start()
 		expect(spy).toHaveBeenCalledWith('🚀 Server started at 14:32:07')
 	})
+	it('should pad the hours, the minutes and the seconds with a leading zero', async () => {
+		await server.stop()
+		server = aServerStartedAt('03:04:05')
+		await server.start()
+		expect(spy).toHaveBeenCalledWith('🚀 Server started at 03:04:05')
+	})
 	afterEach(async () => {
 		await server.stop()
+		spy.mockRestore()
 	})
 })
 
 describe('CA-3 - La console affiche l`adresse IP et le port', () => {
 	let server: QuizServer
 	let spy: MockInstance<typeof console.log>
+	function aServerOn(network: Network, port: number): QuizServer {
+		return new QuizServer({ ...mockQuizServerConfiguration, network, port }, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+	}
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
+		spy.mockClear() // les appels des autres blocs ne doivent pas valider ces assertions
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
 	})
-	it('should display a message with current hour within console', async () => {
+	it('should display the IP address and the port within console', async () => {
 		await server.start()
 		expect(spy).toHaveBeenCalledWith('📡 Listening on http://192.168.1.42:3000')
 	})
+	it('should display the first non loopback IPv4 address when several interfaces are found', async () => {
+		await server.stop()
+		server = aServerOn(aNetworkWith({
+			'lo': [anInterface('127.0.0.1', 'IPv4', true)],
+			'eth0': [anInterface('fe80::1', 'IPv6', false), anInterface('192.168.1.42', 'IPv4', false)],
+			'wlan0': [anInterface('10.0.0.7', 'IPv4', false)]
+		}), 3000)
+		await server.start()
+		expect(spy).toHaveBeenCalledWith('📡 Listening on http://192.168.1.42:3000')
+	})
+	it('should display the configured port', async () => {
+		await server.stop()
+		const configuredPort = await reserveFreePort()
+		server = aServerOn(mockNetwork, configuredPort)
+		await server.start()
+		expect(spy).toHaveBeenCalledWith(`📡 Listening on http://192.168.1.42:${configuredPort}`)
+	})
 	afterEach(async () => {
 		await server.stop()
+		spy.mockRestore()
 	})
 })
 
 describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 	let server: QuizServer
 	let spy: MockInstance<typeof console.log>
+	function aServerOn(network: Network, port: number): QuizServer {
+		return new QuizServer({ ...mockQuizServerConfiguration, network, port }, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+	}
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
-		const mockNetworkNoIP: Network = {
-			networkInterfaces: () => ({})
-		}
-		const configWithNoIP: QuizServerConfiguration = {
-			...mockQuizServerConfiguration,
-			network: mockNetworkNoIP
-		}
-		server = new QuizServer(configWithNoIP, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
+		spy.mockClear() // les appels des autres blocs ne doivent pas valider ces assertions
+		server = aServerOn(aNetworkWith({}), 3000)
 	})
 	it('should display a fallback message if no IP address is found', async () => {
 		await server.start()
 		expect(spy).toHaveBeenCalledWith('⚠️ No network interface found, listening on http://localhost:3000')
 	})
+	it('should display the fallback message if only loopback and IPv6 interfaces are found', async () => {
+		await server.stop()
+		server = aServerOn(aNetworkWith({
+			'lo': [anInterface('127.0.0.1', 'IPv4', true)],
+			'eth0': [anInterface('fe80::1', 'IPv6', false)]
+		}), 3000)
+		await server.start()
+		expect(spy).toHaveBeenCalledWith('⚠️ No network interface found, listening on http://localhost:3000')
+	})
+	it('should display the configured port within the fallback message', async () => {
+		await server.stop()
+		const configuredPort = await reserveFreePort()
+		server = aServerOn(aNetworkWith({}), configuredPort)
+		await server.start()
+		expect(spy).toHaveBeenCalledWith(`⚠️ No network interface found, listening on http://localhost:${configuredPort}`)
+	})
 	afterEach(async () => {
 		await server.stop()
+		spy.mockRestore()
 	})
 });
 
