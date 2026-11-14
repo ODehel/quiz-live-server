@@ -18,17 +18,17 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 
 ## ✅ Critères d'acceptance
 
-> 🧪 **Exigence de couverture** — Voir [Conventions techniques — Couverture des tests](../shared/CONVENTIONS-TECHNIQUES.md#-exigence-de-couverture-des-tests). Chaque CA doit être couvert par au moins un test automatisé. Couverture globale ≥ 90 %.
-
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-1 | Le serveur démarre sans erreur avec `npm start` | Le serveur démarre et reste en écoute sans erreur |
-| CA-2 | La console affiche l'heure de lancement au format `HH:mm:ss` | Ex : `🚀 Server started at 14:32:07` |
-| CA-3 | La console affiche la première adresse IPv4 locale non-loopback trouvée et le port d'écoute | Ex : `📡 Listening on http://192.168.1.42:3000` |
-| CA-4 | Si aucune interface réseau IPv4 non-loopback n'est trouvée, un message de fallback est affiché | Ex : `⚠️ No network interface found, listening on http://localhost:3000` |
-| CA-5 | Le port d'écoute est configurable via la variable d'environnement `PORT` (défaut : `3000`) | `PORT=8080 npm start` → écoute sur le port 8080. Absente, la variable vaut `3000`. Définie mais invalide : voir CA-7 |
-| CA-6 | Les tests couvrent les cas : démarrage normal, absence d'interface réseau, port personnalisé | Couverture de tests ≥ 90% |
-| CA-7 | `PORT` est définie mais n'est pas un entier de 1 à 65535 écrit en chiffres seulement, c'est-à-dire en chiffres ASCII de `0` à `9`, sans signe, sans espace ni tabulation, sans préfixe ni séparateur (chaîne vide, `abc`, `8080abc`, `80.5`, `1e3`, `0`, `-1`, `65536`, ` 8080` (espace en tête), `8080 ` (espace en fin), `+8080`, `8080` précédé d'une espace et d'une tabulation, `0x1F90`, `٨٠٨٠` (chiffres arabo-indiens), `８０８０` (chiffres pleine chasse), `8_080`) | `npm start` refuse de démarrer : le serveur n'écoute sur aucun port, le processus se termine avec le code de sortie `1`, et la console affiche un message qui nomme `PORT` et la règle (entier de 1 à 65535) sans reprendre la valeur. Ex : `Server starting failed: PORT must be an integer between 1 and 65535.` Absente, la variable vaut `3000` (CA-5). À la différence de `JWT_EXPIRATION` (US-003 CA-20) et de `BCRYPT_COST` (US-002 CA-6), une chaîne vide est refusée et ne vaut pas absente (décision #45). Les zéros en tête sont acceptés : `08080` vaut 8080 et le serveur écoute sur le port 8080 ; `00`, qui vaut 0, est refusé (décision #46) |
+| CA-1 | Le serveur démarre sans erreur avec `npm start` | Le serveur démarre et reste en écoute sans erreur, sur toutes les interfaces IPv4 (`0.0.0.0`) et non sur le seul loopback (décision #51) |
+| CA-2 | La console affiche l'heure de lancement au format `HH:mm:ss` | L'heure est l'heure locale de la machine, pas l'UTC (décision #47). Sortie standard (décision #50). Normatif : le format `HH:mm:ss`. Ex, non normatif : `🚀 Server started at 14:32:07` (décision #53) |
+| CA-3 | La console affiche la première adresse IPv4 locale non-loopback trouvée et le port d'écoute | Sortie standard (décision #50). Normatifs : l'adresse IPv4 et le port. Ex, non normatif : `📡 Listening on http://192.168.1.42:3000` (décision #53) |
+| CA-4 | Si aucune interface réseau IPv4 non-loopback n'est trouvée, un message de fallback est affiché | Le message de repli affiche `localhost:<PORT>`, le `PORT` configuré (CA-5) et pas toujours `3000`. Sortie standard (décision #50). Normatif : `localhost` et le port. Ex, non normatif, avec `PORT` absente : `⚠️ No network interface found, listening on http://localhost:3000` (décision #53) |
+| CA-5 | Le port d'écoute est configurable via la variable d'environnement `PORT` (défaut : `3000`) | `PORT=8080 npm start` → écoute sur le port 8080. Absente, la variable vaut `3000`. Définie mais invalide : voir CA-7. Un fichier `.env` est lu au démarrage et la variable d'environnement réelle prime sur lui : `PORT=4888` dans l'environnement bat `PORT=4777` dans `.env` (décision #52) |
+| CA-7 | `PORT` est définie mais n'est pas un entier de 1 à 65535 écrit en chiffres seulement, c'est-à-dire en chiffres ASCII de `0` à `9`, sans signe, sans espace ni tabulation, sans préfixe ni séparateur (chaîne vide, `abc`, `8080abc`, `80.5`, `1e3`, `0`, `-1`, `65536`, ` 8080` (espace en tête), `8080 ` (espace en fin), `+8080`, `8080` précédé d'une espace et d'une tabulation, `0x1F90`, `٨٠٨٠` (chiffres arabo-indiens), `８０８０` (chiffres pleine chasse), `8_080`) | `npm start` refuse de démarrer : le serveur n'écoute sur aucun port, le processus se termine avec le code de sortie `1`, et la console affiche un message qui nomme `PORT` et la règle (entier de 1 à 65535) sans reprendre la valeur. Ex : `Server starting failed: PORT must be an integer between 1 and 65535.` Absente, la variable vaut `3000` (CA-5). À la différence de `JWT_EXPIRATION` (US-003 CA-20) et de `BCRYPT_COST` (US-002 CA-6), une chaîne vide est refusée et ne vaut pas absente (décision #45). Les zéros en tête sont acceptés : `08080` vaut 8080 et le serveur écoute sur le port 8080 ; `00`, qui vaut 0, est refusé (décision #46). Le message sort sur la sortie d'erreur (décision #50). Quand `PORT` et les variables `JWT_*` ([US-003](US-003-authentication-token.md), CA-19 et CA-20) sont invalides ensemble, une seule erreur est rapportée : celle des variables `JWT_*` d'abord, et le refus vaut dans les deux cas, avec le code de sortie `1` (décision #49). Le `PORT=` vide d'un fichier `.env` est refusé comme toute chaîne vide (décision #52) |
+| CA-8 | Le serveur ne peut pas se mettre en écoute (port déjà occupé, ou toute autre erreur système d'écoute) | `npm start` refuse de démarrer : le processus se termine avec le code de sortie `1`, la console affiche sur la sortie d'erreur `Server starting failed: <cause>` et rien n'écoute. La cause est celle que donne le système. Ex, non normatif : `Server starting failed: listen EADDRINUSE: address already in use 0.0.0.0:<port>` (décisions #48, #50 et #53) |
+
+> **Note du 2026-11-14 (décision #54)** — CA-6 (« Les tests couvrent les cas… Couverture ≥ 90 % ») est retiré : la couverture relève de la méthode TDD, pas d'un critère d'acceptance. La numérotation des autres CA est conservée (CA-7 est cité par les décisions #45 et #46, par les conventions techniques, par les tests et par les handoffs) : il n'y a donc pas de CA-6.
 
 ---
 
@@ -74,8 +74,8 @@ Voir les [Conventions techniques](../shared/CONVENTIONS-TECHNIQUES.md) pour la s
 |---|---|
 | Démarrage du serveur HTTP | Communication WebSocket (US dédiée) |
 | Affichage heure + IP au démarrage | Logique métier de quiz |
-| Configuration du port via variable d'environnement | Interface Angular |
-| Tests unitaires avec couverture ≥ 90% | Intégration avec les buzzers |
+| Configuration du port via variable d'environnement (et fichier `.env`) | Interface Angular |
+| Refus de démarrer : `PORT` invalide (CA-7), écoute impossible (CA-8) | Intégration avec les buzzers |
 | | Déploiement / CI-CD |
 
 ---
@@ -85,3 +85,7 @@ Voir les [Conventions techniques](../shared/CONVENTIONS-TECHNIQUES.md) pour la s
 ### Interfaces réseau multiples
 
 Si la machine possède plusieurs interfaces IPv4 non-loopback (ex : Ethernet + WiFi), le serveur affiche la **première trouvée**. Si un besoin de sélection d'interface se présente ultérieurement, une variable d'environnement `HOST` pourra être ajoutée (YAGNI pour l'instant).
+
+### Lignes de journalisation de Fastify
+
+Au démarrage normal, Fastify écrit aussi ses propres lignes JSON sur la sortie standard (par exemple `Server listening at http://…`). Le CDC ne les prescrit pas et ne les interdit pas : elles ne font partie d'aucun CA (décision #50).
