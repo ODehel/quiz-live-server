@@ -56,6 +56,19 @@ describe("listening port", () => {
     it("US-001/CA-7 refuses a PORT with a plus sign", () => {
         expect(() => readPort({ PORT: "+8080" })).toThrow(refusal);
     });
+    it("US-001/CA-7 refuses a PORT with a tab before the digits", () => {
+        expect(() => readPort({ PORT: " \t8080" })).toThrow(refusal);
+    });
+    it("US-001/CA-7 refuses a PORT written in hexadecimal", () => {
+        expect(() => readPort({ PORT: "0x1F90" })).toThrow(refusal);
+    });
+    it("US-001/CA-7 refuses a PORT written with non-ASCII digits", () => {
+        expect(() => readPort({ PORT: "\u0668\u0660\u0668\u0660" })).toThrow(refusal);
+        expect(() => readPort({ PORT: "\uFF18\uFF10\uFF18\uFF10" })).toThrow(refusal);
+    });
+    it("US-001/CA-7 refuses a PORT with a digit separator", () => {
+        expect(() => readPort({ PORT: "8_080" })).toThrow(refusal);
+    });
     it("US-001/CA-7 does not repeat the value of an invalid PORT in the message", () => {
         expect(() => readPort({ PORT: "secret-value" })).toThrow(/^(?!.*secret-value).*PORT.*$/);
         expect(() => readPort({ PORT: "99999" })).toThrow(/^(?!.*99999).*PORT.*$/);
