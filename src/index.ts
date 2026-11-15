@@ -40,60 +40,65 @@ function exitWithStartupFailure(error: unknown): never {
     process.exit(1);
 }
 
-let jwtSettings: JwtSettings;
-let port: number;
+// Every check and every use of the database happens here, in the order of US-001 (JWT_*, PORT, SQLITE_DB_PATH, then the database),
+// so that a single failure, whichever the step, leaves through exitWithStartupFailure. The first statement addressed to the database
+// is the creation of a table in a repository constructor: an error of a file that is not a SQLite database comes from there.
+function createServer(): QuizServer {
+    const jwtSettings: JwtSettings = readJwtSettings(process.env);
+    const port: number = readPort(process.env);
+    const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
+    const database = new Database(processEnvironment.sqliteDbPath);
+    const userRepository = new SqliteUserRepository(database);
+    const themeRepository = new SqliteThemeRepository(database);
+    const questionRepository = new SqliteQuestionRepository(database);
+    const clock = new SystemClock();
+
+    const quizServerConfiguration: QuizServerConfiguration = {
+        clock: clock,
+        network: new OsNetwork(),
+        port: port,
+        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
+    };
+
+    const hasher = new BcryptHasher();
+    const tokenRouteConfiguration: TokenRouteConfiguration = {
+        authenticationService: new JwtAuthenticationService(userRepository, hasher),
+        tokenGenerator: new JwtGenerator(jwtSettings.secret, jwtSettings.expiration),
+        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
+    };
+    const themeRouteConfiguration: ThemeRouteConfiguration = {
+        themeService: new DefaultThemeService(clock, new Uuidv7Generator(), themeRepository),
+        uuidValidator: new Uuidv7Validator(),
+        tokenValidator: new JwtValidator(jwtSettings.secret),
+        tokenDecoder: new JwtDecoder(),
+        middleware: authenticationMiddleware,
+        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
+    };
+    const wsRouteConfiguration: WsRouteConfiguration = {
+        tokenValidator: new JwtValidator(jwtSettings.secret),
+        scheduler: new SystemScheduler(),
+        subjectExtractor: new JwtSubjectExtractor(),
+        participantResolver: new UserRepositoryParticipantResolver(userRepository),
+        expirationExtractor: new JwtExpirationExtractor(),
+        clock: clock,
+        wsEventReporter: new PinoWsEventReporter(pino()),
+        wsConnectionPolicy: new WsConnectionPolicy(),
+        maxConnections: 10
+    };
+    const questionRouteConfiguration: QuestionRouteConfiguration = {
+        tokenDecoder: new JwtDecoder(),
+        tokenValidator: new JwtValidator(jwtSettings.secret),
+        questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), questionRepository, new ThemeRepositoryExistenceChecker(themeRepository), new UuidFormatValidator()),
+        middleware: authenticationMiddleware,
+        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
+    };
+    return new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration, questionRouteConfiguration);
+}
+
+let server: QuizServer;
 try {
-    jwtSettings = readJwtSettings(process.env);
-    port = readPort(process.env);
+    server = createServer();
 } catch (error: unknown) {
     exitWithStartupFailure(error);
 }
-
-const clock = new SystemClock();
-
-const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
-
-const database = new Database(processEnvironment.sqliteDbPath);
-const quizServerConfiguration: QuizServerConfiguration = {
-    clock: clock,
-    network: new OsNetwork(),
-    port: port,
-    rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
-};
-
-const userRepository = new SqliteUserRepository(database);
-const themeRepository = new SqliteThemeRepository(database);
-const hasher = new BcryptHasher();
-const tokenRouteConfiguration: TokenRouteConfiguration = {
-    authenticationService: new JwtAuthenticationService(userRepository, hasher),
-    tokenGenerator: new JwtGenerator(jwtSettings.secret, jwtSettings.expiration),
-    rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
-};
-const themeRouteConfiguration: ThemeRouteConfiguration = {
-    themeService: new DefaultThemeService(clock, new Uuidv7Generator(), themeRepository),
-    uuidValidator: new Uuidv7Validator(),
-    tokenValidator: new JwtValidator(jwtSettings.secret),
-    tokenDecoder: new JwtDecoder(),
-    middleware: authenticationMiddleware,
-    rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
-};
-const wsRouteConfiguration: WsRouteConfiguration = {
-    tokenValidator: new JwtValidator(jwtSettings.secret),
-    scheduler: new SystemScheduler(),
-    subjectExtractor: new JwtSubjectExtractor(),
-    participantResolver: new UserRepositoryParticipantResolver(userRepository),
-    expirationExtractor: new JwtExpirationExtractor(),
-    clock: clock,
-    wsEventReporter: new PinoWsEventReporter(pino()),
-    wsConnectionPolicy: new WsConnectionPolicy(),
-    maxConnections: 10
-};
-const questionRouteConfiguration: QuestionRouteConfiguration = {
-    tokenDecoder: new JwtDecoder(),
-    tokenValidator: new JwtValidator(jwtSettings.secret),
-    questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), new SqliteQuestionRepository(database), new ThemeRepositoryExistenceChecker(themeRepository), new UuidFormatValidator()),
-    middleware: authenticationMiddleware,
-    rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
-};
-const server: QuizServer = new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration, questionRouteConfiguration);
 server.start().catch(exitWithStartupFailure);
