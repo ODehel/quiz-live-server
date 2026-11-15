@@ -28,6 +28,10 @@ afterEach(() => {
 
 // The environment is explicit, so that the result depends neither on a .env nor on the machine.
 // The working directory is the temporary one, so that no .env of the repository is read either.
+// Node 26 prints the DEP0205 deprecation warning of tsx (module.register()) on the error output: it is silenced by its code,
+// so that the outputs of a successful seed can still be required to be empty, whatever the version of Node.
+const SILENCE_TSX_DEPRECATION = '--disable-warning=DEP0205'
+
 function validEnvironment(): Record<string, string> {
     const environment: Record<string, string> = { SEED_PASSWORD_ADMIN: 'an-admin-password-1', BCRYPT_COST: '4' }
     for (let i = 1; i <= 10; i++) {
@@ -39,7 +43,7 @@ function validEnvironment(): Record<string, string> {
 function seed(databasePath: string, overrides: Record<string, string> = {}) {
     const result = spawnSync(process.execPath, [TSX_CLI, SEED], {
         cwd: workDirectory,
-        env: { ...validEnvironment(), SQLITE_DB_PATH: databasePath, ...overrides },
+        env: { ...validEnvironment(), NODE_OPTIONS: SILENCE_TSX_DEPRECATION, SQLITE_DB_PATH: databasePath, ...overrides },
         encoding: 'utf8',
         timeout: TEST_TIMEOUT_MS
     })
