@@ -11,7 +11,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 ## 🎯 User Story
 
 > **En tant que** maître du jeu,
-> **quand** je lance le serveur `quiz-buzzer-server` via la commande `npm start`,
+> **quand** je lance le serveur `quiz-live-server` via la commande `npm start`,
 > **alors** la console m'affiche l'heure de lancement ainsi que l'adresse IP sur laquelle le serveur est joignable.
 
 ---
@@ -20,7 +20,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-1 | Le serveur démarre sans erreur avec `npm start` | Le serveur démarre et reste en écoute sans erreur, sur toutes les interfaces IPv4 (`0.0.0.0`) et non sur le seul loopback (décision #51) |
+| CA-1 | Le serveur démarre sans erreur avec `npm start`, l'environnement requis étant renseigné | Le serveur démarre et reste en écoute sans erreur, sur toutes les interfaces IPv4 (`0.0.0.0`) et non sur le seul loopback (décision #51). Prérequis : `JWT_SECRET` (32 caractères minimum, sans défaut) doit être renseignée ; absente, vide ou trop courte, `npm start` refuse de démarrer ([US-003](US-003-authentication-token.md), CA-19), et ce contrôle passe avant ceux de `PORT` (CA-7) et de la base (CA-9, CA-10). Les autres variables du hub ont un défaut : voir le tableau des variables des [Conventions techniques](../shared/CONVENTIONS-TECHNIQUES.md) |
 | CA-2 | La console affiche l'heure de lancement au format `HH:mm:ss` | L'heure est l'heure locale de la machine, pas l'UTC (décision #47). Sortie standard (décision #50). Normatif : le format `HH:mm:ss`. Ex, non normatif : `🚀 Server started at 14:32:07` (décision #53) |
 | CA-3 | La console affiche la première adresse IPv4 locale non-loopback trouvée et le port d'écoute | Sortie standard (décision #50). Normatifs : l'adresse IPv4 et le port. Ex, non normatif : `📡 Listening on http://192.168.1.42:3000` (décision #53) |
 | CA-4 | Si aucune interface réseau IPv4 non-loopback n'est trouvée, un message de fallback est affiché | Le message de repli affiche `localhost:<PORT>`, le `PORT` configuré (CA-5) et pas toujours `3000`. Sortie standard (décision #50). Normatif : `localhost` et le port. Ex, non normatif, avec `PORT` absente : `⚠️ No network interface found, listening on http://localhost:3000` (décision #53) |
@@ -61,9 +61,12 @@ Voir les [Conventions techniques](../shared/CONVENTIONS-TECHNIQUES.md) pour la s
 ```json
 {
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
-    "test": "node --experimental-vm-modules ./node_modules/.bin/jest --coverage"
+    "start": "tsx src/index.ts",
+    "seed": "tsx src/seed.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src"
   }
 }
 ```
