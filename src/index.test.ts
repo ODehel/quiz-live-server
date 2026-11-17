@@ -25,6 +25,7 @@ interface Hub {
     child: ChildProcess
     console: () => string
     errors: () => string
+    standardOutput: () => string
     exited: Promise<Exit>
 }
 
@@ -54,10 +55,11 @@ function startHub(port: string, overrides: Record<string, string> = {}): Hub {
     })
     let output = ''
     let errors = ''
-    child.stdout?.on('data', (chunk: Buffer) => { output += chunk.toString() })
+    let standardOutput = ''
+    child.stdout?.on('data', (chunk: Buffer) => { output += chunk.toString(); standardOutput += chunk.toString() })
     child.stderr?.on('data', (chunk: Buffer) => { output += chunk.toString(); errors += chunk.toString() })
     const exited = new Promise<Exit>(done => child.on('close', (code, signal) => done({ code, signal })))
-    const hub = { child, console: () => output, errors: () => errors, exited }
+    const hub = { child, console: () => output, errors: () => errors, standardOutput: () => standardOutput, exited }
     hubs.push(hub)
     return hub
 }
@@ -98,6 +100,15 @@ async function waitUntilListening(hub: Hub, port: number): Promise<void> {
         await new Promise(done => setTimeout(done, 100))
     }
     throw new Error('The hub is not listening on ' + port + ' after ' + WAIT_MS + ' ms. Console: ' + hub.console())
+}
+
+// The port accepts connections slightly before the startup messages are written: wait for the message itself.
+async function waitForStandardOutput(hub: Hub, text: string): Promise<void> {
+    const deadline = Date.now() + WAIT_MS
+    while (!hub.standardOutput().includes(text)) {
+        if (Date.now() > deadline) throw new Error('"' + text + '" was not written on the standard output after ' + WAIT_MS + ' ms. Console: ' + hub.console())
+        await new Promise(done => setTimeout(done, 50))
+    }
 }
 
 async function freePort(): Promise<number> {
@@ -141,6 +152,42 @@ describe('hub startup', () => {
         await exitOf(hub)
 
         expect(hub.console()).not.toContain(invalidPort)
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['JWT_SECRET', { JWT_SECRET: 'short' }],
+        ['JWT_EXPIRATION', { JWT_EXPIRATION: 'abc' }]
+    ] as const)('US-001/CA-7 reports only the %s error, with exit code 1, when PORT is invalid too', async (variable, overrides) => {
+        const hub = startHub('abc', overrides)
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toContain(variable)
+        expect(hub.errors()).not.toContain('65535')
+        expect(hub.errors().match(/Server starting failed:/g)).toHaveLength(1)
+    }, TEST_TIMEOUT_MS)
+
+    it.each(['abc', '65536'])('US-001/CA-7 writes the refusal of PORT %j on the error output and not on the standard output', async (invalidPort) => {
+        const hub = startHub(invalidPort)
+
+        await exitOf(hub)
+
+        expect(hub.errors()).toMatch(/^Server starting failed: PORT /m)
+        expect(hub.standardOutput()).not.toContain('PORT')
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-2 and CA-3 write the startup messages on the standard output and not on the error output', async () => {
+        const port = await freePort()
+        const hub = startHub(String(port))
+
+        await waitUntilListening(hub, port)
+        await waitForStandardOutput(hub, 'Listening on')
+
+        expect(hub.standardOutput()).toContain('Server started')
+        expect(hub.standardOutput()).toContain('Listening on')
+        expect(hub.errors()).not.toContain('Server started')
+        expect(hub.errors()).not.toContain('Listening on')
     }, TEST_TIMEOUT_MS)
 
     it.each(['abc', '65536'])('US-001/CA-7 never starts listening when PORT is %j', async (invalidPort) => {
