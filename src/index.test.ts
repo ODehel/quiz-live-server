@@ -368,6 +368,23 @@ describe('hub startup: port already in use', () => {
     }, TEST_TIMEOUT_MS)
 })
 
+// The closed list of the 25 whitespace characters of US-001/CA-10 (decision #61), by code point.
+const WHITESPACE_CODE_POINTS = [0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x0020, 0x00A0, 0x1680, ...Array.from({ length: 11 }, (_, i) => 0x2000 + i), 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF]
+const codePoint = (character: string): string => 'U+' + character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')
+// Every blank alone, plus the empty string and two values made of several blanks.
+const BLANK_PATHS: Array<[string, string]> = [
+    ['an empty string', ''],
+    ...WHITESPACE_CODE_POINTS.map((point): [string, string] => [codePoint(String.fromCodePoint(point)), String.fromCodePoint(point)]),
+    ['three spaces', '   '],
+    ['a mix of blanks', ' \t\r\n']
+]
+// Not whitespace for the rule, although invisible: alone, each one is a one-character path (decision #61).
+const NOT_BLANK_CHARACTERS: Array<[string, string]> = [
+    ['U+200B', '\u200B'],
+    ['U+0085', '\u0085'],
+    ['U+180E', '\u180E']
+]
+
 const SQLITE_DB_PATH_REFUSAL = 'Server starting failed: SQLITE_DB_PATH cannot be empty or made only of whitespace.'
 // Any message that gives the cause the system gives: a non-empty cause after the prefix.
 const STARTUP_FAILURE = /^Server starting failed: \S/m
@@ -375,7 +392,7 @@ const STARTUP_FAILURE = /^Server starting failed: \S/m
 const STACK_TRACE = /\n\s+at /
 
 describe('hub startup: SQLITE_DB_PATH', () => {
-    it.each(['', ' ', '   ', '\t', '\n', '\r', ' \t\r\n', '\u00A0', '\u3000', '\uFEFF'])('US-001/CA-10 refuses to start when SQLITE_DB_PATH is %j: exit code 1, the message on the error output, no file created', async (blankPath) => {
+    it.each(BLANK_PATHS)('US-001/CA-10 refuses to start when SQLITE_DB_PATH is %s: exit code 1, the message on the error output, no file created', async (_name, blankPath) => {
         const port = await freePort()
         const hub = startHub(String(port), { SQLITE_DB_PATH: blankPath })
 
@@ -387,6 +404,16 @@ describe('hub startup: SQLITE_DB_PATH', () => {
         expect(hub.console()).not.toContain('Listening on')
         expect(await canConnect(port)).toBe(false)
         expect(readdirSync(workDirectory)).toEqual([])
+    }, TEST_TIMEOUT_MS)
+
+    it.each(NOT_BLANK_CHARACTERS)('US-001/CA-10 does not refuse %s alone: the hub listens and a file named by this one character is created', async (_name, character) => {
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: character })
+
+        await waitUntilListening(hub, port)
+
+        expect(hub.errors()).not.toContain('SQLITE_DB_PATH')
+        expect(readdirSync(workDirectory)).toEqual([character])
     }, TEST_TIMEOUT_MS)
 
     it('US-001/CA-10 does not repeat the blank value in the message', async () => {
