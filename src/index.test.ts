@@ -466,19 +466,46 @@ describe('hub startup: SQLITE_DB_PATH', () => {
 describe('hub startup: unusable database', () => {
     const TEXT = 'this is a text file, not a SQLite database'
 
-    function unusableDatabase(kind: 'missing directory' | 'directory' | 'text file'): string {
+    // 200 bytes of arbitrary binary content, reproducible: a PRNG (mulberry32) with a constant seed, never crypto.randomBytes (an unstable test).
+    function randomBytes(length: number): Buffer {
+        let state = 0x5EED
+        const bytes = Buffer.alloc(length)
+        for (let i = 0; i < length; i++) {
+            state = (state + 0x6D2B79F5) | 0
+            let t = Math.imul(state ^ (state >>> 15), 1 | state)
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+            bytes[i] = ((t ^ (t >>> 14)) >>> 0) & 0xFF
+        }
+        return bytes
+    }
+    const RANDOM_BYTES = randomBytes(200)
+
+    function unusableDatabase(kind: 'missing directory' | 'directory' | 'text file' | '200 random bytes'): string {
         if (kind === 'missing directory') return join(workDirectory, 'missing-directory', 'hub.db')
         if (kind === 'directory') {
             const directory = join(workDirectory, 'a-directory')
             mkdirSync(directory)
             return directory
         }
+        if (kind === '200 random bytes') {
+            const binaryFile = join(workDirectory, 'random.db')
+            writeFileSync(binaryFile, RANDOM_BYTES)
+            return binaryFile
+        }
         const textFile = join(workDirectory, 'notes.db')
         writeFileSync(textFile, TEXT)
         return textFile
     }
 
-    it.each(['missing directory', 'directory', 'text file'] as const)('US-001/CA-9 refuses to start on a %s: exit code 1, the cause on the error output, nothing listens', async (kind) => {
+    it('US-001/CA-9 uses 200 random bytes that are neither all zero nor the header of a SQLite database', () => {
+        expect(RANDOM_BYTES).toHaveLength(200)
+        expect(RANDOM_BYTES.some(byte => byte !== 0)).toBe(true)
+        expect(RANDOM_BYTES.subarray(0, 16).equals(Buffer.from('SQLite format 3\0', 'latin1'))).toBe(false)
+        expect(RANDOM_BYTES.includes(0)).toBe(true)
+        expect(RANDOM_BYTES.some(byte => byte < 0x20 && ![0x09, 0x0A, 0x0D].includes(byte))).toBe(true)
+    })
+
+    it.each(['missing directory', 'directory', 'text file', '200 random bytes'] as const)('US-001/CA-9 refuses to start on a %s: exit code 1, the cause on the error output, nothing listens', async (kind) => {
         const port = await freePort()
         const hub = startHub(String(port), { SQLITE_DB_PATH: unusableDatabase(kind) })
 
@@ -499,6 +526,25 @@ describe('hub startup: unusable database', () => {
         await exitOf(hub)
 
         expect(readFileSync(textFile, 'utf8')).toBe(TEXT)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-9 leaves a file of 200 random bytes untouched, byte for byte', async () => {
+        const binaryFile = unusableDatabase('200 random bytes')
+        const hub = startHub(String(await freePort()), { SQLITE_DB_PATH: binaryFile })
+
+        await exitOf(hub)
+
+        expect(readFileSync(binaryFile).equals(RANDOM_BYTES)).toBe(true)
+        expect(readdirSync(workDirectory)).toEqual(['random.db'])
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-9 reports the PORT error first when the file of 200 random bytes cannot be used either', async () => {
+        const hub = startHub('abc', { SQLITE_DB_PATH: unusableDatabase('200 random bytes') })
+
+        await exitOf(hub)
+
+        expect(hub.errors()).toContain('PORT')
+        expect(hub.errors()).not.toContain('database')
     }, TEST_TIMEOUT_MS)
 
     it('US-001/CA-9 reports the PORT error first when the database cannot be used either', async () => {
