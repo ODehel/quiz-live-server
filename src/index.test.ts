@@ -1,5 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import Database from 'better-sqlite3'
 import { connect, createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -166,6 +167,25 @@ async function occupyPort(): Promise<{ port: number, release: () => Promise<void
     return { port, release: () => new Promise<void>(done => holder.close(() => done())) }
 }
 
+// Rows of every table of a database file, by table name.
+function rowCounts(databasePath: string): Record<string, number> {
+    const database = new Database(databasePath, { readonly: true })
+    try {
+        const names = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[]
+        return Object.fromEntries(names.map(({ name }) => [name, (database.prepare(`SELECT COUNT(*) AS count FROM ${name}`).get() as { count: number }).count]))
+    } finally {
+        database.close()
+    }
+}
+
+// A database with the eleven accounts, made by the seed as `npm run seed` does.
+function seedAccounts(databasePath: string): void {
+    const environment: Record<string, string> = { SEED_PASSWORD_ADMIN: 'an-admin-password-1', BCRYPT_COST: '4', NODE_OPTIONS: '--disable-warning=DEP0205', SQLITE_DB_PATH: databasePath }
+    for (let i = 1; i <= 10; i++) environment[`SEED_PASSWORD_BUZZER_${String(i).padStart(2, '0')}`] = `a-buzzer-password-${i}`
+    const result = spawnSync(process.execPath, [TSX_CLI, resolve(__dirname, 'seed.ts')], { cwd: workDirectory, env: environment, encoding: 'utf8' })
+    if (result.status !== 0) throw new Error('The seed failed: ' + result.stderr)
+}
+
 describe('hub startup: port already in use', () => {
     it('US-001/CA-8 refuses to start when the port is already in use: exit code 1, the system cause on the error output', async () => {
         const holder = await occupyPort()
@@ -195,6 +215,54 @@ describe('hub startup: port already in use', () => {
         } finally {
             await holder.release()
         }
+    }, TEST_TIMEOUT_MS)
+
+    it.each(['absent', 'zero bytes'] as const)('US-001/CA-8 keeps the database file, with its tables empty, when it was %s and the port is already in use', async (start) => {
+        const databasePath = join(workDirectory, 'left.db')
+        if (start === 'zero bytes') writeFileSync(databasePath, '')
+        const holder = await occupyPort()
+        try {
+            const hub = startHub(String(holder.port), { SQLITE_DB_PATH: databasePath })
+
+            const exit = await exitOf(hub)
+
+            expect(exit).toEqual({ code: 1, signal: null })
+            const counts = rowCounts(databasePath)
+            expect(Object.keys(counts)).toContain('T_USER_USR')
+            expect(Object.values(counts).every(count => count === 0)).toBe(true)
+        } finally {
+            await holder.release()
+        }
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-8 keeps the accounts of a database that already exists when the port is already in use', async () => {
+        const databasePath = join(workDirectory, 'accounts.db')
+        seedAccounts(databasePath)
+        const holder = await occupyPort()
+        try {
+            const hub = startHub(String(holder.port), { SQLITE_DB_PATH: databasePath })
+
+            await exitOf(hub)
+
+            expect(rowCounts(databasePath).T_USER_USR).toBe(11)
+        } finally {
+            await holder.release()
+        }
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-8 starts on the next run, with the same database file, once the port is free', async () => {
+        const databasePath = join(workDirectory, 'left.db')
+        const holder = await occupyPort()
+        try {
+            await exitOf(startHub(String(holder.port), { SQLITE_DB_PATH: databasePath }))
+        } finally {
+            await holder.release()
+        }
+        const port = await freePort()
+
+        const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath })
+
+        await waitUntilListening(hub, port)
     }, TEST_TIMEOUT_MS)
 })
 
