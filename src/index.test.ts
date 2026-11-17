@@ -45,10 +45,12 @@ afterEach(async () => {
 
 // The environment is explicit, so that the result depends neither on a .env nor on the machine.
 // The working directory is the temporary one, so that no .env of the repository is read either.
-function startHub(port: string, overrides: Record<string, string> = {}): Hub {
+// An override valued undefined removes the variable from the environment of the hub.
+function startHub(port: string, overrides: Record<string, string | undefined> = {}): Hub {
+    const environment = { JWT_SECRET, SQLITE_DB_PATH: join(workDirectory, 'hub.db'), PORT: port, ...overrides }
     const child = spawn(process.execPath, [TSX_CLI, INDEX], {
         cwd: workDirectory,
-        env: { JWT_SECRET, SQLITE_DB_PATH: join(workDirectory, 'hub.db'), PORT: port, ...overrides },
+        env: Object.fromEntries(Object.entries(environment).filter(([, value]) => value !== undefined)),
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: process.platform !== 'win32',
         windowsHide: true
@@ -104,9 +106,17 @@ async function waitUntilListening(hub: Hub, port: number): Promise<void> {
 
 // The port accepts connections slightly before the startup messages are written: wait for the message itself.
 async function waitForStandardOutput(hub: Hub, text: string): Promise<void> {
+    await waitUntil(() => hub.standardOutput().includes(text), '"' + text + '" was not written on the standard output', hub)
+}
+
+async function waitForConsole(hub: Hub, text: string): Promise<void> {
+    await waitUntil(() => hub.console().includes(text), '"' + text + '" was not written on the console', hub)
+}
+
+async function waitUntil(condition: () => boolean, failure: string, hub: Hub): Promise<void> {
     const deadline = Date.now() + WAIT_MS
-    while (!hub.standardOutput().includes(text)) {
-        if (Date.now() > deadline) throw new Error('"' + text + '" was not written on the standard output after ' + WAIT_MS + ' ms. Console: ' + hub.console())
+    while (!condition()) {
+        if (Date.now() > deadline) throw new Error(failure + ' after ' + WAIT_MS + ' ms. Console: ' + hub.console())
         await new Promise(done => setTimeout(done, 50))
     }
 }
@@ -152,6 +162,51 @@ describe('hub startup', () => {
         await exitOf(hub)
 
         expect(hub.console()).not.toContain(invalidPort)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-5 listens on port 3000 when PORT is absent', async () => {
+        const hub = startHub('', { PORT: undefined })
+
+        // Other test files of the run may hold port 3000 for a moment: either the hub listens on it or it names it in its failure.
+        // Both prove that 3000 is the port it tries by default.
+        await waitForConsole(hub, ':' + DEFAULT_PORT)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-5 reads the port from a .env file in the working directory when PORT is absent from the environment', async () => {
+        const port = await freePort()
+        writeFileSync(join(workDirectory, '.env'), 'PORT=' + port + '\n')
+        const hub = startHub('', { PORT: undefined })
+
+        await waitUntilListening(hub, port)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-5 prefers the PORT of the real environment to the PORT of the .env file', async () => {
+        const realPort = await freePort()
+        const envFilePort = await freePort()
+        writeFileSync(join(workDirectory, '.env'), 'PORT=' + envFilePort + '\n')
+        const hub = startHub(String(realPort))
+
+        await waitUntilListening(hub, realPort)
+        expect(await canConnect(envFilePort)).toBe(false)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-7 refuses to start when the .env file has an empty PORT and the environment has none', async () => {
+        writeFileSync(join(workDirectory, '.env'), 'PORT=\n')
+        const hub = startHub('', { PORT: undefined })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toMatch(/^Server starting failed: PORT /m)
+        expect(hub.console()).not.toContain('Listening on')
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-7 does not read the empty PORT of the .env file when the real environment has a valid one', async () => {
+        const port = await freePort()
+        writeFileSync(join(workDirectory, '.env'), 'PORT=\n')
+        const hub = startHub(String(port))
+
+        await waitUntilListening(hub, port)
     }, TEST_TIMEOUT_MS)
 
     it.each([
