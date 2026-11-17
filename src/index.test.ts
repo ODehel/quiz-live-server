@@ -153,6 +153,51 @@ describe('hub startup', () => {
     }, TEST_TIMEOUT_MS)
 })
 
+// Another process holds the port, on every IPv4 interface like the hub, until the test ends.
+async function occupyPort(): Promise<{ port: number, release: () => Promise<void> }> {
+    const holder = createServer()
+    const port = await new Promise<number>((done, fail) => {
+        holder.once('error', fail)
+        holder.listen(0, '0.0.0.0', () => {
+            const address = holder.address()
+            done(typeof address === 'object' && address !== null ? address.port : 0)
+        })
+    })
+    return { port, release: () => new Promise<void>(done => holder.close(() => done())) }
+}
+
+describe('hub startup: port already in use', () => {
+    it('US-001/CA-8 refuses to start when the port is already in use: exit code 1, the system cause on the error output', async () => {
+        const holder = await occupyPort()
+        try {
+            const hub = startHub(String(holder.port))
+
+            const exit = await exitOf(hub)
+
+            expect(exit).toEqual({ code: 1, signal: null })
+            expect(hub.errors()).toMatch(STARTUP_FAILURE)
+            expect(hub.errors()).toContain('EADDRINUSE')
+            expect(hub.errors()).not.toMatch(STACK_TRACE)
+        } finally {
+            await holder.release()
+        }
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-8 does not announce a start when the port is already in use', async () => {
+        const holder = await occupyPort()
+        try {
+            const hub = startHub(String(holder.port))
+
+            await exitOf(hub)
+
+            expect(hub.console()).not.toContain('Server started')
+            expect(hub.console()).not.toContain('Listening on')
+        } finally {
+            await holder.release()
+        }
+    }, TEST_TIMEOUT_MS)
+})
+
 const SQLITE_DB_PATH_REFUSAL = 'Server starting failed: SQLITE_DB_PATH cannot be empty or made only of whitespace.'
 // Any message that gives the cause the system gives: a non-empty cause after the prefix.
 const STARTUP_FAILURE = /^Server starting failed: \S/m
