@@ -59,14 +59,39 @@ function countAccounts(databasePath: string): number {
     }
 }
 
+// The closed list of the 25 whitespace characters of US-001/CA-10 (decision #61), by code point.
+const WHITESPACE_CODE_POINTS = [0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x0020, 0x00A0, 0x1680, ...Array.from({ length: 11 }, (_, i) => 0x2000 + i), 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF]
+const codePoint = (character: string): string => 'U+' + character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')
+// Every blank alone, plus the empty string and two values made of several blanks.
+const BLANK_PATHS: Array<[string, string]> = [
+    ['an empty string', ''],
+    ...WHITESPACE_CODE_POINTS.map((point): [string, string] => [codePoint(String.fromCodePoint(point)), String.fromCodePoint(point)]),
+    ['three spaces', '   '],
+    ['a mix of blanks', ' \t\r\n']
+]
+// Not whitespace for the rule, although invisible: alone, each one is a one-character path (decision #61).
+const NOT_BLANK_CHARACTERS: Array<[string, string]> = [
+    ['U+200B', '\u200B'],
+    ['U+0085', '\u0085'],
+    ['U+180E', '\u180E']
+]
+
 describe('seed: SQLITE_DB_PATH', () => {
-    it.each(['', ' ', '   ', '\t', '\n', '\r', ' \t\r\n', '\u00A0', '\u3000', '\uFEFF'])('US-002/CA-8 refuses to run when SQLITE_DB_PATH is %j: exit code 1, the message on the error output, nothing created', (blankPath) => {
+    it.each(BLANK_PATHS)('US-002/CA-8 refuses to run when SQLITE_DB_PATH is %s: exit code 1, the message on the error output, nothing created', (_name, blankPath) => {
         const result = seed(blankPath)
 
         expect(result.status).toBe(1)
         expect(result.stderr).toContain(REFUSAL)
         expect(result.stdout).toBe('')
         expect(readdirSync(workDirectory)).toEqual([])
+    }, TEST_TIMEOUT_MS)
+
+    it.each(NOT_BLANK_CHARACTERS)('US-002/CA-8 does not refuse %s alone: exit code 0, empty outputs, a file named by this one character holds the accounts', (_name, character) => {
+        const result = seed(character)
+
+        expect(result).toEqual({ status: 0, stdout: '', stderr: '' })
+        expect(readdirSync(workDirectory)).toEqual([character])
+        expect(countAccounts(join(workDirectory, character))).toBe(11)
     }, TEST_TIMEOUT_MS)
 
     it('US-002/CA-8 does not repeat the blank value in the message', () => {
