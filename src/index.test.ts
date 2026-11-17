@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { connect, createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -23,6 +23,7 @@ interface Exit {
 interface Hub {
     child: ChildProcess
     console: () => string
+    errors: () => string
     exited: Promise<Exit>
 }
 
@@ -42,19 +43,20 @@ afterEach(async () => {
 
 // The environment is explicit, so that the result depends neither on a .env nor on the machine.
 // The working directory is the temporary one, so that no .env of the repository is read either.
-function startHub(port: string): Hub {
+function startHub(port: string, overrides: Record<string, string> = {}): Hub {
     const child = spawn(process.execPath, [TSX_CLI, INDEX], {
         cwd: workDirectory,
-        env: { JWT_SECRET, SQLITE_DB_PATH: join(workDirectory, 'hub.db'), PORT: port },
+        env: { JWT_SECRET, SQLITE_DB_PATH: join(workDirectory, 'hub.db'), PORT: port, ...overrides },
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: process.platform !== 'win32',
         windowsHide: true
     })
     let output = ''
+    let errors = ''
     child.stdout?.on('data', (chunk: Buffer) => { output += chunk.toString() })
-    child.stderr?.on('data', (chunk: Buffer) => { output += chunk.toString() })
+    child.stderr?.on('data', (chunk: Buffer) => { output += chunk.toString(); errors += chunk.toString() })
     const exited = new Promise<Exit>(done => child.on('close', (code, signal) => done({ code, signal })))
-    const hub = { child, console: () => output, exited }
+    const hub = { child, console: () => output, errors: () => errors, exited }
     hubs.push(hub)
     return hub
 }
@@ -148,5 +150,139 @@ describe('hub startup', () => {
         expect(hub.console()).not.toContain('Server started')
         expect(hub.console()).not.toContain('Listening on')
         expect(await canConnect(DEFAULT_PORT)).toBe(false)
+    }, TEST_TIMEOUT_MS)
+})
+
+const SQLITE_DB_PATH_REFUSAL = 'Server starting failed: SQLITE_DB_PATH cannot be empty or made only of whitespace.'
+// Any message that gives the cause the system gives: a non-empty cause after the prefix.
+const STARTUP_FAILURE = /^Server starting failed: \S/m
+// A stack trace of an uncaught error: the refusal is a message, not a crash.
+const STACK_TRACE = /\n\s+at /
+
+describe('hub startup: SQLITE_DB_PATH', () => {
+    it.each(['', ' ', '   ', '\t', '\n', '\r', ' \t\r\n', '\u00A0', '\u3000', '\uFEFF'])('US-001/CA-10 refuses to start when SQLITE_DB_PATH is %j: exit code 1, the message on the error output, no file created', async (blankPath) => {
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: blankPath })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toContain(SQLITE_DB_PATH_REFUSAL)
+        expect(hub.console()).not.toContain('Server started')
+        expect(hub.console()).not.toContain('Listening on')
+        expect(await canConnect(port)).toBe(false)
+        expect(readdirSync(workDirectory)).toEqual([])
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-10 does not repeat the blank value in the message', async () => {
+        const hub = startHub(String(await freePort()), { SQLITE_DB_PATH: '\t\t\t' })
+
+        await exitOf(hub)
+
+        expect(hub.errors()).not.toContain('\t')
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-10 reports the JWT error first when SQLITE_DB_PATH is blank too', async () => {
+        const hub = startHub(String(await freePort()), { SQLITE_DB_PATH: ' ', JWT_SECRET: 'short' })
+
+        const exit = await exitOf(hub)
+
+        expect(exit.code).toBe(1)
+        expect(hub.errors()).toContain('JWT_SECRET')
+        expect(hub.errors()).not.toContain('SQLITE_DB_PATH')
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-10 reports the PORT error first when SQLITE_DB_PATH is blank too', async () => {
+        const hub = startHub('abc', { SQLITE_DB_PATH: ' ' })
+
+        const exit = await exitOf(hub)
+
+        expect(exit.code).toBe(1)
+        expect(hub.errors()).toContain('PORT')
+        expect(hub.errors()).not.toContain('SQLITE_DB_PATH')
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-10 does not refuse :memory:, bordered or not: the hub listens and no file is created', async () => {
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: ' :memory: ' })
+
+        await waitUntilListening(hub, port)
+
+        expect(readdirSync(workDirectory)).toEqual([])
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-10 uses the path without the whitespace around it', async () => {
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: '\t\u3000' + join(workDirectory, 'bordered.db') + '\uFEFF \r\n' })
+
+        await waitUntilListening(hub, port)
+
+        expect(readdirSync(workDirectory)).toEqual(['bordered.db'])
+    }, TEST_TIMEOUT_MS)
+})
+
+describe('hub startup: unusable database', () => {
+    const TEXT = 'this is a text file, not a SQLite database'
+
+    function unusableDatabase(kind: 'missing directory' | 'directory' | 'text file'): string {
+        if (kind === 'missing directory') return join(workDirectory, 'missing-directory', 'hub.db')
+        if (kind === 'directory') {
+            const directory = join(workDirectory, 'a-directory')
+            mkdirSync(directory)
+            return directory
+        }
+        const textFile = join(workDirectory, 'notes.db')
+        writeFileSync(textFile, TEXT)
+        return textFile
+    }
+
+    it.each(['missing directory', 'directory', 'text file'] as const)('US-001/CA-9 refuses to start on a %s: exit code 1, the cause on the error output, nothing listens', async (kind) => {
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: unusableDatabase(kind) })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toMatch(STARTUP_FAILURE)
+        expect(hub.errors()).not.toMatch(STACK_TRACE)
+        expect(hub.console()).not.toContain('Server started')
+        expect(hub.console()).not.toContain('Listening on')
+        expect(await canConnect(port)).toBe(false)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-9 leaves a file that is not a SQLite database untouched', async () => {
+        const textFile = unusableDatabase('text file')
+        const hub = startHub(String(await freePort()), { SQLITE_DB_PATH: textFile })
+
+        await exitOf(hub)
+
+        expect(readFileSync(textFile, 'utf8')).toBe(TEXT)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-9 reports the PORT error first when the database cannot be used either', async () => {
+        const hub = startHub('abc', { SQLITE_DB_PATH: join(workDirectory, 'missing-directory', 'hub.db') })
+
+        await exitOf(hub)
+
+        expect(hub.errors()).toContain('PORT')
+        expect(hub.errors()).not.toContain('database')
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-9 still starts on a database file that does not exist yet, in an existing directory', async () => {
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: join(workDirectory, 'new.db') })
+
+        await waitUntilListening(hub, port)
+
+        expect(readdirSync(workDirectory)).toEqual(['new.db'])
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-9 still starts on an existing database file of zero bytes', async () => {
+        const emptyFile = join(workDirectory, 'empty.db')
+        writeFileSync(emptyFile, '')
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: emptyFile })
+
+        await waitUntilListening(hub, port)
     }, TEST_TIMEOUT_MS)
 })

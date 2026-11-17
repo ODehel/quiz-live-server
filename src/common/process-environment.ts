@@ -1,11 +1,12 @@
 import { Environment } from "./environment.interface";
+import { readDatabasePath } from "./read-database-path";
 
 export class ProcessEnvironment implements Environment {
     sqliteDbPath: string;
     maxRequestsPerMinute: number;
 
     constructor() {
-        this.sqliteDbPath = process.env.SQLITE_DB_PATH || "quiz.db";
+        this.sqliteDbPath = readDatabasePath(process.env.SQLITE_DB_PATH);
         this.maxRequestsPerMinute = parseInt(process.env.MAX_REQUESTS_PER_MINUTE ?? "100");
     }
 

@@ -16,6 +16,22 @@ describe("environment variables test", () => {
         expect(processEnvironment.sqliteDbPath).toBe("./simple_path");
         expect(processEnvironment.maxRequestsPerMinute).toBe(5);
     });
+    it("US-001/CA-10 and US-002/CA-8 should refuse SQLITE_DB_PATH defined but empty, instead of treating it as absent", () => {
+        process.env.SQLITE_DB_PATH = "";
+        expect(() => new ProcessEnvironment()).toThrow("SQLITE_DB_PATH cannot be empty or made only of whitespace.");
+    });
+    it("US-001/CA-10 and US-002/CA-8 should refuse SQLITE_DB_PATH made only of whitespace", () => {
+        process.env.SQLITE_DB_PATH = " \t\r\n\u00A0";
+        expect(() => new ProcessEnvironment()).toThrow("SQLITE_DB_PATH cannot be empty or made only of whitespace.");
+    });
+    it("US-001/CA-10 and US-002/CA-8 should provide the path without the whitespace around it", () => {
+        process.env.SQLITE_DB_PATH = "\t ./simple_path \r\n";
+        expect(new ProcessEnvironment().sqliteDbPath).toBe("./simple_path");
+    });
+    it("US-001/CA-10 and US-002/CA-8 should provide quiz.db when SQLITE_DB_PATH is not set", () => {
+        delete process.env.SQLITE_DB_PATH;
+        expect(new ProcessEnvironment().sqliteDbPath).toBe("quiz.db");
+    });
     it("should not hold the JWT settings, which only the hub start reads", () => {
         const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
         expect(processEnvironment).not.toHaveProperty("jwtSecretKey");
