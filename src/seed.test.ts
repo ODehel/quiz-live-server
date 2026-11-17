@@ -161,3 +161,61 @@ describe('seed: unusable database', () => {
         expect(countAccounts(emptyFile)).toBe(11)
     }, TEST_TIMEOUT_MS)
 })
+
+// Rows of every table of a database file, by table name.
+function rowCounts(databasePath: string): Record<string, number> {
+    const database = new Database(databasePath, { readonly: true })
+    try {
+        const names = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[]
+        return Object.fromEntries(names.map(({ name }) => [name, (database.prepare(`SELECT COUNT(*) AS count FROM ${name}`).get() as { count: number }).count]))
+    } finally {
+        database.close()
+    }
+}
+
+describe('seed: database file left behind by a refusal', () => {
+    const REFUSALS = [
+        ['a password that is too short', { SEED_PASSWORD_ADMIN: 'short' }],
+        ['a BCRYPT_COST that is invalid', { BCRYPT_COST: 'abc' }]
+    ] as const
+    const STARTS = ['absent', 'zero bytes'] as const
+
+    function databaseFile(start: typeof STARTS[number]): string {
+        const databasePath = join(workDirectory, 'left.db')
+        if (start === 'zero bytes') writeFileSync(databasePath, '')
+        return databasePath
+    }
+
+    describe.each(REFUSALS)('with %s', (_label, overrides) => {
+        it.each(STARTS)('US-002/CA-9 keeps the database file, with an empty user table, when it was %s', (start) => {
+            const databasePath = databaseFile(start)
+
+            const result = seed(databasePath, overrides)
+
+            expect(result.status).toBe(1)
+            expect(result.stderr).toMatch(FAILURE)
+            expect(rowCounts(databasePath)).toEqual({ T_USER_USR: 0 })
+        }, TEST_TIMEOUT_MS)
+
+        it('US-002/CA-9 does not touch a database that already exists and has an empty user table', () => {
+            const databasePath = databaseFile('absent')
+            seed(databasePath, overrides)
+            const before = readFileSync(databasePath)
+
+            const result = seed(databasePath, overrides)
+
+            expect(result.status).toBe(1)
+            expect(readFileSync(databasePath).equals(before)).toBe(true)
+        }, TEST_TIMEOUT_MS)
+
+        it('US-002/CA-1 creates the eleven accounts on the next run, once the cause is corrected', () => {
+            const databasePath = databaseFile('absent')
+            seed(databasePath, overrides)
+
+            const result = seed(databasePath)
+
+            expect(result).toEqual({ status: 0, stdout: '', stderr: '' })
+            expect(countAccounts(databasePath)).toBe(11)
+        }, TEST_TIMEOUT_MS)
+    })
+})
