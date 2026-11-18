@@ -760,7 +760,8 @@ describe('hub startup: unusable database', () => {
 })
 
 // The permission tests cannot prove anything where permissions do not apply: root ignores them and Windows does not have
-// the POSIX ones (the Windows behaviour is not probed yet, see DEBTS.md). They are skipped, with the reason in the title
+// the POSIX ones (the Windows behaviour was probed by hand on 2026-11-18, see decision #70, and these tests are skipped
+// there for want of a written equivalent, see DEBTS.md). They are skipped, with the reason in the title
 // and on the console, never silently green. A final probe covers any other machine where chmod has no effect.
 function filePermissionsSkipReason(): string | undefined {
     if (process.platform === 'win32') return 'Windows: POSIX file permissions do not apply'
