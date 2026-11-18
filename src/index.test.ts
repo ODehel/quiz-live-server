@@ -171,7 +171,9 @@ describe('hub startup', () => {
         const hub = startHub(String(port))
 
         await waitUntilListening(hub, port)
-        expect(hub.console()).toContain(':' + port)
+        await waitForStartupAnnouncement(hub, port)
+
+        expect(startupLines(hub).join('\n')).toContain(':' + port)
     }, TEST_TIMEOUT_MS)
 
     it.each(['', 'abc', '8080abc', '65536', '0'])('US-001/CA-7 refuses to start when PORT is %j: exit code 1 and a message naming PORT and its rule', async (invalidPort) => {
