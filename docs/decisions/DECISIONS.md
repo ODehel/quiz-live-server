@@ -859,3 +859,40 @@ Sur les cas (a) et (b), le hub démarré (processus vivant, `GET /health` répon
 - Tests à prévoir, par processus enfant (`src/index.test.ts`, `test(startup)`) : une base en lecture seule qui contient les trois tables : le hub écoute, sortie d'erreur vide ; les refus (c) à (e) et `EACCES` du CA-8 ; sauts explicites sous root (les permissions n'y valent rien) et sous Windows.
 - Condition de réouverture : une décision future de refuser le démarrage sur une base en lecture seule, ou d'avertir au démarrage (un `fix` ou un `feat` avec smoke test).
 - À challenger : un hub qui annonce un démarrage normal alors qu'aucune écriture ne peut aboutir (création de thème, de question) est trompeur pour le maître du jeu ; accepté tant qu'Olivier n'a pas décidé autrement. La condition « contient déjà les tables du hub » rend la règle moins simple à énoncer que « un fichier en lecture seule n'est pas une erreur » : à confirmer.
+
+## #70 — Le comportement sous Windows d'un fichier de base en lecture seule ou illisible, d'un dossier fermé et du port privilégié est sondé et consigné au CDC : constat reporté, pas une règle
+
+*`docs(specs): record the Windows behaviour of a read-only or unreadable database file and of the privileged port` — US-001/CA-9 (liste « Cas qui ne sont pas des erreurs »), US-001/CA-8 (cellule du tableau). Lève la limite du point 5 de la décision #69 (« le comportement sous Windows n'est PAS sondé ») ; les décisions #1 à #69 ne sont pas modifiées.*
+
+**Contexte.** La décision #69 a sondé la lecture seule sous Linux et dit que Windows ne l'était pas ; le CA-9 d'US-001 le disait aussi, et les tests de permissions de `src/index.test.ts` se sautent sous Windows sans que l'on sache ce qui s'y passe. Sondé le 2026-11-18 par Olivier, script PowerShell (constats, aucune assertion) : Windows 11 Famille build 26300, PowerShell 5.1, Node 26.13.0, npm 11.21.1, session non administrateur, dépôt à `95c22bc`, disque NTFS, dossier jetable dans `%TEMP%`, `tsx src/index.ts` (et `npm start` pour deux cas), environnement explicite. Résultats :
+
+| Cas | Résultat |
+|---|---|
+| base à trois tables, attribut « lecture seule » du fichier | le hub démarre et écoute, sortie d'erreur sans échec de démarrage ; `GET /api/v1/themes` répond `200`, `POST /api/v1/themes` répond `500` au corps d'erreur standard, journal `attempt to write a readonly database` (comme Linux, #69) |
+| base à trois tables, ACL qui refuse la lecture | code `1`, `Server starting failed: unable to open database file` (comme `chmod 000`) |
+| fichier de zéro octet, attribut « lecture seule » | code `1`, `Server starting failed: attempt to write a readonly database` |
+| fichier absent, dossier dont l'ACL refuse l'écriture et la création (`WD,AD`) | code `1`, `unable to open database file`, aucun fichier créé |
+| base du seed seul (`T_USER_USR` seule, onze comptes), attribut « lecture seule » | code `1`, `attempt to write a readonly database`, fichier intact |
+| attribut « lecture seule » posé sur le dossier | sans effet : un fichier peut y être créé, le hub démarre normalement |
+| base à trois tables inscriptible, dossier dont l'ACL refuse (`WD,AD`) | le hub démarre et écoute ; `GET /api/v1/themes` `200` ; `POST /api/v1/themes` `500` au corps standard, mais cause journalisée `unable to open database file` et non `readonly` (le fichier journal ne peut pas être créé) : constat absent de #69 |
+| port 80, compte non administrateur | le hub écoute (aucun `EACCES` sous Windows) |
+| port dans une plage exclue administrée (`50000-50059`, port 50029) | le hub écoute (`EACCES` non reproduit par ce moyen) |
+| port déjà occupé (écouteur .NET sur `0.0.0.0`) | code `1`, `Server starting failed: listen EADDRINUSE: address already in use 0.0.0.0:<port>` ; `npm start` identique, le code `1` traverse npm |
+| nouvelle base dans un dossier existant | créée, trois tables, zéro compte ; `npm start` idem |
+
+Hors spec : l'avertissement `DEP0205` (`tsx`, `module.register()`) précède toujours la ligne de refus sur la sortie d'erreur ; dette `chore(deps)` déjà connue. La sonde n'a laissé ni ACL ni attribut et n'a touché aucun fichier du dépôt.
+
+**Décision.**
+1. **Constat reporté, pas une règle** : le CDC consigne ces résultats comme constats datés (« sondé le 2026-11-18, Windows 11, compte non administrateur »), sans « le hub doit ». Pas de refus nouveau, pas de changement de code, pas de nouveau CA ; numérotation conservée.
+2. **Pour le fichier, les issues sont celles de Linux** : l'attribut « lecture seule » du fichier tient lieu de `chmod 444`, une ACL qui refuse la lecture de `chmod 000`. Les refus restent ceux du CA-9 (la base « ne peut pas être ouverte » ou la première instruction qui lui est adressée échoue) ; le démarrage sur une base à trois tables en lecture seule reste le constat de #69.
+3. **Pour le dossier, deux écarts avec Linux, écrits tels quels** : l'attribut « lecture seule » d'un dossier est sans effet sous Windows ; une ACL qui refuse l'écriture et la création dans le dossier donne les mêmes issues que `chmod 555` (fichier absent refusé, base à trois tables qui démarre), mais la cause journalisée de l'écriture en échec est `unable to open database file` et non `attempt to write a readonly database`.
+4. **Port privilégié** : sous Windows, par ces moyens, le CA-8 ne rencontre pas `EACCES` (port 80 ouvrable sans droits d'administrateur, port d'une plage exclue ouvrable) ; le texte du CA-8 dit déjà « la cause que donne le système » et n'est pas durci. La sonde de la plage exclue n'est consignée qu'ici, pas en dette (choix d'Olivier).
+5. **Limite de la sonde** : une seule machine, disque NTFS, compte non administrateur ; ni session administrateur, ni autre système de fichiers, ni autre version de Windows. Aucun test de permissions Windows en CI (la CI tourne sous Ubuntu). Les écarts documentés (points 3 et 4) valent pour cette machine, ils ne sont pas généralisés.
+6. **Seed** : non sondé sous Windows (la sonde porte sur le hub, plus la base du seed seul comme fichier de départ) ; l'état du seed sur base en lecture seule reste celui de la dette qui lui est consacrée. US-002 n'est pas touché.
+7. Forme : la phrase « Le comportement sous Windows n'est pas sondé » de la liste « Cas qui ne sont pas des erreurs » du CA-9 est remplacée par le constat condensé ; une phrase de plus dans la cellule du CA-8 du tableau. Les diagrammes ne sont pas concernés (leur contenu ne change pas).
+
+**Conséquences.**
+- Aucun changement de comportement : rien n'est codé. Un seul fichier de `src/` est touché, `src/index.test.ts`, pour un commentaire (« pas sondé » devient « sondé, voir #70 ») ; aucun test ajouté, retiré ou renommé.
+- `DEBTS.md` : la dette « Comportement sous Windows non sondé » est supprimée (soldée) ; les dettes `SQLITE_DB_PATH` et « Hub qui démarre sur une base en lecture seule » disent que Windows est sondé ; une dette courte est créée : les tests de permissions se sautent sous Windows alors que la sonde montre qu'on pourrait les rejouer (attribut « lecture seule » et `icacls`).
+- Condition de réouverture : une régression de permissions constatée sous Windows, une autre machine ou un autre compte qui donne un autre résultat, ou un besoin de couverture Windows (ce qui rouvrirait aussi la dette de test).
+- À challenger : le constat « base inscriptible dans un dossier fermé : le hub écoute, l'écriture échoue en `500` » est le même risque de démarrage trompeur que #69, avec une cause journalisée différente ; une sonde sur une seule machine ne dit pas ce que fait un dossier réseau ou un disque non NTFS.

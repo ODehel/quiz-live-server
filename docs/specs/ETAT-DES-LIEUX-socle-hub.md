@@ -72,7 +72,7 @@ comportement cassé en production réelle.
 > après le `test(startup)` des permissions et de `EACCES` (2026-11-18)** : dix tests de
 > plus dans `index.test.ts`, qui ne s'exécutent que sous POSIX non-root (1036 verts sous
 > non-root ; sous root, 1026 verts et 10 sautés, avec la raison du saut ; sous Windows ils
-> se sautent aussi, comportement non sondé). Un CA n'est
+> se sautent aussi ; comportement sondé à la main le 2026-11-18, décision #70, pas testé). Un CA n'est
 > *solide* que si chacun de ses comportements est prouvé par une assertion qui mord,
 > au niveau où il s'observe (`npm start`, donc le processus réel, ou `QuizServer`).
 >
@@ -80,7 +80,7 @@ comportement cassé en production réelle.
 > tests de plus dans `index.test.ts`, qui s'exécutent sous root comme sous non-root
 > (1034 verts et 10 sautés sous root, 1044 verts sous non-root, Node 26). CA-1 et CA-10
 > passent en solides ; restent partiels CA-4 (testé au niveau `QuizServer` seulement,
-> choix assumé) et CA-9 (comportement sous Windows non sondé).
+> choix assumé) et CA-9 (la création des tables dans le fichier de zéro octet n'est constatée que par le test du CA-8 ; Windows sondé à la main le 2026-11-18, décision #70, mais sans test automatique).
 
 - **Solides (7)** :
   - **CA-1** (démarre, écoute sur `0.0.0.0`, prérequis `JWT_SECRET`) : démarrage,
@@ -167,8 +167,9 @@ comportement cassé en production réelle.
     caractères) avant une base inutilisable (fichier texte : une seule erreur, celle de
     `JWT_SECRET`, code `1`, fichier intact) sont prouvés sur processus réel.
     **Limites dites** : les tests de permissions se sautent explicitement en root, sous
-    Windows ou quand `chmod` est sans effet ; le comportement sous Windows n'est pas
-    sondé ; le texte exact de la cause SQLite n'est pas imposé.
+    Windows ou quand `chmod` est sans effet ; le comportement sous Windows est sondé à la
+    main (2026-11-18, décision #70 : mêmes issues pour le fichier, attribut de dossier sans
+    effet, `EACCES` non reproduit) mais n'est pas testé automatiquement (dette `DEBTS.md`) ; le texte exact de la cause SQLite n'est pas imposé.
 - **Notes d'architecture** :
   - `index.ts` est à **0 % de couverture** v8 (comme `os-network.ts` et
     `system-clock.ts`) parce que le processus enfant n'est pas instrumenté, pas parce
