@@ -1,5 +1,13 @@
 # État des lieux — Traçabilité du socle hub (US-001 → US-009)
 
+> **Datation : relevé du HEAD hub `5407e38`, réaligné en partie.** Seule la partie
+> **US-001** (§1, ligne US-001 et ligne Total ; §2, section US-001 ; §3, dette F ;
+> §4, décompte) est réalignée sur le réel au HEAD `25d2388` (2026-11-18).
+> Les parties **US-002, US-003, US-004 et US-009**, le **§0** (184 tests,
+> « US-005 à US-008 jamais implémentées ») et les dettes qui les concernent
+> restent celles du relevé daté et **ne sont plus à jour** (US-005 à US-008
+> existent aujourd'hui). Réalignement des autres US : une session par US.
+
 > **Méthode : audit par implémentation réelle, pas par étiquette de test.**
 > Chaque CA a été confronté à trois sources : la **spec** (`docs/specs`),
 > le **code de production** (`quiz-live-server/src`), et le **corps des tests**.
@@ -17,6 +25,7 @@
 
 - **HEAD hub audité** : `5407e38` — `test(ws): reject an upgrade request on a path other than /ws`
 - **Tests au vert** : 184/184 (24 fichiers), `tsc --noEmit` propre.
+- **Réalignement partiel (2026-11-18)** : seule la partie US-001 est réalignée sur le réel au HEAD `25d2388` (1026 tests verts, 39 fichiers, sous Node 26). Le reste du §0 est celui du relevé daté (HEAD `5407e38`, 184 tests) et n'est plus à jour : US-005 à US-008 existent aujourd'hui.
 - **US auditées** : US-001, US-002, US-003, US-004, US-009 (les seules « prétendument faites »).
 - **US absentes du code ET du git log** : **US-005, US-006, US-007, US-008**
   (questions CRUD/filtrage/patch, quiz CRUD) — ~148 CA jamais implémentés.
@@ -34,12 +43,15 @@
 
 | US | CA total | Solides | Partiels / non vérifiés | Trous réels | Faux verts |
 |----|:---:|:---:|:---:|:---:|:---:|
-| US-001 — server startup | 6  | 4   | CA-5, CA-6 (env `PORT`)              | —                          | —      |
+| US-001 — server startup | 9  | 4   | CA-1, CA-4, CA-8, CA-9, CA-10        | —                          | —      |
 | US-002 — seed users     | 5  | 2   | CA-1 (noms), CA-2 (env + bcrypt)    | —                          | —      |
 | US-003 — auth token     | 18 | ~9  | CA-3, 4, 11, 12, 13, 14, 15         | **CA-16 (405)**, **CA-17 (500)** | — |
 | US-004 — themes CRUD    | 40 | ~31 | CA-12 / 12a / 19 / 34               | **CA-35 (405)**            | **CA-30** |
 | US-009 — websocket      | 29 | ~25 | CA-12, 22, 26                       | —                          | —      |
-| **Total** | **98** | **~71** | **~18** | **4** | **1** |
+| **Total** | **101** | **~71** | **~21** | **4** | **1** |
+
+Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18) ; les autres lignes
+sont celles du relevé daté (HEAD `5407e38`).
 
 Légende : *Solide* = comportement implémenté + vérifié par un test qui mord ·
 *Partiel* = implémenté mais vérification faible ou absente · *Trou réel* =
@@ -50,20 +62,103 @@ comportement cassé en production réelle.
 
 ## 2. Détail par US
 
-### US-001 — Démarrage du serveur (6 CA)
+### US-001 — Démarrage du serveur (9 CA : CA-1 à CA-5 et CA-7 à CA-10)
 
-- **Solides (4)** : CA-1 (démarre + `/health` 200), CA-2 (heure `HH:mm:ss`),
-  CA-3 (1ʳᵉ IPv4 non-loopback + port), CA-4 (fallback si aucune IPv4).
-  Tests qui mordent : clock figé, réseau mocké vide, messages exacts assertés.
-- **Partiels** :
-  - **CA-5** (port via `PORT`, défaut 3000) : mécanisme présent
-    (`ProcessEnvironment.port` + `dotenv`), mais **aucun test ne prouve** le
-    défaut 3000 ni la variabilité de `PORT`. Le test injecte `port:3000` en dur.
-  - **CA-6** : couverture exige « démarrage / pas d'IP / **port personnalisé** » ;
-    le cas port personnalisé manque (2 sur 3).
-- **Note d'architecture** : `index.ts` non testé = **légitime** (composition pure,
-  équivalent Node du `main.cpp` firmware). La preuve de CA-5 incombe donc à
-  `ProcessEnvironment` (non audité).
+> **Section réalignée sur le réel au HEAD `25d2388` (2026-11-18)**, avec la méthode du
+> fichier (spec, code de production, corps des tests). CA-6 (couverture ≥ 90 %) est
+> retiré par la décision #54 ; la numérotation est conservée. Suite : 1026 tests verts
+> (39 fichiers) sous Node 26, `tsc --noEmit` et `eslint src` sans erreur. Un CA n'est
+> *solide* que si chacun de ses comportements est prouvé par une assertion qui mord,
+> au niveau où il s'observe (`npm start`, donc le processus réel, ou `QuizServer`).
+
+- **Solides (4)** :
+  - **CA-2** (heure locale `HH:mm:ss`, sortie standard) : `server.test.ts`
+    (`describe('CA-2`, horloge figée à 14:32:07 puis 03:04:05 : zéros de tête) ;
+    `index.test.ts` sur processus réel, sous `TZ=Pacific/Kiritimati` et
+    `Pacific/Pago_Pago` : l'heure affichée tombe dans la fenêtre locale et hors de la
+    fenêtre UTC ; lignes de démarrage sur la sortie standard, jamais sur l'erreur.
+  - **CA-3** (première IPv4 non-loopback et port) : `server.test.ts`
+    (`describe('CA-3`, réseau mocké à plusieurs interfaces : IPv6 et loopback ignorées,
+    port configuré) ; `index.test.ts` sur processus réel : l'adresse annoncée est la
+    première IPv4 non-loopback de la machine, avec le port, ni `127.0.0.1` ni
+    `localhost`. Ce test se saute explicitement sans IPv4 non-loopback.
+  - **CA-5** (`PORT`, défaut 3000, `.env`) : `read-port.test.ts` (défaut 3000, valeur
+    lue) ; `index.test.ts` : le hub écoute sur le `PORT` écrit, tente 3000 quand `PORT`
+    est absent, lit `PORT` dans un `.env` du dossier courant, et la variable réelle
+    bat le `.env`.
+  - **CA-7** (`PORT` invalide) : `read-port.test.ts` (bornes 1 et 65535, zéros en tête,
+    chaîne vide, signe, blancs, hexadécimal, chiffres non ASCII, séparateur, message sans
+    la valeur) ; `index.test.ts` sur processus réel : `''`, `abc`, `8080abc`, `65536`,
+    `0` refusés (code `1`, `Server starting failed: PORT …` sur la sortie d'erreur et
+    pas sur la standard, valeur non reprise, ni annonce ni écoute) ; `PORT=` vide d'un
+    `.env` refusé, ignoré si l'environnement réel en a une valide ; erreur `JWT_*`
+    rapportée seule quand `PORT` est invalide aussi.
+- **Partiels (5)** :
+  - **CA-1** (démarre, écoute sur `0.0.0.0`, prérequis `JWT_SECRET`) : démarrage,
+    écoute sur toutes les interfaces IPv4 (connexion par `127.0.0.1` et par la première
+    IPv4 non-loopback), processus vivant et sortie d'erreur sans échec, prouvés sur
+    processus réel ; `server.test.ts` (`describe('CA-1`) l'est au niveau `QuizServer`.
+    Le prérequis n'est prouvé sur processus réel que pour un secret **trop court**
+    (`short`, avec `PORT` invalide ou un chemin de base blanc) ; un secret **absent** ou
+    **vide** ne l'est qu'en unitaire (`jwt-settings.test.ts`). Les deux tests
+    d'écoute sur toutes les interfaces se sautent sans IPv4 non-loopback.
+  - **CA-4** (repli `localhost:<PORT>`) : `server.test.ts` (`describe('CA-4`) prouve le
+    repli sans interface, avec seulement loopback et IPv6, et avec le port configuré
+    (pas toujours 3000). **Pas testé sur processus réel** : choix assumé
+    (2026-11-18). La sortie standard du repli n'est donc prouvée que par un
+    `console.log` espionné.
+  - **CA-8** (écoute impossible) : le port déjà occupé est prouvé en profondeur sur
+    processus réel (code `1`, `Server starting failed:` avec `EADDRINUSE` sur la sortie
+    d'erreur, pas de pile, pas d'annonce ; base laissée : fichier absent et fichier de
+    zéro octet conservés avec leurs tables vides, comptes d'une base existante
+    conservés, lancement suivant réussi). **Non prouvé** : « toute autre erreur système
+    d'écoute », par exemple `EACCES` sur un port privilégié (dépend du compte qui lance
+    les tests) ; aucun test d'un échec d'écoute au niveau `QuizServer`.
+  - **CA-9** (base non ouvrable ou non SQLite) : dossier inexistant, chemin qui désigne
+    un dossier, fichier texte, 200 octets aléatoires : code `1`, `Server starting
+    failed: <cause>` sur la sortie d'erreur, pas de pile, rien n'écoute, fichier intact
+    octet pour octet ; `PORT` invalide rapporté avant la base ; fichier absent créé et
+    fichier de zéro octet accepté (le hub écoute). **Non prouvé** : les permissions
+    (fichier ou dossier sans droit d'accès) ; le test du fichier de zéro octet vérifie
+    l'écoute, la création des tables dans ce fichier n'étant constatée que par le test
+    du CA-8 ; l'ordre `JWT_*` avant l'ouverture de la base n'est pas testé en direct
+    (`JWT_*` avant `PORT` et `PORT` avant la base le sont).
+  - **CA-10** (`SQLITE_DB_PATH` vide ou faite de blancs) : les 25 blancs seuls, trois
+    espaces et un mélange refusés sur processus réel (code `1`, message sans la valeur,
+    rien n'écoute, aucun fichier créé) ; `U+200B`, `U+0085` et `U+180E` seuls non refusés ;
+    ` :memory: ` accepté sans fichier ; chemin bordé de blancs nettoyé ; ordre `JWT_*`
+    puis `PORT` avant le chemin ; règle de lecture prouvée par
+    `read-database-path.test.ts` et `process-environment.test.ts`. **Non prouvé** : le
+    `SQLITE_DB_PATH=` vide d'un fichier `.env`, que le CA dit refusé comme toute chaîne
+    vide : les quatre tests `.env` de `index.test.ts` ne portent que sur `PORT`. Sondé à
+    la main le 2026-11-18 (hub lancé avec un `.env` `SQLITE_DB_PATH=` : refus, code `1`),
+    non figé par un test.
+- **Notes d'architecture** :
+  - `index.ts` est à **0 % de couverture** v8 (comme `os-network.ts` et
+    `system-clock.ts`) parce que le processus enfant n'est pas instrumenté, pas parce
+    qu'il n'est pas testé : `index.test.ts` lance `index.ts` comme `npm start` (`tsx`,
+    environnement explicite, base jetable) et prouve le câblage de `PORT`, des
+    variables `JWT_*` (secret trop court, `JWT_EXPIRATION` invalide), du chemin de base,
+    de l'ouverture de la base, de la sortie d'erreur, du code de sortie et de l'ordre
+    des contrôles. Reste non prouvé sur processus réel : le câblage du reste de la
+    composition, hors périmètre d'US-001. L'ancienne lecture (« `index.ts` non testé =
+    légitime ») est périmée.
+  - Les contrôles sont écrits dans `createServer()` dans l'ordre de la spec (`JWT_*`,
+    `PORT`, chemin, ouverture de la base) et tous les échecs sortent par un seul point,
+    `exitWithStartupFailure` (`Server starting failed: <cause>`, code `1`). Les règles
+    elles-mêmes vivent hors d'`index.ts` (`readJwtSettings`, `readPort`,
+    `readDatabasePath` via `ProcessEnvironment`) et sont prouvées en unitaire.
+  - `QuizServer.start()` écoute sur `0.0.0.0` (décision #51) ; l'heure vient d'un
+    `Clock` injecté et l'adresse d'un `Network` injecté, ce qui rend CA-2, CA-3 et CA-4
+    testables sans processus.
+  - Le `.env` est lu par `import 'dotenv/config'`, première ligne d'`index.ts`.
+  - Le test d'écoute du CA-1 de `server.test.ts` passe par `GET /health`, route que
+    le CDC d'US-001 ne cite plus (dette `DEBTS.md` : US-020 doit la déplacer).
+  - **Test fragile constaté** : `US-001/CA-5 listens on the port written in PORT`
+    asserte que la console contient le port dès que le port accepte des connexions,
+    avant que l'annonce soit forcément écrite ; il a échoué une fois sur trois suites
+    complètes lors de ce relevé (vert aux deux autres). Non corrigé : hors périmètre
+    d'une session `docs(specs)`.
 
 ### US-002 — Seed des utilisateurs (5 CA)
 
@@ -167,7 +262,7 @@ valeurs sémantiques).
 | **C** | **405 Method Not Allowed absent partout** (CA-16/US-003, CA-35/US-004). | 🟡 Conformité, effort faible | Passe de mise en conformité REST. |
 | **D** | **Gestion 500 fragile** (CA-17/US-003 sans `try/catch`) — risque d'exposer un détail technique. | 🟡 Sécurité des erreurs | Passe de mise en conformité REST. |
 | **E** | **`role` string vs enum dans le JWT REST** (CA-3/US-003) — `/token` porte `role:1`, pas `"buzzer"`. NB : côté WebSocket, `auth_success` utilise bien `toRoleLabel`. Incohérence entre les deux canaux. | 🟡 Interop consommateurs | Avant qu'un client décode le rôle du JWT REST. |
-| **F** | **Lecture d'environnement non testée de bout en bout** (CA-5/US-001, CA-2/US-002, CA-4/US-003, CA-13). Tout est renvoyé à `ProcessEnvironment`, non audité. | 🟢 Vérification | Un dump `process-environment.*` ferme trois US d'un coup. |
+| **F** | **Lecture d'environnement non testée de bout en bout** (CA-2/US-002, CA-4/US-003, CA-13). Tout est renvoyé à `ProcessEnvironment`, non audité. US-001 n'est plus concernée : sa lecture d'environnement est réalignée au §2. | 🟢 Vérification | Un dump `process-environment.*` ferme deux US d'un coup. |
 | **G** | **Logs et headers non assertés** (CA-14/15/US-003 ; `Retry-After` CA-13/US-003, CA-34/US-004). Code souvent présent, vérification absente. | 🟢 Vérification | Resserrage de tests. |
 | **H** | **Vérifications faibles** (noms de comptes CA-1/US-002 ; JSON malformé CA-11/US-003 ; état vide CA-19/US-004). | 🟢 Vérification | Resserrage de tests. |
 
@@ -176,8 +271,8 @@ valeurs sémantiques).
 ## 4. Ce que ça signifie pour la suite
 
 Le socle hub est **substantiel mais pas « fini »** au sens strict des specs :
-~71/98 CA solides, avec un angle mort net sur les exigences transversales
-normatives. **Aucun de ces trous n'empêche d'avancer vers le jeu** — à condition
+~71/101 CA solides (US-001 réalignée au HEAD `25d2388`, les autres US au relevé
+daté), avec un angle mort net sur les exigences transversales normatives. **Aucun de ces trous n'empêche d'avancer vers le jeu** — à condition
 de les connaître pour ne pas s'appuyer dessus (notamment les dettes A et B).
 
 Deux caps possibles pour la suite, à trancher :
