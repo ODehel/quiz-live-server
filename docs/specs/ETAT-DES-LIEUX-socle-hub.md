@@ -43,7 +43,7 @@
 
 | US | CA total | Solides | Partiels / non vérifiés | Trous réels | Faux verts |
 |----|:---:|:---:|:---:|:---:|:---:|
-| US-001 — server startup | 9  | 7   | CA-4, CA-9                           | —                          | —      |
+| US-001 — server startup | 9  | 8   | CA-4                                 | —                          | —      |
 | US-002 — seed users     | 5  | 2   | CA-1 (noms), CA-2 (env + bcrypt)    | —                          | —      |
 | US-003 — auth token     | 18 | ~9  | CA-3, 4, 11, 12, 13, 14, 15         | **CA-16 (405)**, **CA-17 (500)** | — |
 | US-004 — themes CRUD    | 40 | ~31 | CA-12 / 12a / 19 / 34               | **CA-35 (405)**            | **CA-30** |
@@ -52,7 +52,7 @@
 
 Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18), puis mise à jour après le
 `test(startup)` des permissions et de `EACCES`, puis après le `test(startup)` de `JWT_SECRET`
-et du `.env` (2026-11-18) ; les autres lignes sont celles du relevé daté (HEAD `5407e38`).
+et du `.env`, puis après celui de la création des tables du fichier de zéro octet (2026-11-18) ; les autres lignes sont celles du relevé daté (HEAD `5407e38`).
 
 Légende : *Solide* = comportement implémenté + vérifié par un test qui mord ·
 *Partiel* = implémenté mais vérification faible ou absente · *Trou réel* =
@@ -81,8 +81,15 @@ comportement cassé en production réelle.
 > (1034 verts et 10 sautés sous root, 1044 verts sous non-root, Node 26). CA-1 et CA-10
 > passent en solides ; restent partiels CA-4 (testé au niveau `QuizServer` seulement,
 > choix assumé) et CA-9 (la création des tables dans le fichier de zéro octet n'est constatée que par le test du CA-8 ; Windows sondé à la main le 2026-11-18, décision #70, mais sans test automatique).
+>
+> **Mise à jour après le `test(startup)` de la création des tables du fichier de zéro octet
+> (2026-11-18)** : un test de plus dans `index.test.ts` (sous root : 88 verts et 10 sautés
+> pour ce fichier ; sous non-root : 98 verts). CA-9 passe en solide ; reste partiel CA-4
+> seul (testé au niveau `QuizServer`, choix assumé). Limites dites de CA-9 inchangées :
+> permissions sautées en root et sous Windows, Windows sondé à la main (décision #70) mais
+> sans test automatique.
 
-- **Solides (7)** :
+- **Solides (8)** :
   - **CA-1** (démarre, écoute sur `0.0.0.0`, prérequis `JWT_SECRET`) : démarrage,
     écoute sur toutes les interfaces IPv4 (connexion par `127.0.0.1` et par la première
     IPv4 non-loopback), processus vivant et sortie d'erreur sans échec, prouvés sur
@@ -129,6 +136,31 @@ comportement cassé en production réelle.
     s'exécute que sous POSIX non-root (en CI `ubuntu-latest`). Les deux erreurs d'écoute
     prouvées sortent par le même point (`exitWithStartupFailure`) ; aucun test d'un échec
     d'écoute au niveau `QuizServer` (le code de sortie ne s'y observe pas).
+  - **CA-9** (base non ouvrable ou non SQLite) : dossier inexistant, chemin qui désigne
+    un dossier, fichier texte, 200 octets aléatoires : code `1`, `Server starting
+    failed: <cause>` sur la sortie d'erreur, pas de pile, rien n'écoute, fichier intact
+    octet pour octet ; `PORT` invalide rapporté avant la base ; fichier absent créé et
+    fichier de zéro octet accepté (le hub écoute). Permissions (décision #69), prouvées
+    depuis le 2026-11-18 sur processus réel, sous POSIX non-root : base existante
+    `chmod 000`, fichier de zéro octet en lecture seule et fichier absent dans un dossier
+    en lecture seule refusés (code `1`, préfixe et cause non vide sur la sortie d'erreur,
+    pas de pile, rien n'écoute, pas d'annonce ; fichier inchangé, resté vide ou non créé) ;
+    base à trois tables en lecture seule, ou inscriptible dans un dossier en lecture seule :
+    le hub écoute et annonce, sans échec de démarrage, et une écriture répond `500` au
+    corps standard (constat de #69) ; base à la seule table `T_USER_USR` en lecture seule
+    ou en dossier en lecture seule : refusée. **Fichier de zéro octet**
+    (sans permissions) : prouvé sur processus réel depuis le 2026-11-18, le hub écoute et
+    annonce son démarrage, puis, le hub arrêté, le fichier contient les trois tables du
+    hub (`T_USER_USR`, `T_THEME_THM`, `T_QUESTION_QST`) et la sortie d'erreur n'a pas de
+    ligne d'échec de démarrage ; la création des tables de ce fichier n'est donc plus
+    constatée par le seul test du CA-8. **Ordre des contrôles** : `JWT_*` avant
+    `PORT`, `PORT` avant la base et, depuis le 2026-11-18, `JWT_SECRET` (absent, vide, 31
+    caractères) avant une base inutilisable (fichier texte : une seule erreur, celle de
+    `JWT_SECRET`, code `1`, fichier intact) sont prouvés sur processus réel.
+    **Limites dites** : les tests de permissions se sautent explicitement en root, sous
+    Windows ou quand `chmod` est sans effet ; le comportement sous Windows est sondé à la
+    main (2026-11-18, décision #70 : mêmes issues pour le fichier, attribut de dossier sans
+    effet, `EACCES` non reproduit) mais n'est pas testé automatiquement (dette `DEBTS.md`) ; le texte exact de la cause SQLite n'est pas imposé.
   - **CA-10** (`SQLITE_DB_PATH` vide ou faite de blancs) : les 25 blancs seuls, trois
     espaces et un mélange refusés sur processus réel (code `1`, message sans la valeur,
     rien n'écoute, aucun fichier créé) ; `U+200B`, `U+0085` et `U+180E` seuls non refusés ;
@@ -142,34 +174,12 @@ comportement cassé en production réelle.
     réel, décision #52). **Limite dite** : la façon dont un `.env` écrit des blancs
     (valeur non quotée, guillemets) et `:memory:` dans un `.env` ne sont pas spécifiés ni
     testés (dette `DEBTS.md`).
-- **Partiels (2)** :
+- **Partiels (1)** :
   - **CA-4** (repli `localhost:<PORT>`) : `server.test.ts` (`describe('CA-4`) prouve le
     repli sans interface, avec seulement loopback et IPv6, et avec le port configuré
     (pas toujours 3000). **Pas testé sur processus réel** : choix assumé
     (2026-11-18). La sortie standard du repli n'est donc prouvée que par un
     `console.log` espionné.
-  - **CA-9** (base non ouvrable ou non SQLite) : dossier inexistant, chemin qui désigne
-    un dossier, fichier texte, 200 octets aléatoires : code `1`, `Server starting
-    failed: <cause>` sur la sortie d'erreur, pas de pile, rien n'écoute, fichier intact
-    octet pour octet ; `PORT` invalide rapporté avant la base ; fichier absent créé et
-    fichier de zéro octet accepté (le hub écoute). Permissions (décision #69), prouvées
-    depuis le 2026-11-18 sur processus réel, sous POSIX non-root : base existante
-    `chmod 000`, fichier de zéro octet en lecture seule et fichier absent dans un dossier
-    en lecture seule refusés (code `1`, préfixe et cause non vide sur la sortie d'erreur,
-    pas de pile, rien n'écoute, pas d'annonce ; fichier inchangé, resté vide ou non créé) ;
-    base à trois tables en lecture seule, ou inscriptible dans un dossier en lecture seule :
-    le hub écoute et annonce, sans échec de démarrage, et une écriture répond `500` au
-    corps standard (constat de #69) ; base à la seule table `T_USER_USR` en lecture seule
-    ou en dossier en lecture seule : refusée. **Non prouvé** : le test du fichier de
-    zéro octet (sans permissions) vérifie l'écoute, la création des tables dans ce fichier
-    n'étant constatée que par le test du CA-8. **Ordre des contrôles** : `JWT_*` avant
-    `PORT`, `PORT` avant la base et, depuis le 2026-11-18, `JWT_SECRET` (absent, vide, 31
-    caractères) avant une base inutilisable (fichier texte : une seule erreur, celle de
-    `JWT_SECRET`, code `1`, fichier intact) sont prouvés sur processus réel.
-    **Limites dites** : les tests de permissions se sautent explicitement en root, sous
-    Windows ou quand `chmod` est sans effet ; le comportement sous Windows est sondé à la
-    main (2026-11-18, décision #70 : mêmes issues pour le fichier, attribut de dossier sans
-    effet, `EACCES` non reproduit) mais n'est pas testé automatiquement (dette `DEBTS.md`) ; le texte exact de la cause SQLite n'est pas imposé.
 - **Notes d'architecture** :
   - `index.ts` est à **0 % de couverture** v8 (comme `os-network.ts` et
     `system-clock.ts`) parce que le processus enfant n'est pas instrumenté, pas parce
