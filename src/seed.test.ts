@@ -1,8 +1,11 @@
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import Database from 'better-sqlite3'
+import { SqliteUserRepository } from './users/sqlite-user-repository'
+import { UserRole } from './users/user-role'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 // `npm run seed` runs `tsx src/seed.ts`: these tests run the same entry point in a child process
@@ -40,7 +43,8 @@ function validEnvironment(): Record<string, string> {
     return environment
 }
 
-function seed(databasePath: string, overrides: Record<string, string> = {}) {
+// An override set to undefined removes the variable from the environment of the child process.
+function seed(databasePath: string, overrides: Record<string, string | undefined> = {}) {
     const result = spawnSync(process.execPath, [TSX_CLI, SEED], {
         cwd: workDirectory,
         env: { ...validEnvironment(), NODE_OPTIONS: SILENCE_TSX_DEPRECATION, SQLITE_DB_PATH: databasePath, ...overrides },
@@ -277,6 +281,125 @@ describe('seed: database file left behind by a refusal', () => {
 
             expect(result).toEqual({ status: 0, stdout: '', stderr: '' })
             expect(countAccounts(databasePath)).toBe(11)
+        }, TEST_TIMEOUT_MS)
+    })
+})
+
+// Every account of a database file, with its stored hash, in a stable order.
+function accounts(databasePath: string): Array<{ id: string; login: string; hash: string; role: string }> {
+    const database = new Database(databasePath, { readonly: true })
+    try {
+        return database.prepare('SELECT USR_ID AS id, USR_LOGIN AS login, USR_HASH_PASSWORD AS hash, USR_ROLE AS role FROM T_USER_USR ORDER BY USR_LOGIN').all() as Array<{ id: string; login: string; hash: string; role: string }>
+    } finally {
+        database.close()
+    }
+}
+
+const sha256 = (path: string): string => createHash('sha256').update(readFileSync(path)).digest('hex')
+
+describe('seed: a table that already holds accounts', () => {
+    // US-002/CA-7 and decision #66: only the sense of the line is normative (no account created, because the table is not empty);
+    // its wording is not. So the tests fix the form (exactly one non-empty line, on the standard output, nothing on the error output,
+    // exit code 0), that it is neither the silence of a first run nor a failure message, and that it is the same line whatever
+    // the environment (one condition produces it). They never fix a word of it, nor the name of the table.
+    function expectSkippedSeed(result: { status: number | null; stdout: string; stderr: string }): string {
+        expect(result.status).toBe(0)
+        expect(result.stderr).toBe('')
+        const lines = result.stdout.split('\n').filter(line => line.trim() !== '')
+        expect(lines).toHaveLength(1)
+        expect(result.stdout).toBe(lines.join('') + '\n')
+        expect(lines.join('')).not.toMatch(FAILURE)
+        return lines.join('')
+    }
+
+    function seededDatabase(): string {
+        const databasePath = join(workDirectory, 'seeded.db')
+        // Precondition, proved elsewhere (US-002/CA-1, CA-9): the first run on a new database is silent and creates the eleven accounts.
+        expect(seed(databasePath)).toEqual({ status: 0, stdout: '', stderr: '' })
+        expect(accounts(databasePath)).toHaveLength(11)
+        return databasePath
+    }
+
+    it('US-002/CA-7 says that no account was created and changes nothing on a second run with the same environment', () => {
+        const databasePath = seededDatabase()
+        const accountsBefore = accounts(databasePath)
+        const fileBefore = sha256(databasePath)
+
+        const result = seed(databasePath)
+
+        expectSkippedSeed(result)
+        expect(accounts(databasePath)).toEqual(accountsBefore)
+        expect(sha256(databasePath)).toBe(fileBefore)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-002/CA-3 keeps the eleven hashes of the first run when the second run has other valid passwords and another BCRYPT_COST', () => {
+        const databasePath = seededDatabase()
+        const accountsBefore = accounts(databasePath)
+        const otherPasswords: Record<string, string> = { BCRYPT_COST: '5', SEED_PASSWORD_ADMIN: 'another-admin-password' }
+        for (let i = 1; i <= 10; i++) {
+            otherPasswords[`SEED_PASSWORD_BUZZER_${String(i).padStart(2, '0')}`] = `another-buzzer-password-${i}`
+        }
+
+        const result = seed(databasePath, otherPasswords)
+
+        expectSkippedSeed(result)
+        expect(accountsBefore.every(account => account.hash.startsWith('$2b$04$'))).toBe(true)
+        expect(accounts(databasePath)).toEqual(accountsBefore)
+    }, TEST_TIMEOUT_MS)
+
+    const FAULTS: Array<[string, Record<string, string | undefined>]> = [
+        ['a password that is too short', { SEED_PASSWORD_ADMIN: 'short' }],
+        ['an empty password', { SEED_PASSWORD_BUZZER_03: '' }],
+        ['a password that is absent', { SEED_PASSWORD_BUZZER_03: undefined }],
+        ['a BCRYPT_COST that is invalid', { BCRYPT_COST: 'abc' }],
+        ['a password that is too short and a BCRYPT_COST that is invalid', { SEED_PASSWORD_ADMIN: 'short', BCRYPT_COST: 'abc' }]
+    ]
+
+    it.each(FAULTS)('US-002/CA-7 comes before the passwords (CA-4) and BCRYPT_COST (CA-6): with %s, the same line, exit code 0, nothing on the error output, nothing changed', (_label, overrides) => {
+        const databasePath = seededDatabase()
+        const accountsBefore = accounts(databasePath)
+        const reference = expectSkippedSeed(seed(databasePath))
+
+        const result = seed(databasePath, overrides)
+
+        expect(expectSkippedSeed(result)).toBe(reference)
+        expect(accounts(databasePath)).toEqual(accountsBefore)
+    }, TEST_TIMEOUT_MS)
+
+    describe('with a table that holds a single account', () => {
+        const STORED = { id: '0192f0f0-0000-7000-8000-000000000001', username: 'quiz_buzzer_07', password: 'a-hash-that-no-run-may-rewrite', role: UserRole.PLAYER }
+
+        // The table is prepared with the real repository, that creates the real schema, not with a schema made up by the test.
+        function databaseWithOneAccount(): string {
+            const databasePath = join(workDirectory, 'one.db')
+            const database = new Database(databasePath)
+            try {
+                void new SqliteUserRepository(database).insert(STORED)
+            } finally {
+                database.close()
+            }
+            return databasePath
+        }
+
+        it('US-002/CA-7 skips the seed: this account alone stays, and no account is added', () => {
+            const databasePath = databaseWithOneAccount()
+            const accountsBefore = accounts(databasePath)
+            expect(accountsBefore).toEqual([{ id: STORED.id, login: STORED.username, hash: STORED.password, role: 'buzzer' }])
+
+            const result = seed(databasePath)
+
+            expectSkippedSeed(result)
+            expect(accounts(databasePath)).toEqual(accountsBefore)
+        }, TEST_TIMEOUT_MS)
+
+        it('US-002/CA-7 skips the seed on this table even with a wrong password and an invalid BCRYPT_COST', () => {
+            const databasePath = databaseWithOneAccount()
+            const accountsBefore = accounts(databasePath)
+
+            const result = seed(databasePath, { SEED_PASSWORD_ADMIN: 'short', BCRYPT_COST: 'abc' })
+
+            expectSkippedSeed(result)
+            expect(accounts(databasePath)).toEqual(accountsBefore)
         }, TEST_TIMEOUT_MS)
     })
 })
