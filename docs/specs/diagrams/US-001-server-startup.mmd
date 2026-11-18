@@ -1,22 +1,48 @@
 %%{init: {"theme": "forest", "flowchart": {"curve": "basis"}}}%%
 flowchart TD
-    START(["`**npm start**`"])
-    START --> ENV["Lire PORT depuis l'environnement\n(défaut : **3000**)"]
-    ENV --> HTTP["Créer le serveur HTTP Node.js"]
-    HTTP --> LISTEN["Mettre le serveur en écoute\nsur le PORT configuré"]
-    LISTEN --> TIME["Capturer l'heure de lancement\nformat **HH:mm:ss**"]
-    TIME --> IFACES["Parcourir os.networkInterfaces()"]
-    IFACES --> FOUND{"Interface IPv4\nnon-loopback\ntrouvée ?"}
+    START(["<b>npm start</b>"])
+    START --> ENV["Lire le fichier .env<br/>(l'environnement réel prime)<br/>PORT : défaut <b>3000</b>"]
 
-    FOUND -->|"✅ Oui"| LOG_OK["Console :\n🚀 Server started at HH:mm:ss\n📡 Listening on http://&lt;IP&gt;:PORT"]
-    FOUND -->|"❌ Non"| LOG_FB["Console :\n🚀 Server started at HH:mm:ss\n⚠️ No network interface found\nlistening on http://localhost:PORT"]
+    ENV --> JWT{"<b>JWT_SECRET</b> : 32 caractères<br/>minimum, sans défaut ?<br/>JWT_EXPIRATION valide ?"}
+    JWT -->|"✅ Oui"| PORT{"<b>PORT</b> : entier de 1 à 65535<br/>en chiffres seulement ?"}
+    PORT -->|"✅ Oui"| PATH{"<b>SQLITE_DB_PATH</b> vide ou<br/>faite de blancs seuls ?<br/>(blancs de bordure ignorés)"}
+    PATH -->|"✅ Non"| DB
 
-    LOG_OK --> ACTIVE(["`Serveur actif\nen écoute`"])
+    subgraph DBSTEP ["Base de données (CA-9, CA-10)"]
+        direction TB
+        DB{"Base ouvrable et<br/>fichier SQLite ?"}
+        DBNOTE["Acceptés, sans refus :<br/>• fichier absent dans un dossier existant : créé<br/>• fichier de zéro octet : traité comme neuf<br/>• :memory: : base en mémoire, aucun fichier"]
+        DB -.- DBNOTE
+    end
+
+    DB -->|"✅ Oui"| LISTEN{"Mise en écoute sur<br/><b>0.0.0.0</b>:PORT possible ?"}
+    LISTEN -->|"✅ Oui"| TIME["Heure de lancement<br/>locale <b>HH:mm:ss</b>"]
+    TIME --> FOUND{"Première IPv4<br/>non-loopback<br/>trouvée ?"}
+
+    FOUND -->|"✅ Oui"| LOG_OK["Sortie standard :<br/>heure de lancement + IPv4 : PORT<br/>(ex. non normatif :<br/>🚀 Server started at HH:mm:ss<br/>📡 Listening on http://&lt;IP&gt;:PORT)"]
+    FOUND -->|"❌ Non"| LOG_FB["Sortie standard :<br/>heure de lancement + localhost:PORT<br/>(ex. non normatif :<br/>🚀 Server started at HH:mm:ss<br/>⚠️ No network interface found,<br/>listening on http://localhost:PORT)"]
+
+    LOG_OK --> ACTIVE(["Serveur actif<br/>en écoute"])
     LOG_FB --> ACTIVE
+
+    FAIL(["<b>Refus de démarrer</b><br/>Code de sortie 1<br/>Sortie d'erreur :<br/>Server starting failed: &lt;cause&gt;<br/>Rien n'écoute"])
+
+    JWT -->|"❌ Non (CA-1,<br/>US-003 CA-19 et CA-20)"| FAIL
+    PORT -->|"❌ Non (CA-7)"| FAIL
+    PATH -->|"❌ Oui (CA-10)"| FAIL
+    DB -->|"❌ Non (CA-9)"| FAIL
+    LISTEN -->|"❌ Non (CA-8)"| FAIL
+
+    ORDER["Contrôles dans cet ordre :<br/>une seule erreur rapportée,<br/>celle du premier contrôle en échec"]
+    ORDER -.- JWT
 
     classDef success fill:#d4edda,stroke:#28a745,color:#155724
     classDef warning fill:#fff3cd,stroke:#ffc107,color:#856404
     classDef terminal fill:#cce5ff,stroke:#004085,color:#004085
+    classDef failure fill:#f8d7da,stroke:#dc3545,color:#721c24
+    classDef note fill:#ffffff,stroke:#999999,color:#333333,stroke-dasharray: 4 3
     class LOG_OK success
     class LOG_FB warning
     class ACTIVE terminal
+    class FAIL failure
+    class DBNOTE,ORDER note
