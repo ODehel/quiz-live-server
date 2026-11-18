@@ -555,6 +555,34 @@ describe('hub startup: SQLITE_DB_PATH', () => {
         expect(hub.errors()).not.toContain('SQLITE_DB_PATH')
     }, TEST_TIMEOUT_MS)
 
+    it('US-001/CA-10 refuses to start when the .env file has an empty SQLITE_DB_PATH and the environment has none: exit code 1, the message on the error output, no file created', async () => {
+        const port = await freePort()
+        writeFileSync(join(workDirectory, '.env'), 'SQLITE_DB_PATH=\n')
+        const hub = startHub(String(port), { SQLITE_DB_PATH: undefined })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toContain(SQLITE_DB_PATH_REFUSAL)
+        expect(hub.errors()).not.toMatch(STACK_TRACE)
+        expect(hub.console()).not.toContain('Server started')
+        expect(hub.console()).not.toContain('Listening on')
+        expect(await canConnect(port)).toBe(false)
+        expect(readdirSync(workDirectory)).toEqual(['.env'])
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-10 does not read the empty SQLITE_DB_PATH of the .env file when the real environment has a valid path: the database is created at the real path', async () => {
+        const port = await freePort()
+        writeFileSync(join(workDirectory, '.env'), 'SQLITE_DB_PATH=\n')
+        const hub = startHub(String(port), { SQLITE_DB_PATH: join(workDirectory, 'real.db') })
+
+        await waitUntilListening(hub, port)
+        await waitForStartupAnnouncement(hub, port)
+
+        expect(readdirSync(workDirectory).sort()).toEqual(['.env', 'real.db'])
+        expect(withoutNodeWarnings(hub.errors())).not.toMatch(STARTUP_FAILURE_MARK)
+    }, TEST_TIMEOUT_MS)
+
     it('US-001/CA-10 does not refuse :memory:, bordered or not: the hub listens and no file is created', async () => {
         const port = await freePort()
         const hub = startHub(String(port), { SQLITE_DB_PATH: ' :memory: ' })
@@ -571,6 +599,33 @@ describe('hub startup: SQLITE_DB_PATH', () => {
         await waitUntilListening(hub, port)
 
         expect(readdirSync(workDirectory)).toEqual(['bordered.db'])
+    }, TEST_TIMEOUT_MS)
+})
+
+describe('hub startup: JWT_SECRET', () => {
+    // 31 characters: one short of the rule, and a value no other message of the hub may repeat.
+    const TOO_SHORT_SECRET = 'k'.repeat(31)
+
+    it.each([
+        ['absent', undefined],
+        ['empty', ''],
+        ['31 characters long', TOO_SHORT_SECRET]
+    ] as const)('US-001/CA-1 refuses to start when JWT_SECRET is %s: exit code 1, the message naming JWT_SECRET and its rule on the error output, no database opened, nothing listens', async (_name, secret) => {
+        const port = await freePort()
+        const hub = startHub(String(port), { JWT_SECRET: secret })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toMatch(/^Server starting failed: JWT_SECRET /m)
+        expect(hub.errors()).toContain('32')
+        expect(hub.errors()).not.toMatch(STACK_TRACE)
+        expect(hub.errors()).not.toContain(TOO_SHORT_SECRET)
+        expect(hub.standardOutput()).toBe('')
+        expect(hub.console()).not.toContain('Server started')
+        expect(hub.console()).not.toContain('Listening on')
+        expect(await canConnect(port)).toBe(false)
+        expect(readdirSync(workDirectory)).toEqual([])
     }, TEST_TIMEOUT_MS)
 })
 
@@ -665,6 +720,24 @@ describe('hub startup: unusable database', () => {
 
         expect(hub.errors()).toContain('PORT')
         expect(hub.errors()).not.toContain('database')
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['absent', undefined],
+        ['empty', ''],
+        ['31 characters long', 'k'.repeat(31)]
+    ] as const)('US-001/CA-9 reports only the JWT_SECRET error, before the database, when JWT_SECRET is %s and the file of the database is a text file', async (_name, secret) => {
+        const textFile = unusableDatabase('text file')
+        const hub = startHub(String(await freePort()), { SQLITE_DB_PATH: textFile, JWT_SECRET: secret })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toMatch(/^Server starting failed: JWT_SECRET /m)
+        expect(hub.errors()).not.toContain('database')
+        expect(hub.errors().match(/Server starting failed:/g)).toHaveLength(1)
+        expect(readFileSync(textFile, 'utf8')).toBe(TEXT)
+        expect(readdirSync(workDirectory)).toEqual(['notes.db'])
     }, TEST_TIMEOUT_MS)
 
     it('US-001/CA-9 still starts on a database file that does not exist yet, in an existing directory', async () => {
