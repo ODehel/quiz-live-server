@@ -11,7 +11,7 @@ flowchart TD
     subgraph DBSTEP ["Base de données (CA-9, CA-10)"]
         direction TB
         DB{"Base ouvrable et<br/>fichier SQLite ?"}
-        DBNOTE["Acceptés, sans refus :<br/>• fichier absent dans un dossier existant : créé<br/>• fichier de zéro octet : traité comme neuf<br/>• :memory: : base en mémoire, aucun fichier"]
+        DBNOTE["Acceptés, sans refus :<br/>• fichier absent dans un dossier existant : créé<br/>• fichier de zéro octet : traité comme neuf<br/>• :memory: : base en mémoire, aucun fichier<br/>• base existante en lecture seule avec les tables du hub : le hub écoute"]
         DB -.- DBNOTE
     end
 
