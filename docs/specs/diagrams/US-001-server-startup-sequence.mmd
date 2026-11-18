@@ -20,7 +20,7 @@ sequenceDiagram
         S-->>U: Sortie d'erreur : Server starting failed: cause<br/>Code de sortie 1, rien n'écoute
     else Contrôles des variables réussis
         S->>DB: Ouvrir la base (chemin sans blancs de bordure, ou :memory: en mémoire)
-        Note over S,DB: Sans refus : fichier absent dans un dossier existant créé,<br/>fichier de zéro octet traité comme neuf, :memory: sans fichier
+        Note over S,DB: Sans refus : fichier absent dans un dossier existant créé,<br/>fichier de zéro octet traité comme neuf, :memory: sans fichier,<br/>base existante en lecture seule avec les tables du hub : le hub écoute (décision n° 69)
         alt Base non ouvrable ou fichier qui n'est pas une base SQLite (CA-9)
             DB-->>S: Erreur
             S-->>U: Sortie d'erreur : Server starting failed: cause<br/>Code de sortie 1, rien n'écoute
