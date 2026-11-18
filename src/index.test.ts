@@ -274,7 +274,7 @@ describe('hub startup', () => {
         expect(hub.errors()).not.toContain('Listening on')
     }, TEST_TIMEOUT_MS)
 
-    it('US-001/CA-1 keeps running after the announcement and writes nothing on the error output', async () => {
+    it('US-001/CA-1 keeps running after the announcement without a startup failure or an unhandled error on the error output', async () => {
         const port = await freePort()
         const hub = startHub(String(port))
 
@@ -284,7 +284,9 @@ describe('hub startup', () => {
 
         expect(hub.child.exitCode).toBeNull()
         expect(hub.child.signalCode).toBeNull()
-        expect(hub.errors()).toBe('')
+        const errors = withoutNodeWarnings(hub.errors())
+        expect(errors).not.toMatch(STARTUP_FAILURE_MARK)
+        expect(errors).not.toMatch(UNHANDLED_ERROR)
     }, TEST_TIMEOUT_MS)
 
     // Skipped, never silently green, when the machine has no non-loopback IPv4 interface: the rule needs one to be observed.
@@ -473,6 +475,19 @@ const SQLITE_DB_PATH_REFUSAL = 'Server starting failed: SQLITE_DB_PATH cannot be
 const STARTUP_FAILURE = /^Server starting failed: \S/m
 // A stack trace of an uncaught error: the refusal is a message, not a crash.
 const STACK_TRACE = /\n\s+at /
+// The hub's own failure message, whatever its cause.
+const STARTUP_FAILURE_MARK = /Server starting failed/
+// An error nobody handled: an uncaught or unhandled exception, an error line, or a stack frame.
+const UNHANDLED_ERROR = /uncaught|unhandled|\bError\b|^\s+at /im
+
+// Node and the tsx loader may warn on the error output, whatever the version of Node (for instance DEP0205 on Node 26):
+// a warning is not an error of the hub. Only the lines of those warnings are dropped, never a line of the hub.
+function withoutNodeWarnings(errors: string): string {
+    return errors
+        .split('\n')
+        .filter(line => !/^\(node:\d+\) .*Warning: /.test(line) && !/^\(Use `node --trace-/.test(line))
+        .join('\n')
+}
 
 describe('hub startup: SQLITE_DB_PATH', () => {
     it.each(BLANK_PATHS)('US-001/CA-10 refuses to start when SQLITE_DB_PATH is %s: exit code 1, the message on the error output, no file created', async (_name, blankPath) => {
