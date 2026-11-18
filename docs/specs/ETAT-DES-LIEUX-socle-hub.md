@@ -43,14 +43,15 @@
 
 | US | CA total | Solides | Partiels / non vérifiés | Trous réels | Faux verts |
 |----|:---:|:---:|:---:|:---:|:---:|
-| US-001 — server startup | 9  | 4   | CA-1, CA-4, CA-8, CA-9, CA-10        | —                          | —      |
+| US-001 — server startup | 9  | 5   | CA-1, CA-4, CA-9, CA-10              | —                          | —      |
 | US-002 — seed users     | 5  | 2   | CA-1 (noms), CA-2 (env + bcrypt)    | —                          | —      |
 | US-003 — auth token     | 18 | ~9  | CA-3, 4, 11, 12, 13, 14, 15         | **CA-16 (405)**, **CA-17 (500)** | — |
 | US-004 — themes CRUD    | 40 | ~31 | CA-12 / 12a / 19 / 34               | **CA-35 (405)**            | **CA-30** |
 | US-009 — websocket      | 29 | ~25 | CA-12, 22, 26                       | —                          | —      |
-| **Total** | **101** | **~71** | **~21** | **4** | **1** |
+| **Total** | **101** | **~72** | **~20** | **4** | **1** |
 
-Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18) ; les autres lignes
+Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18), puis mise à jour après le
+`test(startup)` des permissions et de `EACCES` (2026-11-18) ; les autres lignes
 sont celles du relevé daté (HEAD `5407e38`).
 
 Légende : *Solide* = comportement implémenté + vérifié par un test qui mord ·
@@ -67,11 +68,15 @@ comportement cassé en production réelle.
 > **Section réalignée sur le réel au HEAD `25d2388` (2026-11-18)**, avec la méthode du
 > fichier (spec, code de production, corps des tests). CA-6 (couverture ≥ 90 %) est
 > retiré par la décision #54 ; la numérotation est conservée. Suite : 1026 tests verts
-> (39 fichiers) sous Node 26, `tsc --noEmit` et `eslint src` sans erreur. Un CA n'est
+> (39 fichiers) sous Node 26, `tsc --noEmit` et `eslint src` sans erreur. **Mise à jour
+> après le `test(startup)` des permissions et de `EACCES` (2026-11-18)** : dix tests de
+> plus dans `index.test.ts`, qui ne s'exécutent que sous POSIX non-root (1036 verts sous
+> non-root ; sous root, 1026 verts et 10 sautés, avec la raison du saut ; sous Windows ils
+> se sautent aussi, comportement non sondé). Un CA n'est
 > *solide* que si chacun de ses comportements est prouvé par une assertion qui mord,
 > au niveau où il s'observe (`npm start`, donc le processus réel, ou `QuizServer`).
 
-- **Solides (4)** :
+- **Solides (5)** :
   - **CA-2** (heure locale `HH:mm:ss`, sortie standard) : `server.test.ts`
     (`describe('CA-2`, horloge figée à 14:32:07 puis 03:04:05 : zéros de tête) ;
     `index.test.ts` sur processus réel, sous `TZ=Pacific/Kiritimati` et
@@ -93,7 +98,19 @@ comportement cassé en production réelle.
     pas sur la standard, valeur non reprise, ni annonce ni écoute) ; `PORT=` vide d'un
     `.env` refusé, ignoré si l'environnement réel en a une valide ; erreur `JWT_*`
     rapportée seule quand `PORT` est invalide aussi.
-- **Partiels (5)** :
+  - **CA-8** (écoute impossible) : sur processus réel, le port déjà occupé (code `1`,
+    `Server starting failed:` avec `EADDRINUSE` sur la sortie d'erreur, pas de pile, pas
+    d'annonce ; base laissée : fichier absent et fichier de zéro octet conservés avec leurs
+    tables vides, comptes d'une base existante conservés, lancement suivant réussi) et,
+    depuis le 2026-11-18, `EACCES` sur le port privilégié 80 sans en avoir le droit (code
+    `1`, `Server starting failed: listen EACCES…` sur la sortie d'erreur, pas de pile,
+    sortie standard vide, rien n'écoute). **Limite dite** : le test `EACCES` dépend du
+    compte et de la plateforme : il se saute explicitement en root, sous Windows, ou si la
+    sonde préalable voit le port 80 ouvrable, occupé ou donnant une autre erreur ; il ne
+    s'exécute que sous POSIX non-root (en CI `ubuntu-latest`). Les deux erreurs d'écoute
+    prouvées sortent par le même point (`exitWithStartupFailure`) ; aucun test d'un échec
+    d'écoute au niveau `QuizServer` (le code de sortie ne s'y observe pas).
+- **Partiels (4)** :
   - **CA-1** (démarre, écoute sur `0.0.0.0`, prérequis `JWT_SECRET`) : démarrage,
     écoute sur toutes les interfaces IPv4 (connexion par `127.0.0.1` et par la première
     IPv4 non-loopback), processus vivant et sortie d'erreur sans échec, prouvés sur
@@ -107,22 +124,25 @@ comportement cassé en production réelle.
     (pas toujours 3000). **Pas testé sur processus réel** : choix assumé
     (2026-11-18). La sortie standard du repli n'est donc prouvée que par un
     `console.log` espionné.
-  - **CA-8** (écoute impossible) : le port déjà occupé est prouvé en profondeur sur
-    processus réel (code `1`, `Server starting failed:` avec `EADDRINUSE` sur la sortie
-    d'erreur, pas de pile, pas d'annonce ; base laissée : fichier absent et fichier de
-    zéro octet conservés avec leurs tables vides, comptes d'une base existante
-    conservés, lancement suivant réussi). **Non prouvé** : « toute autre erreur système
-    d'écoute », par exemple `EACCES` sur un port privilégié (dépend du compte qui lance
-    les tests) ; aucun test d'un échec d'écoute au niveau `QuizServer`.
   - **CA-9** (base non ouvrable ou non SQLite) : dossier inexistant, chemin qui désigne
     un dossier, fichier texte, 200 octets aléatoires : code `1`, `Server starting
     failed: <cause>` sur la sortie d'erreur, pas de pile, rien n'écoute, fichier intact
     octet pour octet ; `PORT` invalide rapporté avant la base ; fichier absent créé et
-    fichier de zéro octet accepté (le hub écoute). **Non prouvé** : les permissions
-    (fichier ou dossier sans droit d'accès) ; le test du fichier de zéro octet vérifie
-    l'écoute, la création des tables dans ce fichier n'étant constatée que par le test
-    du CA-8 ; l'ordre `JWT_*` avant l'ouverture de la base n'est pas testé en direct
-    (`JWT_*` avant `PORT` et `PORT` avant la base le sont).
+    fichier de zéro octet accepté (le hub écoute). Permissions (décision #69), prouvées
+    depuis le 2026-11-18 sur processus réel, sous POSIX non-root : base existante
+    `chmod 000`, fichier de zéro octet en lecture seule et fichier absent dans un dossier
+    en lecture seule refusés (code `1`, préfixe et cause non vide sur la sortie d'erreur,
+    pas de pile, rien n'écoute, pas d'annonce ; fichier inchangé, resté vide ou non créé) ;
+    base à trois tables en lecture seule, ou inscriptible dans un dossier en lecture seule :
+    le hub écoute et annonce, sans échec de démarrage, et une écriture répond `500` au
+    corps standard (constat de #69) ; base à la seule table `T_USER_USR` en lecture seule
+    ou en dossier en lecture seule : refusée. **Non prouvé** : le test du fichier de
+    zéro octet (sans permissions) vérifie l'écoute, la création des tables dans ce fichier
+    n'étant constatée que par le test du CA-8 ; l'ordre `JWT_*` avant l'ouverture de la
+    base n'est pas testé en direct (`JWT_*` avant `PORT` et `PORT` avant la base le sont).
+    **Limites dites** : les tests de permissions se sautent explicitement en root, sous
+    Windows ou quand `chmod` est sans effet ; le comportement sous Windows n'est pas
+    sondé ; le texte exact de la cause SQLite n'est pas imposé.
   - **CA-10** (`SQLITE_DB_PATH` vide ou faite de blancs) : les 25 blancs seuls, trois
     espaces et un mélange refusés sur processus réel (code `1`, message sans la valeur,
     rien n'écoute, aucun fichier créé) ; `U+200B`, `U+0085` et `U+180E` seuls non refusés ;
@@ -271,7 +291,7 @@ valeurs sémantiques).
 ## 4. Ce que ça signifie pour la suite
 
 Le socle hub est **substantiel mais pas « fini »** au sens strict des specs :
-~71/101 CA solides (US-001 réalignée au HEAD `25d2388`, les autres US au relevé
+~72/101 CA solides (US-001 réalignée au HEAD `25d2388` puis mise à jour le 2026-11-18, les autres US au relevé
 daté), avec un angle mort net sur les exigences transversales normatives. **Aucun de ces trous n'empêche d'avancer vers le jeu** — à condition
 de les connaître pour ne pas s'appuyer dessus (notamment les dettes A et B).
 
