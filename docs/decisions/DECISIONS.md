@@ -792,3 +792,19 @@ L'en-tête de chaque décision porte le **titre du commit** qui l'a livrée, pas
 - Test à prévoir, par processus enfant (`src/seed.test.ts`) : second lancement : code `0`, ligne sur la sortie standard, sortie d'erreur vide, base inchangée ; mêmes constats avec un mot de passe fautif ou absent et avec `BCRYPT_COST` invalide. Un tel test fixerait le sens (aucun compte créé, table non vide), pas le libellé exact.
 - Consigné dans `DEBTS.md` : le second lancement du seed reste non testé sur processus ; sa sortie est désormais spécifiée.
 - À challenger : le nom de la table `T_USER_USR` n'est pas déclaré normatif dans la ligne (le code l'écrit, le CDC ne l'exige pas) ; faut-il l'exiger, comme US-001 exige l'adresse et le port ? Tant qu'Olivier n'a pas décidé, ne compter que sur le sens de la ligne et sur le code `0`.
+
+## #67 — Le seuil de couverture est global au projet, appliqué par la CI ; ce n'est plus un critère d'acceptance d'US
+
+*`docs(specs): describe the real runtime and test tooling in the technical conventions` — `CONVENTIONS-TECHNIQUES.md` (stack, couverture, organisation des tests, ligne `SQLITE_DB_PATH`). Prolonge la décision #54 ; les décisions #1 à #66 ne sont pas modifiées.*
+
+**Contexte.** Les conventions disaient « couverture ≥ 90 % pour chaque US, non négociable », mesurée par Jest, alors que la décision #54 avait retiré le CA de couverture d'US-001. Le seuil réel est global : `vitest.config.ts` fixe 90 sur les quatre métriques et la CI lance `npm run test:coverage`. Le document décrivait aussi un autre outillage (Jest, `@swc/jest`, `supertest`, Node 24, type stripping, ES Modules, `__tests__/`) que le réel (Vitest, `inject` de Fastify, Node 26, `tsx` en CommonJS, tests à côté du code).
+
+**Décision.**
+1. **Sur choix d'Olivier (2026-11-18)** : le seuil de couverture est **global au projet**, ≥ 90 % sur les quatre métriques, mesuré par Vitest (`npm run test:coverage`) et appliqué par la CI via `vitest.config.ts`. Ce n'est plus un critère d'acceptance de chaque US.
+2. La règle « un CA = au moins un test, nom du test référençant le CA » est inchangée : c'est la méthode.
+3. Les conventions décrivent l'outillage réel (renvoi à `package.json` et `.nvmrc` pour les versions).
+
+**Conséquences.**
+- Le code était déjà conforme : aucune modification sous `src/` ni de configuration.
+- L'encadré « Exigence de couverture » et le CA de couverture restent dans les US existantes qui les portent, jusqu'à leur alignement (une session `docs(specs)` par lot) ; les conventions le disent sans prescrire de recopier l'encadré dans les nouvelles US.
+- À challenger : tant que les encadrés subsistent, 21 US disent « Couverture globale ≥ 90 % » sans dire « du projet » ; le lien d'ancre `#-exigence-de-couverture-des-tests` reste valide.
