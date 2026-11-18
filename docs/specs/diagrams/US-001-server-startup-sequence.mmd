@@ -2,24 +2,44 @@
 sequenceDiagram
     participant U as Maître du jeu
     participant S as Serveur Node.js
-    participant ENV as Environnement
+    participant ENV as Environnement et .env
+    participant DB as Base SQLite
     participant NET as Interfaces réseau
 
     U->>S: npm start
-    S->>ENV: Lire PORT (défaut : 3000)
-    ENV-->>S: PORT
+    S->>ENV: Lire .env et les variables (l'environnement réel prime)
+    ENV-->>S: JWT_*, PORT (défaut : 3000), SQLITE_DB_PATH
 
-    S->>S: Créer le serveur HTTP
-    S->>S: Mettre en écoute sur PORT
+    Note over S: Contrôles dans cet ordre,<br/>une seule erreur rapportée
 
-    S->>NET: Détecter la première IPv4 non-loopback
-
-    alt Interface réseau trouvée
-        NET-->>S: Adresse IP (ex. 192.168.1.42)
-        S->>U: 🚀 Server started at HH:mm:ss
-        S->>U: 📡 Listening on http://192.168.1.42:PORT
-    else Aucune interface réseau
-        NET-->>S: Aucune interface
-        S->>U: 🚀 Server started at HH:mm:ss
-        S->>U: ⚠️ No network interface found, listening on http://localhost:PORT
+    alt JWT_SECRET absente, vide ou de moins de 32 caractères,<br/>ou JWT_EXPIRATION invalide (CA-1, US-003 CA-19 et CA-20)
+        S-->>U: Sortie d'erreur : Server starting failed: cause<br/>Code de sortie 1, rien n'écoute
+    else PORT n'est pas un entier de 1 à 65535 en chiffres seulement (CA-7)
+        S-->>U: Sortie d'erreur : Server starting failed: cause<br/>Code de sortie 1, rien n'écoute
+    else SQLITE_DB_PATH vide ou faite de blancs seuls (CA-10)
+        S-->>U: Sortie d'erreur : Server starting failed: cause<br/>Code de sortie 1, rien n'écoute
+    else Contrôles des variables réussis
+        S->>DB: Ouvrir la base (chemin sans blancs de bordure, ou :memory: en mémoire)
+        Note over S,DB: Sans refus : fichier absent dans un dossier existant créé,<br/>fichier de zéro octet traité comme neuf, :memory: sans fichier
+        alt Base non ouvrable ou fichier qui n'est pas une base SQLite (CA-9)
+            DB-->>S: Erreur
+            S-->>U: Sortie d'erreur : Server starting failed: cause<br/>Code de sortie 1, rien n'écoute
+        else Base ouverte
+            DB-->>S: Base prête
+            S->>S: Mettre en écoute sur 0.0.0.0:PORT
+            alt Écoute impossible (CA-8)
+                S-->>U: Sortie d'erreur : Server starting failed: cause<br/>Code de sortie 1, rien n'écoute
+                Note over S,DB: Le fichier de base n'est pas supprimé (décision n° 65)
+            else Serveur en écoute
+                S->>S: Capturer l'heure locale de la machine (HH:mm:ss)
+                S->>NET: Chercher la première IPv4 non-loopback
+                alt Interface réseau trouvée
+                    NET-->>S: Adresse IP (ex. 192.168.1.42)
+                    S->>U: Sortie standard : heure de lancement HH:mm:ss<br/>puis IPv4 et PORT (ex. non normatif : 🚀 Server started at HH:mm:ss,<br/>📡 Listening on http://192.168.1.42:PORT)
+                else Aucune interface réseau
+                    NET-->>S: Aucune interface
+                    S->>U: Sortie standard : heure de lancement HH:mm:ss<br/>puis localhost:PORT, le PORT configuré (ex. non normatif :<br/>🚀 Server started at HH:mm:ss,<br/>⚠️ No network interface found, listening on http://localhost:PORT)
+                end
+            end
+        end
     end
