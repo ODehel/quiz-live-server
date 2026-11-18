@@ -165,6 +165,8 @@ Voir les [Conventions techniques](../shared/CONVENTIONS-TECHNIQUES.md) pour la s
 }
 ```
 
+Le hub n'a pas de script `dev` : `npm start` est son seul script de lancement (décision #68).
+
 ---
 
 ## 📐 Périmètre

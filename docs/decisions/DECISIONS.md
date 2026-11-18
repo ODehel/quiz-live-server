@@ -808,3 +808,19 @@ L'en-tête de chaque décision porte le **titre du commit** qui l'a livrée, pas
 - Le code était déjà conforme : aucune modification sous `src/` ni de configuration.
 - L'encadré « Exigence de couverture » et le CA de couverture restent dans les US existantes qui les portent, jusqu'à leur alignement (une session `docs(specs)` par lot) ; les conventions le disent sans prescrire de recopier l'encadré dans les nouvelles US.
 - À challenger : tant que les encadrés subsistent, 21 US disent « Couverture globale ≥ 90 % » sans dire « du projet » ; le lien d'ancre `#-exigence-de-couverture-des-tests` reste valide.
+
+## #68 — Le hub n'a pas de script `dev` : `npm start` est son seul script de lancement
+
+*`docs(specs): drop the dev script from the startup scripts` — US-001 (bloc « Scripts npm »). Annule la décision du 2026-11-15 d'ajouter un script `dev` au code ; les décisions #1 à #67 ne sont pas modifiées.*
+
+**Contexte.** `DEBTS.md` portait la dette « Script `dev` absent » : le 2026-11-15, il avait été décidé d'ajouter un script `dev` au code, et le bloc « Scripts npm » d'US-001 ne devait le lister qu'une fois ajouté. Ni le CDC ni le code n'ont jamais eu de script `dev`. Or `start` lance déjà `tsx src/index.ts`, sans étape de build ; `dev` ne ferait que `tsx watch src/index.ts`, c'est-à-dire relancer le hub à chaque sauvegarde. Ce rechargement sert à qui écrit lui-même le code et relance le hub en continu ; ici le code est écrit par Claude.
+
+**Décision.**
+1. **Sur choix d'Olivier (2026-11-18)** : pas de script `dev`, ni maintenant ni plus tard. La décision du 2026-11-15 est annulée.
+2. `npm start` est le seul script de lancement du hub ; `npm run seed` est celui du seed.
+3. Le bloc « Scripts npm » d'US-001 est inchangé ; une phrase le dit sous le bloc.
+
+**Conséquences.**
+- Aucune modification de code : rien sous `src/`, `package.json` et les configurations inchangés, comportement observable inchangé.
+- La dette « Script `dev` absent » est soldée et supprimée de `DEBTS.md`.
+- Si un besoin de rechargement à chaud apparaît, une nouvelle décision le rouvrira.
