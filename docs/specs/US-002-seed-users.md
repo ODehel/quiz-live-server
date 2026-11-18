@@ -40,7 +40,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | # | Critère | Résultat attendu |
 |---|---|---|
 | CA-6 | `BCRYPT_COST` est renseignée mais n'est pas un entier de 4 à 31 écrit en chiffres seulement (`abc`, `12.5`, `3`, `32`, `-1`, ` 12`) | Le seed refuse de s'exécuter : aucun compte n'est créé, le processus se termine avec le code de sortie `1`, et la console affiche un message qui nomme `BCRYPT_COST` et la règle (entier de 4 à 31). Ex : `User seeding failed: BCRYPT_COST must be an integer between 4 and 31.` Absente ou vide, la variable vaut `12`. La base que l'ouverture a créée n'est pas supprimée (CA-9, décision #65) |
-| CA-7 | La table `T_USER_USR` contient déjà au moins un compte | Le seed ne modifie rien (CA-3), affiche une ligne qui dit qu'aucun compte n'a été créé parce que la table n'est pas vide, et se termine avec le code de sortie `0`. Ex : `Seed ignoré — la table T_USER_USR contient déjà des comptes.` |
+| CA-7 | La table `T_USER_USR` contient déjà au moins un compte | Le seed ne modifie rien (CA-3) et se termine avec le code de sortie `0`. Il affiche une ligne sur la sortie standard ; la sortie d'erreur reste vide (décision #66). Normatif : la ligne dit qu'aucun compte n'a été créé parce que la table n'est pas vide. Ex, non normatif : `Seed ignoré — la table T_USER_USR contient déjà des comptes.` (décisions #53 et #66) |
 
 ### Chemin de la base de données
 
@@ -124,7 +124,7 @@ Le script `src/seed.js` suit les étapes suivantes :
    → Fichier absent dans un dossier qui existe : créé au chemin, le seed se déroule normalement ; fichier existant de zéro octet : traité comme une base neuve, le seed se déroule normalement ; ni l'un ni l'autre n'est un refus (CA-9, décision #64)
    → Absente : quiz.db
 2. Vérification : la table T_USER_USR est-elle vide ?
-   → Non : arrêt immédiat (idempotence — CA-3), avec le message du CA-7 et le code de sortie 0
+   → Non : arrêt immédiat (idempotence — CA-3), avec la ligne du CA-7 sur la sortie standard et le code de sortie 0 (décision #66)
    → Oui : suite
 3. Lecture des 11 mots de passe et de BCRYPT_COST depuis les variables d'environnement
 4. Validation de chaque mot de passe (≥ 12 caractères, ≤ 72 caractères), puis de BCRYPT_COST (entier de 4 à 31)

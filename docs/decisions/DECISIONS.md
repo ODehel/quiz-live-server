@@ -774,3 +774,21 @@ L'en-tête de chaque décision porte le **titre du commit** qui l'a livrée, pas
 - Tests à prévoir, par processus enfant : seed (fichier absent, puis zéro octet) avec un mot de passe invalide et avec `BCRYPT_COST` invalide : code `1`, fichier présent, table vide, zéro compte, base existante non touchée ; hub (fichier absent, zéro octet, base existante avec comptes) avec un port occupé : code `1`, fichier présent, tables vides ou comptes conservés ; lancement suivant après correction.
 - Consigné dans `DEBTS.md` : le point 4 de « `SQLITE_DB_PATH` : points sondés, non spécifiés, non décidés » devient « spécifié, non testé ».
 - À challenger : une base vide laissée par une erreur de mot de passe est acceptée sans avertissement ; un hub dont l'écoute échoue laisse un fichier de 36 864 octets qu'un chemin mal tapé aurait créé à tort.
+
+## #66 — La ligne du seed sur une table non vide sort sur la sortie standard, avec le code `0` ; seul son sens est normatif : constat reporté
+
+*`docs(specs): settle the output the seed writes its skipped-seed line on` — US-002/CA-7 et workflow (étape 2). Tranche le point « le CDC ne dit pas sur quelle sortie la ligne s'écrit, ni si son libellé est normatif » laissé par la décision #42 ; les décisions #1 à #65 ne sont pas modifiées.*
+
+**Contexte.** La décision #42 fait dire au seed, quand `T_USER_USR` contient déjà des comptes, qu'il n'a rien créé, avec le code `0` (US-002 CA-7). Le CA-7 ne nomme pas la sortie et ne dit pas si l'exemple de libellé est normatif ; US-001 le dit pour ses messages (décisions #50 et #53). Sondé le 2026-11-18, hors dépôt (dossier jetable supprimé ensuite, rien de committé ; Node 22 local alors que `engines` demande 26 ; `tsx src/seed.ts`, onze `SEED_PASSWORD_*` valides, `BCRYPT_COST=4`, `JWT_SECRET` de 32 caractères, stdout, stderr et code capturés séparément) : (a) premier lancement : code `0`, sortie standard et sortie d'erreur vides, onze comptes ; (b) second lancement : code `0`, sortie standard `Seed ignoré — la table T_USER_USR contient déjà des comptes.` (une seule ligne), sortie d'erreur vide, fichier de base inchangé (sha256 identique avant et après) ; (c) second lancement avec `SEED_PASSWORD_ADMIN` trop court, `SEED_PASSWORD_BUZZER_03` vide ou absente, `BCRYPT_COST=abc`, ou un mot de passe trop court avec `BCRYPT_COST=abc` : même résultat qu'en (b), code `0` (ordre déjà spécifié : CA-9, CA-7, CA-4, CA-6).
+
+**Décision.**
+1. **Sur choix d'Olivier (2026-11-18)** : la ligne du CA-7 sort sur la **sortie standard** ; la sortie d'erreur reste vide dans ce cas ; code de sortie `0`.
+2. **Normatif** : la ligne dit qu'aucun compte n'a été créé parce que la table n'est pas vide, et tient sur une seule ligne. L'exemple `Seed ignoré — la table T_USER_USR contient déjà des comptes.` est **non normatif**, comme ceux d'US-001 (décision #53). Seul le sens est déclaré normatif ; le CDC ne déclare normatifs ni la langue, ni la ponctuation, ni le nom de la table.
+3. Le seed ne modifie rien dans ce cas (déjà écrit au CA-3) : rappelé au CA-7, pas réécrit.
+4. Forme : le CA-7 et l'étape 2 du workflow d'US-002 sont précisés, sans nouveau CA ; le CA-7 garde son numéro.
+
+**Conséquences.**
+- Le code est déjà conforme : aucun fix, rien n'est codé, aucune modification sous `src/`. Le comportement du seed est inchangé.
+- Test à prévoir, par processus enfant (`src/seed.test.ts`) : second lancement : code `0`, ligne sur la sortie standard, sortie d'erreur vide, base inchangée ; mêmes constats avec un mot de passe fautif ou absent et avec `BCRYPT_COST` invalide. Un tel test fixerait le sens (aucun compte créé, table non vide), pas le libellé exact.
+- Consigné dans `DEBTS.md` : le second lancement du seed reste non testé sur processus ; sa sortie est désormais spécifiée.
+- À challenger : le nom de la table `T_USER_USR` n'est pas déclaré normatif dans la ligne (le code l'écrit, le CDC ne l'exige pas) ; faut-il l'exiger, comme US-001 exige l'adresse et le port ? Tant qu'Olivier n'a pas décidé, ne compter que sur le sens de la ligne et sur le code `0`.
