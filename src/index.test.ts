@@ -757,6 +757,24 @@ describe('hub startup: unusable database', () => {
 
         await waitUntilListening(hub, port)
     }, TEST_TIMEOUT_MS)
+
+    // US-001 CA-9, decision #58: the file is treated as a new database, so the tables are created in it. Born green: the behaviour
+    // existed before this test (until now only the CA-8 test above saw the tables of such a file). The hub is stopped
+    // before the file is read, so that the tables seen are those the startup left on disk.
+    it('US-001/CA-9 creates the three tables of the hub in an existing database file of zero bytes and then listens', async () => {
+        const emptyFile = join(workDirectory, 'empty.db')
+        writeFileSync(emptyFile, '')
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: emptyFile })
+
+        await waitUntilListening(hub, port)
+        await waitForStartupAnnouncement(hub, port)
+        killProcessTree(hub)
+        await hub.exited
+
+        expect(Object.keys(rowCounts(emptyFile)).sort()).toEqual(['T_QUESTION_QST', 'T_THEME_THM', 'T_USER_USR'])
+        expect(hub.errors()).not.toMatch(STARTUP_FAILURE)
+    }, TEST_TIMEOUT_MS)
 })
 
 // The permission tests cannot prove anything where permissions do not apply: root ignores them and Windows does not have
