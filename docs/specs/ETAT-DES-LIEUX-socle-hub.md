@@ -43,16 +43,16 @@
 
 | US | CA total | Solides | Partiels / non vérifiés | Trous réels | Faux verts |
 |----|:---:|:---:|:---:|:---:|:---:|
-| US-001 — server startup | 9  | 5   | CA-1, CA-4, CA-9, CA-10              | —                          | —      |
+| US-001 — server startup | 9  | 7   | CA-4, CA-9                           | —                          | —      |
 | US-002 — seed users     | 5  | 2   | CA-1 (noms), CA-2 (env + bcrypt)    | —                          | —      |
 | US-003 — auth token     | 18 | ~9  | CA-3, 4, 11, 12, 13, 14, 15         | **CA-16 (405)**, **CA-17 (500)** | — |
 | US-004 — themes CRUD    | 40 | ~31 | CA-12 / 12a / 19 / 34               | **CA-35 (405)**            | **CA-30** |
 | US-009 — websocket      | 29 | ~25 | CA-12, 22, 26                       | —                          | —      |
-| **Total** | **101** | **~72** | **~20** | **4** | **1** |
+| **Total** | **101** | **~74** | **~18** | **4** | **1** |
 
 Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18), puis mise à jour après le
-`test(startup)` des permissions et de `EACCES` (2026-11-18) ; les autres lignes
-sont celles du relevé daté (HEAD `5407e38`).
+`test(startup)` des permissions et de `EACCES`, puis après le `test(startup)` de `JWT_SECRET`
+et du `.env` (2026-11-18) ; les autres lignes sont celles du relevé daté (HEAD `5407e38`).
 
 Légende : *Solide* = comportement implémenté + vérifié par un test qui mord ·
 *Partiel* = implémenté mais vérification faible ou absente · *Trou réel* =
@@ -75,8 +75,27 @@ comportement cassé en production réelle.
 > se sautent aussi, comportement non sondé). Un CA n'est
 > *solide* que si chacun de ses comportements est prouvé par une assertion qui mord,
 > au niveau où il s'observe (`npm start`, donc le processus réel, ou `QuizServer`).
+>
+> **Mise à jour après le `test(startup)` de `JWT_SECRET` et du `.env` (2026-11-18)** : huit
+> tests de plus dans `index.test.ts`, qui s'exécutent sous root comme sous non-root
+> (1034 verts et 10 sautés sous root, 1044 verts sous non-root, Node 26). CA-1 et CA-10
+> passent en solides ; restent partiels CA-4 (testé au niveau `QuizServer` seulement,
+> choix assumé) et CA-9 (comportement sous Windows non sondé).
 
-- **Solides (5)** :
+- **Solides (7)** :
+  - **CA-1** (démarre, écoute sur `0.0.0.0`, prérequis `JWT_SECRET`) : démarrage,
+    écoute sur toutes les interfaces IPv4 (connexion par `127.0.0.1` et par la première
+    IPv4 non-loopback), processus vivant et sortie d'erreur sans échec, prouvés sur
+    processus réel ; `server.test.ts` (`describe('CA-1`) l'est au niveau `QuizServer`.
+    Le prérequis `JWT_SECRET` est prouvé sur processus réel pour un secret **absent**,
+    **vide** et de **31 caractères** (depuis le 2026-11-18) : code `1`,
+    `Server starting failed: JWT_SECRET …` qui donne la règle (32) sans reprendre la
+    valeur, sur la sortie d'erreur, pas de pile, sortie standard vide, pas d'annonce,
+    rien n'écoute, aucune base créée ; secret trop court rapporté avant `PORT` (CA-7), avant
+    un chemin de base blanc (CA-10) et avant une base inutilisable (CA-9). Un secret de 32
+    caractères démarre : implicite dans tous les tests de démarrage. Les deux tests d'écoute
+    sur toutes les interfaces se sautent explicitement sans IPv4 non-loopback (même limite
+    que CA-3).
   - **CA-2** (heure locale `HH:mm:ss`, sortie standard) : `server.test.ts`
     (`describe('CA-2`, horloge figée à 14:32:07 puis 03:04:05 : zéros de tête) ;
     `index.test.ts` sur processus réel, sous `TZ=Pacific/Kiritimati` et
@@ -110,15 +129,20 @@ comportement cassé en production réelle.
     s'exécute que sous POSIX non-root (en CI `ubuntu-latest`). Les deux erreurs d'écoute
     prouvées sortent par le même point (`exitWithStartupFailure`) ; aucun test d'un échec
     d'écoute au niveau `QuizServer` (le code de sortie ne s'y observe pas).
-- **Partiels (4)** :
-  - **CA-1** (démarre, écoute sur `0.0.0.0`, prérequis `JWT_SECRET`) : démarrage,
-    écoute sur toutes les interfaces IPv4 (connexion par `127.0.0.1` et par la première
-    IPv4 non-loopback), processus vivant et sortie d'erreur sans échec, prouvés sur
-    processus réel ; `server.test.ts` (`describe('CA-1`) l'est au niveau `QuizServer`.
-    Le prérequis n'est prouvé sur processus réel que pour un secret **trop court**
-    (`short`, avec `PORT` invalide ou un chemin de base blanc) ; un secret **absent** ou
-    **vide** ne l'est qu'en unitaire (`jwt-settings.test.ts`). Les deux tests
-    d'écoute sur toutes les interfaces se sautent sans IPv4 non-loopback.
+  - **CA-10** (`SQLITE_DB_PATH` vide ou faite de blancs) : les 25 blancs seuls, trois
+    espaces et un mélange refusés sur processus réel (code `1`, message sans la valeur,
+    rien n'écoute, aucun fichier créé) ; `U+200B`, `U+0085` et `U+180E` seuls non refusés ;
+    ` :memory: ` accepté sans fichier ; chemin bordé de blancs nettoyé ; ordre `JWT_*`
+    puis `PORT` avant le chemin ; règle de lecture prouvée par
+    `read-database-path.test.ts` et `process-environment.test.ts`. Le `SQLITE_DB_PATH=`
+    vide d'un fichier `.env` est prouvé sur processus réel depuis le 2026-11-18 : refusé
+    quand l'environnement réel n'a pas la variable (code `1`, message sur la sortie
+    d'erreur sans valeur, rien n'écoute, aucun fichier de base créé) ; ignoré quand
+    l'environnement réel porte un chemin valide (le hub écoute, la base est créée au chemin
+    réel, décision #52). **Limite dite** : la façon dont un `.env` écrit des blancs
+    (valeur non quotée, guillemets) et `:memory:` dans un `.env` ne sont pas spécifiés ni
+    testés (dette `DEBTS.md`).
+- **Partiels (2)** :
   - **CA-4** (repli `localhost:<PORT>`) : `server.test.ts` (`describe('CA-4`) prouve le
     repli sans interface, avec seulement loopback et IPv6, et avec le port configuré
     (pas toujours 3000). **Pas testé sur processus réel** : choix assumé
@@ -138,27 +162,19 @@ comportement cassé en production réelle.
     corps standard (constat de #69) ; base à la seule table `T_USER_USR` en lecture seule
     ou en dossier en lecture seule : refusée. **Non prouvé** : le test du fichier de
     zéro octet (sans permissions) vérifie l'écoute, la création des tables dans ce fichier
-    n'étant constatée que par le test du CA-8 ; l'ordre `JWT_*` avant l'ouverture de la
-    base n'est pas testé en direct (`JWT_*` avant `PORT` et `PORT` avant la base le sont).
+    n'étant constatée que par le test du CA-8. **Ordre des contrôles** : `JWT_*` avant
+    `PORT`, `PORT` avant la base et, depuis le 2026-11-18, `JWT_SECRET` (absent, vide, 31
+    caractères) avant une base inutilisable (fichier texte : une seule erreur, celle de
+    `JWT_SECRET`, code `1`, fichier intact) sont prouvés sur processus réel.
     **Limites dites** : les tests de permissions se sautent explicitement en root, sous
     Windows ou quand `chmod` est sans effet ; le comportement sous Windows n'est pas
     sondé ; le texte exact de la cause SQLite n'est pas imposé.
-  - **CA-10** (`SQLITE_DB_PATH` vide ou faite de blancs) : les 25 blancs seuls, trois
-    espaces et un mélange refusés sur processus réel (code `1`, message sans la valeur,
-    rien n'écoute, aucun fichier créé) ; `U+200B`, `U+0085` et `U+180E` seuls non refusés ;
-    ` :memory: ` accepté sans fichier ; chemin bordé de blancs nettoyé ; ordre `JWT_*`
-    puis `PORT` avant le chemin ; règle de lecture prouvée par
-    `read-database-path.test.ts` et `process-environment.test.ts`. **Non prouvé** : le
-    `SQLITE_DB_PATH=` vide d'un fichier `.env`, que le CA dit refusé comme toute chaîne
-    vide : les quatre tests `.env` de `index.test.ts` ne portent que sur `PORT`. Sondé à
-    la main le 2026-11-18 (hub lancé avec un `.env` `SQLITE_DB_PATH=` : refus, code `1`),
-    non figé par un test.
 - **Notes d'architecture** :
   - `index.ts` est à **0 % de couverture** v8 (comme `os-network.ts` et
     `system-clock.ts`) parce que le processus enfant n'est pas instrumenté, pas parce
     qu'il n'est pas testé : `index.test.ts` lance `index.ts` comme `npm start` (`tsx`,
     environnement explicite, base jetable) et prouve le câblage de `PORT`, des
-    variables `JWT_*` (secret trop court, `JWT_EXPIRATION` invalide), du chemin de base,
+    variables `JWT_*` (secret absent, vide ou trop court, `JWT_EXPIRATION` invalide), du chemin de base,
     de l'ouverture de la base, de la sortie d'erreur, du code de sortie et de l'ordre
     des contrôles. Reste non prouvé sur processus réel : le câblage du reste de la
     composition, hors périmètre d'US-001. L'ancienne lecture (« `index.ts` non testé =
@@ -291,7 +307,7 @@ valeurs sémantiques).
 ## 4. Ce que ça signifie pour la suite
 
 Le socle hub est **substantiel mais pas « fini »** au sens strict des specs :
-~72/101 CA solides (US-001 réalignée au HEAD `25d2388` puis mise à jour le 2026-11-18, les autres US au relevé
+~74/101 CA solides (US-001 réalignée au HEAD `25d2388` puis mise à jour le 2026-11-18, les autres US au relevé
 daté), avec un angle mort net sur les exigences transversales normatives. **Aucun de ces trous n'empêche d'avancer vers le jeu** — à condition
 de les connaître pour ne pas s'appuyer dessus (notamment les dettes A et B).
 
