@@ -2,7 +2,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import Database from 'better-sqlite3'
 import { connect, createServer } from 'node:net'
-import { tmpdir } from 'node:os'
+import { networkInterfaces, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -84,9 +84,9 @@ async function exitOf(hub: Hub): Promise<Exit> {
     return result
 }
 
-function canConnect(port: number): Promise<boolean> {
+function canConnect(port: number, host = '127.0.0.1'): Promise<boolean> {
     return new Promise(done => {
-        const socket = connect({ host: '127.0.0.1', port })
+        const socket = connect({ host, port })
         socket.once('connect', () => { socket.destroy(); done(true) })
         socket.once('error', () => { socket.destroy(); done(false) })
     })
@@ -133,6 +133,35 @@ async function freePort(): Promise<number> {
         })
         if (port !== 0 && port !== DEFAULT_PORT) return port
     }
+}
+
+// The first IPv4 address that is not a loopback one: the rule of US-001 CA-3, computed here from the machine
+// so that the test depends on no fixed address. Undefined when the machine has no such interface.
+const FIRST_NON_LOOPBACK_IPV4 = Object.values(networkInterfaces()).flat()
+    .find(entry => entry?.family === 'IPv4' && !entry.internal)?.address
+const NO_NON_LOOPBACK_IPV4 = FIRST_NON_LOOPBACK_IPV4 === undefined
+const SECONDS_PER_DAY = 86_400
+
+// The startup messages are the standard output lines that are not Fastify's JSON log lines (not prescribed, see US-001):
+// those say "Server listening at http://127.0.0.1:<port>" too, which the messages themselves must not.
+function startupLines(hub: Hub): string[] {
+    return hub.standardOutput().split(/\r?\n/).filter(line => line.trim() !== '' && !line.startsWith('{'))
+}
+
+async function waitForStartupAnnouncement(hub: Hub, port: number): Promise<void> {
+    await waitUntil(() => startupLines(hub).some(line => line.includes(':' + port)), 'the startup announcement of port ' + port + ' was not written on the standard output', hub)
+}
+
+function secondsOfDay(instant: number, timeZone: string): number {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hourCycle: 'h23', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(instant))
+    const part = (type: string) => Number(parts.find(candidate => candidate.type === type)?.value)
+    return part('hour') * 3600 + part('minute') * 60 + part('second')
+}
+
+// Compared as seconds of the day, modulo a day, so that a window that crosses a minute, an hour or midnight is no special case.
+function isInWindow(seconds: number, windowStart: number, windowEnd: number): boolean {
+    const modulo = (value: number) => ((value % SECONDS_PER_DAY) + SECONDS_PER_DAY) % SECONDS_PER_DAY
+    return modulo(seconds - windowStart) <= modulo(windowEnd - windowStart)
 }
 
 describe('hub startup', () => {
@@ -243,6 +272,60 @@ describe('hub startup', () => {
         expect(hub.standardOutput()).toContain('Listening on')
         expect(hub.errors()).not.toContain('Server started')
         expect(hub.errors()).not.toContain('Listening on')
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-1 keeps running after the announcement and writes nothing on the error output', async () => {
+        const port = await freePort()
+        const hub = startHub(String(port))
+
+        await waitUntilListening(hub, port)
+        await waitForStartupAnnouncement(hub, port)
+        await new Promise(done => setTimeout(done, 500))
+
+        expect(hub.child.exitCode).toBeNull()
+        expect(hub.child.signalCode).toBeNull()
+        expect(hub.errors()).toBe('')
+    }, TEST_TIMEOUT_MS)
+
+    // Skipped, never silently green, when the machine has no non-loopback IPv4 interface: the rule needs one to be observed.
+    it.skipIf(NO_NON_LOOPBACK_IPV4)('US-001/CA-1 listens on every IPv4 interface: the loopback and the first non-loopback address accept connections (skipped without a non-loopback IPv4 interface)', async () => {
+        const port = await freePort()
+        const hub = startHub(String(port))
+
+        await waitUntilListening(hub, port)
+
+        expect(await canConnect(port, '127.0.0.1')).toBe(true)
+        expect(await canConnect(port, FIRST_NON_LOOPBACK_IPV4)).toBe(true)
+    }, TEST_TIMEOUT_MS)
+
+    // Fixed-offset zones without daylight saving, far from UTC: the launch time cannot be mistaken for the UTC one.
+    it.each(['Pacific/Kiritimati', 'Pacific/Pago_Pago'])('US-001/CA-2 writes the launch time as HH:mm:ss in the local time of the machine, not in UTC, when TZ is %s', async (timeZone) => {
+        const port = await freePort()
+        const before = Date.now()
+        const hub = startHub(String(port), { TZ: timeZone })
+
+        await waitForStartupAnnouncement(hub, port)
+        const after = Date.now()
+
+        const times = startupLines(hub).flatMap(line => line.match(/\b\d{2}:\d{2}:\d{2}\b/g) ?? [])
+        expect(times).toHaveLength(1)
+        const [hours = NaN, minutes = NaN, seconds = NaN] = (times[0] ?? '').split(':').map(Number)
+        const displayed = hours * 3600 + minutes * 60 + seconds
+        expect(isInWindow(displayed, secondsOfDay(before, timeZone), secondsOfDay(after, timeZone))).toBe(true)
+        expect(isInWindow(displayed, secondsOfDay(before, 'UTC'), secondsOfDay(after, 'UTC'))).toBe(false)
+    }, TEST_TIMEOUT_MS)
+
+    // Skipped, never silently green, when the machine has no non-loopback IPv4 interface: the rule needs one to be observed.
+    it.skipIf(NO_NON_LOOPBACK_IPV4)('US-001/CA-3 announces the first non-loopback IPv4 address and the port, neither 127.0.0.1 nor localhost (skipped without a non-loopback IPv4 interface)', async () => {
+        const port = await freePort()
+        const hub = startHub(String(port))
+
+        await waitForStartupAnnouncement(hub, port)
+
+        const announced = new RegExp('(?<![\\d.])' + String(FIRST_NON_LOOPBACK_IPV4).replaceAll('.', '\\.') + ':' + port + '(?!\\d)')
+        const lines = startupLines(hub)
+        expect(lines.some(line => announced.test(line))).toBe(true)
+        expect(lines.filter(line => line.includes('127.0.0.1') || line.toLowerCase().includes('localhost'))).toEqual([])
     }, TEST_TIMEOUT_MS)
 
     it.each(['abc', '65536'])('US-001/CA-7 never starts listening when PORT is %j', async (invalidPort) => {
