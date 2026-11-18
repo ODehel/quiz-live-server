@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import Database from 'better-sqlite3'
 import { connect, createServer } from 'node:net'
 import { networkInterfaces, tmpdir } from 'node:os'
@@ -40,8 +40,19 @@ beforeEach(() => {
 afterEach(async () => {
     hubs.forEach(killProcessTree)
     await Promise.all(hubs.map(hub => hub.exited))
+    restorePermissions(workDirectory)
     rmSync(workDirectory, { recursive: true, force: true, maxRetries: 5 })
 })
+
+// A test may leave a read-only file or directory behind: a directory without write permission cannot be emptied, so every
+// permission is given back before the removal (a no-op for what the tests never restricted).
+function restorePermissions(path: string): void {
+    try {
+        const isDirectory = statSync(path).isDirectory()
+        chmodSync(path, isDirectory ? 0o755 : 0o644)
+        if (isDirectory) readdirSync(path).forEach(name => restorePermissions(join(path, name)))
+    } catch { /* already gone, or not ours to change: the removal reports what matters */ }
+}
 
 // The environment is explicit, so that the result depends neither on a .env nor on the machine.
 // The working directory is the temporary one, so that no .env of the repository is read either.
@@ -672,5 +683,211 @@ describe('hub startup: unusable database', () => {
         const hub = startHub(String(port), { SQLITE_DB_PATH: emptyFile })
 
         await waitUntilListening(hub, port)
+    }, TEST_TIMEOUT_MS)
+})
+
+// The permission tests cannot prove anything where permissions do not apply: root ignores them and Windows does not have
+// the POSIX ones (the Windows behaviour is not probed yet, see DEBTS.md). They are skipped, with the reason in the title
+// and on the console, never silently green. A final probe covers any other machine where chmod has no effect.
+function filePermissionsSkipReason(): string | undefined {
+    if (process.platform === 'win32') return 'Windows: POSIX file permissions do not apply'
+    if (process.getuid?.() === 0) return 'running as root: file permissions have no effect'
+    const probeDirectory = mkdtempSync(join(tmpdir(), 'quiz-hub-permission-probe-'))
+    try {
+        const file = join(probeDirectory, 'file')
+        writeFileSync(file, 'x')
+        chmodSync(file, 0o000)
+        let readable = true
+        try { readFileSync(file) } catch { readable = false }
+        if (readable) return 'a chmod 000 file can still be read: file permissions have no effect here'
+        chmodSync(file, 0o644)
+        const folder = join(probeDirectory, 'folder')
+        mkdirSync(folder)
+        chmodSync(folder, 0o555)
+        let writable = true
+        try { writeFileSync(join(folder, 'file'), 'x') } catch { writable = false }
+        if (writable) return 'a file can still be created in a chmod 555 directory: directory permissions have no effect here'
+        return undefined
+    } finally {
+        restorePermissions(probeDirectory)
+        rmSync(probeDirectory, { recursive: true, force: true })
+    }
+}
+
+// The privileged port of the CA-8 test: the probe must see this very process refused on it (EACCES), not allowed, not occupied.
+const PRIVILEGED_PORT = 80
+
+function privilegedPortSkipReason(): string | undefined {
+    if (process.platform === 'win32') return 'Windows: no privileged ports'
+    const script = `
+        const net = require('node:net')
+        const port = ${PRIVILEGED_PORT}
+        const socket = net.connect({ host: '127.0.0.1', port })
+        socket.once('connect', () => { console.log('occupied'); process.exit(0) })
+        socket.once('error', () => {
+            const server = net.createServer()
+            server.once('error', error => { console.log(error.code); process.exit(0) })
+            server.listen(port, '0.0.0.0', () => { console.log('allowed'); process.exit(0) })
+        })`
+    const probe = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8', timeout: 10_000 })
+    const result = probe.stdout.trim()
+    if (result === 'EACCES') return undefined
+    if (result === 'allowed') return 'port ' + PRIVILEGED_PORT + ' can be opened by this account (root, or no privileged ports): no refusal to observe'
+    if (result === 'occupied') return 'port ' + PRIVILEGED_PORT + ' is already occupied on this machine'
+    return 'port ' + PRIVILEGED_PORT + ' gives ' + (result || 'no answer') + ' instead of EACCES'
+}
+
+const PRIVILEGED_PORT_SKIP = privilegedPortSkipReason()
+const FILE_PERMISSIONS_SKIP = filePermissionsSkipReason()
+if (PRIVILEGED_PORT_SKIP !== undefined) console.warn('[index.test] SKIPPED the EACCES test: ' + PRIVILEGED_PORT_SKIP)
+if (FILE_PERMISSIONS_SKIP !== undefined) console.warn('[index.test] SKIPPED the file permission tests: ' + FILE_PERMISSIONS_SKIP)
+const SKIPPED_EACCES = ' (skipped when the port ' + PRIVILEGED_PORT + ' cannot be refused to this account: root, Windows, occupied)'
+const SKIPPED_PERMISSIONS = ' (skipped as root, on Windows, or where file permissions have no effect)'
+
+// The hub makes its own database: run once, as `npm start` does, then stopped. The file then holds the three tables of the hub.
+async function createHubDatabase(databasePath: string): Promise<void> {
+    const port = await freePort()
+    const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath })
+    await waitUntilListening(hub, port)
+    await waitForStartupAnnouncement(hub, port)
+    killProcessTree(hub)
+    await hub.exited
+}
+
+function expectRefusedWithoutListening(hub: Hub, exit: Exit): void {
+    expect(exit).toEqual({ code: 1, signal: null })
+    expect(hub.errors()).toMatch(STARTUP_FAILURE)
+    expect(hub.errors()).not.toMatch(STACK_TRACE)
+    expect(hub.console()).not.toContain('Server started')
+    expect(hub.console()).not.toContain('Listening on')
+}
+
+describe('hub startup: listen refused by the system', () => {
+    it.skipIf(PRIVILEGED_PORT_SKIP !== undefined)('US-001/CA-8 refuses to start when it has no right to listen on the privileged port ' + PRIVILEGED_PORT + ': exit code 1, listen EACCES on the error output, nothing on the standard output' + SKIPPED_EACCES, async () => {
+        const hub = startHub(String(PRIVILEGED_PORT))
+
+        const exit = await exitOf(hub)
+
+        expectRefusedWithoutListening(hub, exit)
+        expect(hub.errors()).toMatch(/^Server starting failed: listen EACCES/m)
+        expect(hub.standardOutput()).toBe('')
+        expect(await canConnect(PRIVILEGED_PORT)).toBe(false)
+    }, TEST_TIMEOUT_MS)
+})
+
+describe('hub startup: database file permissions', () => {
+    const lockedDirectory = () => {
+        const directory = join(workDirectory, 'locked-directory')
+        mkdirSync(directory)
+        return directory
+    }
+
+    it.skipIf(FILE_PERMISSIONS_SKIP !== undefined)('US-001/CA-9 refuses to start on an existing database that cannot be accessed (chmod 000): exit code 1, the cause on the error output, nothing listens, file unchanged' + SKIPPED_PERMISSIONS, async () => {
+        const databasePath = join(workDirectory, 'hub.db')
+        await createHubDatabase(databasePath)
+        const before = readFileSync(databasePath)
+        chmodSync(databasePath, 0o000)
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath })
+
+        const exit = await exitOf(hub)
+
+        expectRefusedWithoutListening(hub, exit)
+        expect(await canConnect(port)).toBe(false)
+        chmodSync(databasePath, 0o644)
+        expect(readFileSync(databasePath).equals(before)).toBe(true)
+    }, TEST_TIMEOUT_MS)
+
+    it.skipIf(FILE_PERMISSIONS_SKIP !== undefined)('US-001/CA-9 refuses to start on a read-only file of zero bytes, which would need its tables: exit code 1, the cause on the error output, nothing listens, file still empty' + SKIPPED_PERMISSIONS, async () => {
+        const databasePath = join(workDirectory, 'empty.db')
+        writeFileSync(databasePath, '')
+        chmodSync(databasePath, 0o444)
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath })
+
+        const exit = await exitOf(hub)
+
+        expectRefusedWithoutListening(hub, exit)
+        expect(await canConnect(port)).toBe(false)
+        expect(statSync(databasePath).size).toBe(0)
+    }, TEST_TIMEOUT_MS)
+
+    it.skipIf(FILE_PERMISSIONS_SKIP !== undefined)('US-001/CA-9 refuses to start on an absent file in a read-only directory: exit code 1, the cause on the error output, nothing listens, no file created' + SKIPPED_PERMISSIONS, async () => {
+        const directory = lockedDirectory()
+        chmodSync(directory, 0o555)
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: join(directory, 'hub.db') })
+
+        const exit = await exitOf(hub)
+
+        expectRefusedWithoutListening(hub, exit)
+        expect(await canConnect(port)).toBe(false)
+        expect(readdirSync(directory)).toEqual([])
+    }, TEST_TIMEOUT_MS)
+
+    // Decision #69: the database already holds the three tables of the hub, so the opening writes nothing and the hub starts.
+    // Made as the hub makes it, then given the eleven accounts by the seed (the write test below needs the admin).
+    async function databaseWithTheThreeTables(kind: 'read-only file' | 'read-only directory'): Promise<string> {
+        const directory = kind === 'read-only directory' ? lockedDirectory() : workDirectory
+        const databasePath = join(directory, 'hub.db')
+        await createHubDatabase(databasePath)
+        seedAccounts(databasePath)
+        if (kind === 'read-only file') chmodSync(databasePath, 0o444)
+        else chmodSync(directory, 0o555)
+        return databasePath
+    }
+
+    it.skipIf(FILE_PERMISSIONS_SKIP !== undefined).each(['read-only file', 'read-only directory'] as const)('US-001/CA-9 does not refuse a database with the three tables of the hub in a %s: it starts, listens and announces, without a startup failure' + SKIPPED_PERMISSIONS, async (kind) => {
+        const databasePath = await databaseWithTheThreeTables(kind)
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath })
+
+        await waitUntilListening(hub, port)
+        await waitForStartupAnnouncement(hub, port)
+        await new Promise(done => setTimeout(done, 300))
+
+        expect(hub.child.exitCode).toBeNull()
+        const errors = withoutNodeWarnings(hub.errors())
+        expect(errors).not.toMatch(STARTUP_FAILURE_MARK)
+        expect(errors).not.toMatch(UNHANDLED_ERROR)
+    }, TEST_TIMEOUT_MS)
+
+    // Decision #69, point 3 (a finding, not a rule): reads work, a write answers the standard 500 without the technical message.
+    it.skipIf(FILE_PERMISSIONS_SKIP !== undefined).each(['read-only file', 'read-only directory'] as const)('US-001/CA-9 answers a write on a %s with the standard 500 and not the SQLite message, after reads that succeed (finding of decision #69)' + SKIPPED_PERMISSIONS, async (kind) => {
+        const databasePath = await databaseWithTheThreeTables(kind)
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath })
+        await waitUntilListening(hub, port)
+        const url = (path: string) => 'http://127.0.0.1:' + port + path
+        const tokenResponse = await fetch(url('/api/v1/token'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'admin', password: 'an-admin-password-1' }) })
+        const { token } = await tokenResponse.json() as { token: string }
+        const authorization = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+
+        const read = await fetch(url('/api/v1/themes'), { headers: authorization })
+        const write = await fetch(url('/api/v1/themes'), { method: 'POST', headers: authorization, body: JSON.stringify({ name: 'Musique' }) })
+
+        expect(tokenResponse.status).toBe(200)
+        expect(read.status).toBe(200)
+        expect(write.status).toBe(500)
+        expect(await write.json()).toEqual({ status: 500, error: 'INTERNAL_SERVER_ERROR', message: 'An unexpected error occurred. Please try again later.' })
+        expect(hub.child.exitCode).toBeNull()
+    }, TEST_TIMEOUT_MS)
+
+    // Decision #69, point 2 and "Moment de l'erreur": a file that must still receive tables is refused. Here only T_USER_USR exists (the seed alone).
+    it.skipIf(FILE_PERMISSIONS_SKIP !== undefined).each(['read-only file', 'read-only directory'] as const)('US-001/CA-9 still refuses a %s that has only the table of the seed: exit code 1, the cause on the error output, nothing listens' + SKIPPED_PERMISSIONS, async (kind) => {
+        const directory = kind === 'read-only directory' ? lockedDirectory() : workDirectory
+        const databasePath = join(directory, 'seed-only.db')
+        seedAccounts(databasePath)
+        expect(Object.keys(rowCounts(databasePath))).toEqual(['T_USER_USR'])
+        if (kind === 'read-only file') chmodSync(databasePath, 0o444)
+        else chmodSync(directory, 0o555)
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath })
+
+        const exit = await exitOf(hub)
+
+        expectRefusedWithoutListening(hub, exit)
+        expect(await canConnect(port)).toBe(false)
+        expect(Object.keys(rowCounts(databasePath))).toEqual(['T_USER_USR'])
     }, TEST_TIMEOUT_MS)
 })
