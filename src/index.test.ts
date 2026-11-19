@@ -602,6 +602,72 @@ describe('hub startup: SQLITE_DB_PATH', () => {
     }, TEST_TIMEOUT_MS)
 })
 
+// How a .env file writes SQLITE_DB_PATH (US-001 CA-10, "Origine de la valeur", decision #71). The rule of the hub bears on the value
+// the process receives; the .env file is read by the `dotenv` library (17.4.0), and what these tests observe on the real process
+// (unquoted values trimmed, quoted values kept, " #" starting a comment) is what that library does, not something the specification
+// prescribes. A change of behaviour of a new `dotenv` version would show up here and must be observed again, not silently followed.
+// The real environment has no SQLITE_DB_PATH, so the .env file alone writes it. The working directory is the temporary one:
+// a relative path of the .env file names a file of this directory.
+describe('hub startup: SQLITE_DB_PATH written in a .env file', () => {
+    async function startWithEnvFile(content: string): Promise<{ hub: Hub, port: number }> {
+        const port = await freePort()
+        writeFileSync(join(workDirectory, '.env'), content)
+        return { hub: startHub(String(port), { SQLITE_DB_PATH: undefined }), port }
+    }
+
+    async function expectRefusedAsBlank(hub: Hub, port: number): Promise<void> {
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toContain(SQLITE_DB_PATH_REFUSAL)
+        // The message is the refusal itself: the line carries no other text, so no value is repeated in it.
+        expect(hub.errors().split(/\r?\n/).filter(line => line.startsWith('Server starting failed'))).toEqual([SQLITE_DB_PATH_REFUSAL])
+        expect(hub.errors()).not.toMatch(STACK_TRACE)
+        expect(hub.console()).not.toContain('Server started')
+        expect(hub.console()).not.toContain('Listening on')
+        expect(await canConnect(port)).toBe(false)
+        expect(readdirSync(workDirectory)).toEqual(['.env'])
+    }
+
+    // `file` is the only file the hub creates next to the .env file; null when it creates none.
+    async function expectStarted(hub: Hub, port: number, file: string | null): Promise<void> {
+        await waitUntilListening(hub, port)
+        await waitForStartupAnnouncement(hub, port)
+
+        expect(withoutNodeWarnings(hub.errors())).not.toMatch(STARTUP_FAILURE_MARK)
+        expect(readdirSync(workDirectory).sort()).toEqual(file === null ? ['.env'] : ['.env', file].sort())
+    }
+
+    it.each([
+        ['spaces', '   '],
+        ['tabulations', '\t\t'],
+        ['U+3000', '　　']
+    ] as const)('US-001/CA-10 refuses an unquoted SQLITE_DB_PATH made only of %s, read empty: exit code 1, the message on the error output without the value, no file created', async (_name, blank) => {
+        const { hub, port } = await startWithEnvFile('SQLITE_DB_PATH=' + blank + '\n')
+
+        await expectRefusedAsBlank(hub, port)
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['keeps the blanks inside an unquoted value: the file is named with them', 'SQLITE_DB_PATH=my data.db', 'my data.db'],
+        ['starts a comment at an unquoted " #": the value stops before it', 'SQLITE_DB_PATH=real.db # note', 'real.db'],
+        ['keeps the blanks of a quoted value, then reads it without the blanks around it', 'SQLITE_DB_PATH="  padded.db  "', 'padded.db'],
+        ['reads a quoted " :memory: " as :memory:: no file is created', 'SQLITE_DB_PATH=" :memory: "', null],
+        ['accepts an unquoted :memory:: no file is created', 'SQLITE_DB_PATH=:memory:', null],
+        ['accepts an unquoted U+200B alone: the file is named by this one character', 'SQLITE_DB_PATH=​', '​']
+    ] as const)('US-001/CA-10 %s', async (_name, line, file) => {
+        const { hub, port } = await startWithEnvFile(line + '\n')
+
+        await expectStarted(hub, port, file)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-10 refuses a quoted SQLITE_DB_PATH made only of spaces: exit code 1, the message on the error output without the value, no file created', async () => {
+        const { hub, port } = await startWithEnvFile('SQLITE_DB_PATH="   "\n')
+
+        await expectRefusedAsBlank(hub, port)
+    }, TEST_TIMEOUT_MS)
+})
+
 describe('hub startup: JWT_SECRET', () => {
     // 31 characters: one short of the rule, and a value no other message of the hub may repeat.
     const TOO_SHORT_SECRET = 'k'.repeat(31)
