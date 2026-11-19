@@ -19,8 +19,8 @@ describe("US-002/CA-6 - bcrypt cost", () => {
     it("reads an absent cost as 12", () => {
         expect(readBcryptCost(undefined)).toBe(12);
     });
-    it.each([["012", 12], ["004", 4], ["0031", 31]])("accepts leading zeros: %j is read as %i", (raw, expected) => {
-        expect(readBcryptCost(raw)).toBe(expected);
+    it.each(["004", "04", "012", "0031", "00", "000012"])("refuses a cost written with a leading zero: %j", (raw) => {
+        expect(() => readBcryptCost(raw)).toThrow(RULE_MESSAGE);
     });
     it("does not repeat the refused value in the message", () => {
         expect(() => readBcryptCost("not-a-cost-value")).toThrow(/^(?!.*not-a-cost-value).*BCRYPT_COST.*$/);

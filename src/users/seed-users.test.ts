@@ -8,6 +8,7 @@ import { SeedUserConfiguration } from './seed-user-configuration.interface';
 import { SqliteUserRepository } from './sqlite-user-repository';
 import Database from 'better-sqlite3';
 import { BcryptHasher } from '../infrastructure/bcrypt-hasher';
+import { OwaspPasswordValidator } from './owasp-password-validator';
 
 const logins = ['admin', ...Array.from({ length: 10 }, (_, i) => `quiz_buzzer_${String(i + 1).padStart(2, '0')}`)];
 
@@ -172,6 +173,11 @@ describe("CA-4 - Les mots de passe respectent les règles de validation", () => 
         vi.mocked(mockPasswordValidator.validate).mockReturnValue(false);
         await expect(userSeed.seed(mockEnvironment)).rejects.not.toThrow(passwordOf('admin'));
     });
+    it("should refuse a password made only of spaces, naming the account and without repeating the password", async () => {
+        const seedWithRealValidator = new SeedUsers(mockRepository, mockHasher, new OwaspPasswordValidator());
+        await expect(seedWithRealValidator.seed(configurationWith({ quiz_buzzer_04: " ".repeat(12) }))).rejects.toThrow(/^Invalid password for account quiz_buzzer_04$/);
+        expect(mockRepository.insert).not.toHaveBeenCalled();
+    });
 });
 
 describe("CA-6 - le seed refuse un BCRYPT_COST invalide et applique le coût au hachage", () => {
@@ -237,9 +243,14 @@ describe("CA-6 - le seed refuse un BCRYPT_COST invalide et applique le coût au 
     it("should refuse a missing password before an invalid BCRYPT_COST", async () => {
         await expect(userSeed.seed(configurationWith({ admin: undefined }, "abc"))).rejects.toThrow("Missing password for account admin");
     });
+    it.each(["004", "04"])("should refuse BCRYPT_COST written with a leading zero (%j) without creating any account", async (raw) => {
+        await expect(userSeed.seed(configurationWith({}, raw))).rejects.toThrow("BCRYPT_COST must be an integer between 4 and 31.");
+        expect(mockRepository.insert).not.toHaveBeenCalled();
+        expect(mockHasher.hash).not.toHaveBeenCalled();
+    });
     it("should store hashes of the cost given by BCRYPT_COST when the real hasher is used", async () => {
         const seedWithRealHasher = new SeedUsers(mockRepository, new BcryptHasher(), mockPasswordValidator);
-        await seedWithRealHasher.seed(configurationWith({}, "04"));
+        await seedWithRealHasher.seed(configurationWith({}, "4"));
         expect(mockRepository.insert).toHaveBeenCalledTimes(11);
         for (const call of vi.mocked(mockRepository.insert).mock.calls) {
             expect(call[0].password).toMatch(/^\$2b\$04\$/);
