@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import Database from 'better-sqlite3'
+import { SqliteQuestionRepository } from './questions/sqlite-question-repository'
+import { SqliteThemeRepository } from './themes/sqlite-theme-repository'
 import { SqliteUserRepository } from './users/sqlite-user-repository'
 import { UserRole } from './users/user-role'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -26,8 +28,19 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+    restorePermissions(workDirectory)
     rmSync(workDirectory, { recursive: true, force: true, maxRetries: 5 })
 })
+
+// A test may leave a read-only file or directory behind: a directory without write permission cannot be emptied, so every
+// permission is given back before the removal (a no-op for what the tests never restricted).
+function restorePermissions(path: string): void {
+    try {
+        const isDirectory = statSync(path).isDirectory()
+        chmodSync(path, isDirectory ? 0o755 : 0o644)
+        if (isDirectory) readdirSync(path).forEach(name => restorePermissions(join(path, name)))
+    } catch { /* already gone, or not ours to change: the removal reports what matters */ }
+}
 
 // The environment is explicit, so that the result depends neither on a .env nor on the machine.
 // The working directory is the temporary one, so that no .env of the repository is read either.
@@ -43,8 +56,8 @@ function validEnvironment(): Record<string, string> {
     return environment
 }
 
-// An override set to undefined removes the variable from the environment of the child process.
-function seed(databasePath: string, overrides: Record<string, string | undefined> = {}) {
+// An override set to undefined removes the variable from the environment of the child process (a databasePath of undefined removes SQLITE_DB_PATH: only a .env file can then write it).
+function seed(databasePath: string | undefined, overrides: Record<string, string | undefined> = {}) {
     const result = spawnSync(process.execPath, [TSX_CLI, SEED], {
         cwd: workDirectory,
         env: { ...validEnvironment(), NODE_OPTIONS: SILENCE_TSX_DEPRECATION, SQLITE_DB_PATH: databasePath, ...overrides },
@@ -59,6 +72,20 @@ function seed(databasePath: string, overrides: Record<string, string | undefined
 // nothing on the error output, exit code 0, not a failure message. Its sense is fixed as far as it can be without a word of it:
 // it is a line of its own, neither silence nor the line of a skipped seed (CA-7), which is proved against a second run below.
 function expectCreatedSeed(result: { status: number | null; stdout: string; stderr: string }): string {
+    expect(result.status).toBe(0)
+    expect(result.stderr).toBe('')
+    const lines = result.stdout.split('\n').filter(line => line.trim() !== '')
+    expect(lines).toHaveLength(1)
+    expect(result.stdout).toBe(lines.join('') + '\n')
+    expect(lines.join('')).not.toMatch(FAILURE)
+    return lines.join('')
+}
+
+// US-002/CA-7 and decision #66: only the sense of the line is normative (no account created, because the table is not empty);
+// its wording is not. So the tests fix the form (exactly one non-empty line, on the standard output, nothing on the error output,
+// exit code 0), that it is neither the silence of a first run nor a failure message, and that it is the same line whatever
+// the environment (one condition produces it). They never fix a word of it, nor the name of the table.
+function expectSkippedSeed(result: { status: number | null; stdout: string; stderr: string }): string {
     expect(result.status).toBe(0)
     expect(result.stderr).toBe('')
     const lines = result.stdout.split('\n').filter(line => line.trim() !== '')
@@ -344,20 +371,6 @@ function accounts(databasePath: string): Array<{ id: string; login: string; hash
 const sha256 = (path: string): string => createHash('sha256').update(readFileSync(path)).digest('hex')
 
 describe('seed: a table that already holds accounts', () => {
-    // US-002/CA-7 and decision #66: only the sense of the line is normative (no account created, because the table is not empty);
-    // its wording is not. So the tests fix the form (exactly one non-empty line, on the standard output, nothing on the error output,
-    // exit code 0), that it is neither the silence of a first run nor a failure message, and that it is the same line whatever
-    // the environment (one condition produces it). They never fix a word of it, nor the name of the table.
-    function expectSkippedSeed(result: { status: number | null; stdout: string; stderr: string }): string {
-        expect(result.status).toBe(0)
-        expect(result.stderr).toBe('')
-        const lines = result.stdout.split('\n').filter(line => line.trim() !== '')
-        expect(lines).toHaveLength(1)
-        expect(result.stdout).toBe(lines.join('') + '\n')
-        expect(lines.join('')).not.toMatch(FAILURE)
-        return lines.join('')
-    }
-
     function seededDatabase(): string {
         const databasePath = join(workDirectory, 'seeded.db')
         // Precondition, proved elsewhere (US-002/CA-1, CA-9): the first run on a new database says that the accounts were created and creates the eleven of them.
@@ -455,6 +468,274 @@ describe('seed: a table that already holds accounts', () => {
 
             expectSkippedSeed(result)
             expect(accounts(databasePath)).toEqual(accountsBefore)
+        }, TEST_TIMEOUT_MS)
+    })
+})
+
+// How a .env file writes SQLITE_DB_PATH for the seed (US-002 CA-8, "Origine de la valeur", decision #71, point 2). The rule bears on the value
+// the process receives; the .env file is read by the `dotenv` library (17.4.0), loaded by `import 'dotenv/config'` as for the hub, and what
+// these tests observe on the real process (unquoted values trimmed, quoted values kept, " #" starting a comment) is what that library does,
+// not something the specification prescribes. The CDC says these cases were probed on the hub, not on the seed: here they are observed on the
+// seed itself, and any difference from the hub table of decision #71 would be a finding to report, not a thing to assert at will.
+// A change of behaviour of a new `dotenv` version would show up here and must be observed again, not silently followed.
+// The real environment has no SQLITE_DB_PATH, so the .env file alone writes it (`dotenv` does not override the real environment).
+// The working directory is the temporary one: a relative path of the .env file names a file of this directory.
+describe('seed: SQLITE_DB_PATH written in a .env file', () => {
+    function seedWithEnvFile(content: string) {
+        writeFileSync(join(workDirectory, '.env'), content)
+        return seed(undefined)
+    }
+
+    function expectRefusedAsBlank(result: { status: number | null; stdout: string; stderr: string }): void {
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain(REFUSAL)
+        // The message is the refusal itself: the line carries no other text, so no value is repeated in it.
+        expect(result.stderr.split(/\r?\n/).filter(line => line.startsWith('User seeding failed'))).toEqual([REFUSAL])
+        expect(result.stderr).not.toMatch(STACK_TRACE)
+        expect(result.stdout).toBe('')
+        expect(readdirSync(workDirectory)).toEqual(['.env'])
+    }
+
+    // `file` is the only file the seed creates next to the .env file; null when it creates none (an in-memory database).
+    function expectSeededAt(result: { status: number | null; stdout: string; stderr: string }, file: string | null): void {
+        expectCreatedSeed(result)
+        expect(readdirSync(workDirectory).sort()).toEqual(file === null ? ['.env'] : ['.env', file].sort())
+        if (file !== null) expect(countAccounts(join(workDirectory, file))).toBe(11)
+    }
+
+    it.each([
+        ['spaces', '   '],
+        ['tabulations', '\t\t'],
+        ['U+3000', '　　']
+    ] as const)('US-002/CA-8 refuses an unquoted SQLITE_DB_PATH made only of %s, read empty (decision #71): exit code 1, the message on the error output without the value, no file created', (_name, blank) => {
+        expectRefusedAsBlank(seedWithEnvFile('SQLITE_DB_PATH=' + blank + '\n'))
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['spaces between double quotes', 'SQLITE_DB_PATH="   "'],
+        ['spaces between single quotes', "SQLITE_DB_PATH='   '"],
+        ['spaces between backticks', 'SQLITE_DB_PATH=`   `'],
+        ['a backslash-n between double quotes, expanded by dotenv to a line feed', 'SQLITE_DB_PATH="\\n"']
+    ] as const)('US-002/CA-8 refuses a quoted SQLITE_DB_PATH made only of blanks, kept by dotenv then read by the rule (decision #71): %s: exit code 1, the message without the value, no file created', (_name, line) => {
+        expectRefusedAsBlank(seedWithEnvFile(line + '\n'))
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['keeps the blanks inside an unquoted value: the file is named with them', 'SQLITE_DB_PATH=my data.db', 'my data.db'],
+        ['starts a comment at an unquoted " #": the value stops before it', 'SQLITE_DB_PATH=real.db # note', 'real.db'],
+        ['trims the blanks around an unquoted value', 'SQLITE_DB_PATH=   trimmed.db  ', 'trimmed.db'],
+        ['keeps the blanks of a quoted value, then reads it without the blanks around it', 'SQLITE_DB_PATH="  padded.db  "', 'padded.db'],
+        ['reads a quoted " :memory: " as :memory:: no file is created', 'SQLITE_DB_PATH=" :memory: "', null],
+        ['accepts an unquoted :memory:: no file is created', 'SQLITE_DB_PATH=:memory:', null],
+        ['accepts an unquoted U+200B alone: the file is named by this one character', 'SQLITE_DB_PATH=​', '​']
+    ] as const)('US-002/CA-8 %s (decision #71): exit code 0, the success line', (_name, line, file) => {
+        expectSeededAt(seedWithEnvFile(line + '\n'), file)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-002/CA-8 does not read the .env file when the real environment has its own SQLITE_DB_PATH (the file of the environment is the one created)', () => {
+        writeFileSync(join(workDirectory, '.env'), 'SQLITE_DB_PATH=from-env-file.db\n')
+
+        const result = seed('from-environment.db')
+
+        expectCreatedSeed(result)
+        expect(readdirSync(workDirectory).sort()).toEqual(['.env', 'from-environment.db'])
+    }, TEST_TIMEOUT_MS)
+})
+
+// The permission tests cannot prove anything where permissions do not apply: root ignores them (the seed writes, decision #72, point 6)
+// and Windows does not have the POSIX ones (the seed was not probed there). They are skipped, with the reason in the title and on the console,
+// never silently green. A final probe covers any other machine where chmod has no effect. Same model as src/index.test.ts.
+function filePermissionsSkipReason(): string | undefined {
+    if (process.platform === 'win32') return 'Windows: POSIX file permissions do not apply'
+    if (process.getuid?.() === 0) return 'running as root: file permissions have no effect'
+    const probeDirectory = mkdtempSync(join(tmpdir(), 'quiz-seed-permission-probe-'))
+    try {
+        const file = join(probeDirectory, 'file')
+        writeFileSync(file, 'x')
+        chmodSync(file, 0o000)
+        let readable = true
+        try { readFileSync(file) } catch { readable = false }
+        if (readable) return 'a chmod 000 file can still be read: file permissions have no effect here'
+        chmodSync(file, 0o644)
+        const folder = join(probeDirectory, 'folder')
+        mkdirSync(folder)
+        chmodSync(folder, 0o555)
+        let writable = true
+        try { writeFileSync(join(folder, 'file'), 'x') } catch { writable = false }
+        if (writable) return 'a file can still be created in a chmod 555 directory: directory permissions have no effect here'
+        return undefined
+    } finally {
+        restorePermissions(probeDirectory)
+        rmSync(probeDirectory, { recursive: true, force: true })
+    }
+}
+
+const FILE_PERMISSIONS_SKIP = filePermissionsSkipReason()
+if (FILE_PERMISSIONS_SKIP !== undefined) console.warn('[seed.test] SKIPPED the read-only database tests: ' + FILE_PERMISSIONS_SKIP)
+const SKIPPED_PERMISSIONS = ' (skipped as root, on Windows, or where file permissions have no effect)'
+
+// US-002/CA-9, paragraph "Base en lecture seule", decision #72 (a finding, not a rule: probed on Linux as a non-root account). The cause text of a
+// refusal is the one the system gives and is not prescribed (`attempt to write a readonly database`, `unable to open database file` are findings):
+// the tests fix the prefix, the exit code, the streams and the state of the database, never the cause.
+describe('seed: read-only database', () => {
+    // What a run must leave as it found it: the file (size, modification date, content) and what the directory holds.
+    function state(databasePath: string) {
+        const { size, mtimeMs } = statSync(databasePath)
+        return { size, mtimeMs, sha256: sha256(databasePath), directory: readdirSync(workDirectory).sort() }
+    }
+
+    // The tables are made by the real repositories, as the seed and the hub make them, not by a schema made up by the test.
+    function userTableOnly(databasePath: string): void {
+        const database = new Database(databasePath)
+        try {
+            void new SqliteUserRepository(database)
+        } finally {
+            database.close()
+        }
+    }
+
+    function threeTables(databasePath: string): void {
+        const database = new Database(databasePath)
+        try {
+            void new SqliteUserRepository(database)
+            void new SqliteThemeRepository(database)
+            void new SqliteQuestionRepository(database)
+        } finally {
+            database.close()
+        }
+    }
+
+    const readOnlyFile = (databasePath: string) => chmodSync(databasePath, 0o444)
+    const readOnlyDirectory = () => chmodSync(workDirectory, 0o555)
+
+    // The eleven accounts of a first run, as `npm run seed` writes them (precondition proved elsewhere: CA-1, CA-9).
+    function seededDatabase(): string {
+        const databasePath = join(workDirectory, 'seeded.db')
+        expectCreatedSeed(seed(databasePath))
+        expect(countAccounts(databasePath)).toBe(11)
+        return databasePath
+    }
+
+    function expectRefusedByTheSystem(result: { status: number | null; stdout: string; stderr: string }): void {
+        expect(result.status).toBe(1)
+        expect(result.stderr).toMatch(FAILURE)
+        expect(result.stderr).not.toMatch(STACK_TRACE)
+        expect(result.stdout).toBe('')
+    }
+
+    describe('when the table already holds accounts: nothing is written, so nothing fails', () => {
+        const KINDS = [
+            ['(a) a read-only file', (databasePath: string) => readOnlyFile(databasePath)],
+            ['(b) a writable file in a read-only directory', () => readOnlyDirectory()]
+        ] as const
+
+        it.skipIf(FILE_PERMISSIONS_SKIP !== undefined).each(KINDS)('US-002/CA-9 and CA-7, decision #72 %s: the line of CA-7, exit code 0, nothing on the error output, the file and the directory untouched' + SKIPPED_PERMISSIONS, (_kind, lock) => {
+            const databasePath = seededDatabase()
+            const reference = expectSkippedSeed(seed(databasePath))
+            const accountsBefore = accounts(databasePath)
+            lock(databasePath)
+            const before = state(databasePath)
+
+            const result = seed(databasePath)
+
+            expect(expectSkippedSeed(result)).toBe(reference)
+            expect(state(databasePath)).toEqual(before)
+            expect(before.directory).toEqual(['seeded.db'])
+            expect(accounts(databasePath)).toEqual(accountsBefore)
+        }, TEST_TIMEOUT_MS)
+
+        it.skipIf(FILE_PERMISSIONS_SKIP !== undefined)('US-002/CA-9 and CA-7, decision #72 (h): on a read-only file with its accounts, a wrong password and an invalid BCRYPT_COST change nothing: the line of CA-7, exit code 0 (CA-7 comes before CA-4 and CA-6)' + SKIPPED_PERMISSIONS, () => {
+            const databasePath = seededDatabase()
+            const reference = expectSkippedSeed(seed(databasePath))
+            readOnlyFile(databasePath)
+            const before = state(databasePath)
+
+            const result = seed(databasePath, { SEED_PASSWORD_ADMIN: 'short', BCRYPT_COST: 'abc' })
+
+            expect(expectSkippedSeed(result)).toBe(reference)
+            expect(state(databasePath)).toEqual(before)
+        }, TEST_TIMEOUT_MS)
+    })
+
+    describe('when it should write and cannot: exit code 1, User seeding failed: <cause>, nothing on the standard output, no account, the database untouched', () => {
+        // `prepare` builds the database (and its lock) in the working directory; `file` is the one it leaves there; `tables` is what a run must leave in it.
+        const KINDS = [
+            ['(c) a read-only file with the three tables and no account', 'c.db', (databasePath: string) => { threeTables(databasePath); readOnlyFile(databasePath) }, { T_QUESTION_QST: 0, T_THEME_THM: 0, T_USER_USR: 0 }],
+            ['(d) a read-only file with the table of the seed only, no account', 'd.db', (databasePath: string) => { userTableOnly(databasePath); readOnlyFile(databasePath) }, { T_USER_USR: 0 }],
+            ['(e) a read-only file of zero bytes', 'e.db', (databasePath: string) => { writeFileSync(databasePath, ''); readOnlyFile(databasePath) }, {}],
+            ['(f) a writable file with the three tables and no account, in a read-only directory', 'f.db', (databasePath: string) => { threeTables(databasePath); readOnlyDirectory() }, { T_QUESTION_QST: 0, T_THEME_THM: 0, T_USER_USR: 0 }]
+        ] as const
+
+        it.skipIf(FILE_PERMISSIONS_SKIP !== undefined).each(KINDS)('US-002/CA-9, decision #72 %s' + SKIPPED_PERMISSIONS, (_kind, file, prepare, tables) => {
+            const databasePath = join(workDirectory, file)
+            prepare(databasePath)
+            const before = state(databasePath)
+
+            const result = seed(databasePath)
+
+            expectRefusedByTheSystem(result)
+            expect(state(databasePath)).toEqual(before)
+            expect(before.directory).toEqual([file])
+            expect(rowCounts(databasePath)).toEqual(tables)
+        }, TEST_TIMEOUT_MS)
+
+        it.skipIf(FILE_PERMISSIONS_SKIP !== undefined)('US-002/CA-9, decision #72 (g) an absent file in a read-only directory: nothing is created' + SKIPPED_PERMISSIONS, () => {
+            readOnlyDirectory()
+
+            const result = seed(join(workDirectory, 'absent.db'))
+
+            expectRefusedByTheSystem(result)
+            expect(readdirSync(workDirectory)).toEqual([])
+        }, TEST_TIMEOUT_MS)
+    })
+
+    describe('order of the checks when it should write and cannot', () => {
+        const readOnlyWithoutAccount = (kind: 'the three tables' | 'the table of the seed only') => {
+            const databasePath = join(workDirectory, 'order.db')
+            if (kind === 'the three tables') threeTables(databasePath)
+            else userTableOnly(databasePath)
+            readOnlyFile(databasePath)
+            return databasePath
+        }
+
+        it.skipIf(FILE_PERMISSIONS_SKIP !== undefined).each(['the three tables', 'the table of the seed only'] as const)('US-002/CA-9 and CA-4, decision #72 (i): with %s and a wrong password, the password is reported, not the read-only database: exit code 1, the account named, the password not exposed' + SKIPPED_PERMISSIONS, (kind) => {
+            const databasePath = readOnlyWithoutAccount(kind)
+            const before = state(databasePath)
+
+            const result = seed(databasePath, { SEED_PASSWORD_ADMIN: 'short' })
+
+            expectRefusedByTheSystem(result)
+            expect(result.stderr).toContain('admin')
+            expect(result.stderr).not.toContain('short')
+            expect(state(databasePath)).toEqual(before)
+            expect(countAccounts(databasePath)).toBe(0)
+        }, TEST_TIMEOUT_MS)
+
+        it.skipIf(FILE_PERMISSIONS_SKIP !== undefined)('US-002/CA-9 and CA-6, decision #72 (j): with an invalid BCRYPT_COST, BCRYPT_COST is reported, not the read-only database: exit code 1, the variable named' + SKIPPED_PERMISSIONS, () => {
+            const databasePath = readOnlyWithoutAccount('the three tables')
+            const before = state(databasePath)
+
+            const result = seed(databasePath, { BCRYPT_COST: 'abc' })
+
+            expectRefusedByTheSystem(result)
+            expect(result.stderr).toContain('BCRYPT_COST')
+            expect(state(databasePath)).toEqual(before)
+            expect(countAccounts(databasePath)).toBe(0)
+        }, TEST_TIMEOUT_MS)
+
+        it.skipIf(FILE_PERMISSIONS_SKIP !== undefined)('US-002/CA-9, decision #72 (k): on a read-only file of zero bytes, the failure of the table creation comes before the check of the passwords: exit code 1, no account named, the file still empty' + SKIPPED_PERMISSIONS, () => {
+            const databasePath = join(workDirectory, 'k.db')
+            writeFileSync(databasePath, '')
+            readOnlyFile(databasePath)
+            const before = state(databasePath)
+
+            const result = seed(databasePath, { SEED_PASSWORD_ADMIN: 'short' })
+
+            expectRefusedByTheSystem(result)
+            expect(result.stderr).not.toContain('admin')
+            expect(result.stderr).not.toContain('Invalid password')
+            expect(state(databasePath)).toEqual(before)
+            expect(before.size).toBe(0)
         }, TEST_TIMEOUT_MS)
     })
 })
