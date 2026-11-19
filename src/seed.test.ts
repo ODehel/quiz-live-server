@@ -54,6 +54,20 @@ function seed(databasePath: string, overrides: Record<string, string | undefined
     return { status: result.status, stdout: result.stdout, stderr: result.stderr }
 }
 
+// US-002/CA-1 and decision #73: only the sense of the success line is normative (the eleven accounts were created); its wording is not
+// (neither the language, nor the figure, nor the punctuation). So the form is fixed: exactly one non-empty line, on the standard output,
+// nothing on the error output, exit code 0, not a failure message. Its sense is fixed as far as it can be without a word of it:
+// it is a line of its own, neither silence nor the line of a skipped seed (CA-7), which is proved against a second run below.
+function expectCreatedSeed(result: { status: number | null; stdout: string; stderr: string }): string {
+    expect(result.status).toBe(0)
+    expect(result.stderr).toBe('')
+    const lines = result.stdout.split('\n').filter(line => line.trim() !== '')
+    expect(lines).toHaveLength(1)
+    expect(result.stdout).toBe(lines.join('') + '\n')
+    expect(lines.join('')).not.toMatch(FAILURE)
+    return lines.join('')
+}
+
 function countAccounts(databasePath: string): number {
     const database = new Database(databasePath, { readonly: true })
     try {
@@ -112,19 +126,19 @@ describe('seed: SQLITE_DB_PATH', () => {
         expect(readdirSync(workDirectory)).toEqual([])
     }, TEST_TIMEOUT_MS)
 
-    it.each(NOT_BLANK_CHARACTERS)('US-002/CA-8 does not refuse %s alone: exit code 0, empty outputs, a file named by this one character holds the accounts', (_name, character) => {
+    it.each(NOT_BLANK_CHARACTERS)('US-002/CA-8 does not refuse %s alone: exit code 0, the success line, a file named by this one character holds the accounts', (_name, character) => {
         const result = seed(character)
 
-        expect(result).toEqual({ status: 0, stdout: '', stderr: '' })
+        expectCreatedSeed(result)
         expect(readdirSync(workDirectory)).toEqual([character])
         expect(countAccounts(join(workDirectory, character))).toBe(11)
     }, TEST_TIMEOUT_MS)
 
     for (const [name, character] of BEYOND_U3100_CHARACTERS) {
-        it.skipIf(!filesystemKeepsTheName(character))('US-002/CA-8 does not refuse ' + name + ' alone, beyond U+3100: exit code 0, empty outputs, a file named by this one character holds the accounts (skipped when the file system cannot hold this name)', () => {
+        it.skipIf(!filesystemKeepsTheName(character))('US-002/CA-8 does not refuse ' + name + ' alone, beyond U+3100: exit code 0, the success line, a file named by this one character holds the accounts (skipped when the file system cannot hold this name)', () => {
             const result = seed(character)
 
-            expect(result).toEqual({ status: 0, stdout: '', stderr: '' })
+            expectCreatedSeed(result)
             expect(readdirSync(workDirectory)).toEqual([character])
             expect(countAccounts(join(workDirectory, character))).toBe(11)
         }, TEST_TIMEOUT_MS)
@@ -146,10 +160,10 @@ describe('seed: SQLITE_DB_PATH', () => {
         expect(readdirSync(workDirectory)).toEqual([])
     }, TEST_TIMEOUT_MS)
 
-    it('US-002/CA-8 does not refuse :memory:, bordered or not: exit code 0, empty outputs, no file created', () => {
+    it('US-002/CA-8 does not refuse :memory:, bordered or not: exit code 0, the success line, no file created', () => {
         const result = seed(' :memory: ')
 
-        expect(result).toEqual({ status: 0, stdout: '', stderr: '' })
+        expectCreatedSeed(result)
         expect(readdirSync(workDirectory)).toEqual([])
     }, TEST_TIMEOUT_MS)
 
@@ -158,7 +172,7 @@ describe('seed: SQLITE_DB_PATH', () => {
 
         const result = seed('\t\u3000' + databasePath + '\uFEFF \r\n')
 
-        expect(result).toEqual({ status: 0, stdout: '', stderr: '' })
+        expectCreatedSeed(result)
         expect(readdirSync(workDirectory)).toEqual(['bordered.db'])
         expect(countAccounts(databasePath)).toBe(11)
     }, TEST_TIMEOUT_MS)
@@ -244,7 +258,7 @@ describe('seed: unusable database', () => {
 
         const result = seed(databasePath)
 
-        expect(result).toEqual({ status: 0, stdout: '', stderr: '' })
+        expectCreatedSeed(result)
         expect(countAccounts(databasePath)).toBe(11)
     }, TEST_TIMEOUT_MS)
 
@@ -254,7 +268,7 @@ describe('seed: unusable database', () => {
 
         const result = seed(emptyFile)
 
-        expect(result).toEqual({ status: 0, stdout: '', stderr: '' })
+        expectCreatedSeed(result)
         expect(countAccounts(emptyFile)).toBe(11)
     }, TEST_TIMEOUT_MS)
 })
@@ -311,7 +325,7 @@ describe('seed: database file left behind by a refusal', () => {
 
             const result = seed(databasePath)
 
-            expect(result).toEqual({ status: 0, stdout: '', stderr: '' })
+            expectCreatedSeed(result)
             expect(countAccounts(databasePath)).toBe(11)
         }, TEST_TIMEOUT_MS)
     })
@@ -346,8 +360,8 @@ describe('seed: a table that already holds accounts', () => {
 
     function seededDatabase(): string {
         const databasePath = join(workDirectory, 'seeded.db')
-        // Precondition, proved elsewhere (US-002/CA-1, CA-9): the first run on a new database is silent and creates the eleven accounts.
-        expect(seed(databasePath)).toEqual({ status: 0, stdout: '', stderr: '' })
+        // Precondition, proved elsewhere (US-002/CA-1, CA-9): the first run on a new database says that the accounts were created and creates the eleven of them.
+        expectCreatedSeed(seed(databasePath))
         expect(accounts(databasePath)).toHaveLength(11)
         return databasePath
     }
@@ -362,6 +376,15 @@ describe('seed: a table that already holds accounts', () => {
         expectSkippedSeed(result)
         expect(accounts(databasePath)).toEqual(accountsBefore)
         expect(sha256(databasePath)).toBe(fileBefore)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-002/CA-1 says something else when it creates the accounts than when it skips the seed (CA-7)', () => {
+        const databasePath = join(workDirectory, 'seeded.db')
+
+        const created = expectCreatedSeed(seed(databasePath))
+        const skipped = expectSkippedSeed(seed(databasePath))
+
+        expect(created).not.toBe(skipped)
     }, TEST_TIMEOUT_MS)
 
     it('US-002/CA-3 keeps the eleven hashes of the first run when the second run has other valid passwords and another BCRYPT_COST', () => {
