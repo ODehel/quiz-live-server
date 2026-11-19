@@ -27,7 +27,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-1 | Au premier démarrage, si la table `T_USER_USR` est vide, les 11 comptes sont créés automatiquement | 1 admin + 10 buzzers (`quiz_buzzer_01` à `quiz_buzzer_10`). Le seed se termine avec le code de sortie `0` et affiche une ligne de succès sur la sortie standard ; la sortie d'erreur reste vide (décision #73). Normatif : la ligne dit que les onze comptes ont été créés. Ex, non normatif : `Seed terminé — 11 comptes créés.` |
 | CA-2 | Les mots de passe sont lus depuis des variables d'environnement (fichier `.env` non versionné) | Hashés avec bcrypt avant insertion |
 | CA-3 | Le seed est idempotent : si les comptes existent déjà, le script ne fait rien | Pas de doublon ni de réinitialisation |
-| CA-4 | Les mots de passe respectent la politique OWASP : 12 caractères minimum | Le seed refuse de s'exécuter si un mot de passe ne respecte pas la politique ; la base que l'ouverture a créée n'est pas supprimée (CA-9, décision #65) |
+| CA-4 | Les mots de passe respectent la politique OWASP : de 12 à 72 caractères, tous de l'ASCII imprimable (U+0020 à U+007E), et pas uniquement des espaces (U+0020) ; 72 caractères valent 72 octets, la limite de bcrypt (décision #74) | Le seed refuse de s'exécuter si un mot de passe manque (variable non définie) ou ne respecte pas la politique (trop court, trop long, un caractère hors de l'ASCII imprimable, tabulation ou saut de ligne compris, variable définie mais vide, ou faite uniquement d'espaces) : aucun compte n'est créé, le processus se termine avec le code de sortie `1`, la sortie standard est vide, et la sortie d'erreur affiche un message qui commence par `User seeding failed: `, nomme un seul compte (celui dont le mot de passe est refusé) et ne reprend pas le mot de passe. Seuls sont normatifs ce préfixe, le nom du compte et l'absence du mot de passe ; les libellés sont des exemples, non normatifs, comme les lignes du CA-7 et du CA-1 : `User seeding failed: Missing password for account <login>` (variable non définie) et `User seeding failed: Invalid password for account <login>` (tout autre refus, variable définie mais vide comprise). La base que l'ouverture a créée n'est pas supprimée (CA-9, décision #65) |
 
 ### Sécurité et transversalité
 
@@ -39,7 +39,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-6 | `BCRYPT_COST` est renseignée mais n'est pas un entier de 4 à 31 écrit en chiffres seulement (`abc`, `12.5`, `3`, `32`, `-1`, ` 12`) | Le seed refuse de s'exécuter : aucun compte n'est créé, le processus se termine avec le code de sortie `1`, et la console affiche un message qui nomme `BCRYPT_COST` et la règle (entier de 4 à 31). Ex : `User seeding failed: BCRYPT_COST must be an integer between 4 and 31.` Absente ou vide, la variable vaut `12`. La base que l'ouverture a créée n'est pas supprimée (CA-9, décision #65) |
+| CA-6 | `BCRYPT_COST` est renseignée mais n'est pas un entier de 4 à 31 écrit en chiffres ASCII seulement, sans zéro en tête. Refusés : `abc`, `12.5`, `3`, `32`, `-1`, ` 12`, `0`, `4.0`, `+5`, `004`, un chiffre d'une autre écriture (par exemple arabo-indien : `٤`), un entier hors de la plage de lecture (par exemple vingt chiffres), et une valeur faite uniquement de blancs (` `, une tabulation : seule la chaîne vide vaut absente) (décision #74) | Le seed refuse de s'exécuter : aucun compte n'est créé, le processus se termine avec le code de sortie `1`, la sortie standard est vide, et la sortie d'erreur affiche un message qui commence par `User seeding failed: `, nomme `BCRYPT_COST` et la règle (entier de 4 à 31), comme les refus des CA-8 et CA-9. Ex, non normatif : `User seeding failed: BCRYPT_COST must be an integer between 4 and 31.` Absente ou vide (chaîne vide), la variable vaut `12`. À la différence de `PORT` ([US-001](US-001-server-startup.md) CA-7), qui accepte les zéros en tête (`08080` vaut 8080), `004` est refusée (choix d'Olivier, décision #74). La base que l'ouverture a créée n'est pas supprimée (CA-9, décision #65) |
 | CA-7 | La table `T_USER_USR` contient déjà au moins un compte | Le seed ne modifie rien (CA-3) et se termine avec le code de sortie `0`. Il affiche une ligne sur la sortie standard ; la sortie d'erreur reste vide (décision #66). Normatif : la ligne dit qu'aucun compte n'a été créé parce que la table n'est pas vide. Ex, non normatif : `Seed ignoré — la table T_USER_USR contient déjà des comptes.` (décisions #53 et #66) |
 
 ### Chemin de la base de données
@@ -69,7 +69,7 @@ Voir les [Conventions techniques](../shared/CONVENTIONS-TECHNIQUES.md) pour la s
 
 ### Dépendance avec US-003
 
-La table `T_USER_USR` est définie dans l'**US-003** (authentification par token). Cette US-002 ne crée pas la table : elle suppose que la base de données a déjà été initialisée (migration exécutée via l'US-003). Le script de seed s'appuie sur le schéma existant.
+La définition du schéma de la table `T_USER_USR` (colonnes, contraintes) appartient à l'**US-003** (authentification par token). Le seed crée la table si elle manque : un fichier de base absent dans un dossier qui existe, ou existant de zéro octet, n'est pas une erreur et le seed réussit (CA-9, décisions #64, #72 et #74). Aucune étape de migration ne le précède : il n'existe pas de script `migrate`.
 
 ### Script npm
 
@@ -92,11 +92,13 @@ npm run seed
 | Règle | Valeur |
 |---|---|
 | Longueur minimale | 12 caractères |
-| Longueur maximale | 72 caractères (limite bcrypt) |
+| Longueur maximale | 72 caractères (limite bcrypt : 72 caractères ASCII valent 72 octets) |
+| Caractères admis | L'ASCII imprimable seulement, de U+0020 à U+007E (l'espace est admise) ; tabulation, saut de ligne et tout caractère hors de cette plage sont refusés |
+| Mot de passe de blancs seuls | Refusé : un mot de passe fait uniquement d'espaces (U+0020) est invalide, même s'il compte au moins 12 caractères (décision #74) |
 | Algorithme de hachage | bcrypt (sel automatique) |
 | Facteur de coût bcrypt | 12 par défaut (recommandation OWASP), réglable par `BCRYPT_COST` (entier de 4 à 31, CA-6) |
 
-Le script refuse de s'exécuter si un mot de passe lu dans les variables d'environnement ne respecte pas la politique. Le message d'erreur identifie le compte concerné sans exposer le mot de passe.
+Le script refuse de s'exécuter si un mot de passe lu dans les variables d'environnement manque ou ne respecte pas la politique (CA-4, décision #74). Le message d'erreur, écrit sur la sortie d'erreur avec le préfixe `User seeding failed: `, identifie un seul compte, celui dont le mot de passe est refusé, sans exposer le mot de passe.
 
 ### Structure des fichiers
 
@@ -130,9 +132,9 @@ Le script `src/seed.ts` suit les étapes suivantes :
    → Non : arrêt immédiat (idempotence — CA-3), avec la ligne du CA-7 sur la sortie standard et le code de sortie 0 (décision #66) ; même issue sur une base en lecture seule, rien n'étant écrit (CA-9, décision #72)
    → Oui : suite
 3. Lecture des 11 mots de passe et de BCRYPT_COST depuis les variables d'environnement
-4. Validation de chaque mot de passe (≥ 12 caractères, ≤ 72 caractères), puis de BCRYPT_COST (entier de 4 à 31)
-   → Mot de passe invalide ou manquant : arrêt avec message d'erreur (CA-4)
-   → BCRYPT_COST invalide : arrêt avec message d'erreur (CA-6)
+4. Validation de chaque mot de passe (de 12 à 72 caractères, ASCII imprimable U+0020 à U+007E, pas uniquement des espaces), puis de BCRYPT_COST (entier de 4 à 31 en chiffres ASCII, sans zéro en tête ; chaîne vide ou absente : 12)
+   → Mot de passe invalide ou manquant : arrêt avec `User seeding failed: <message>` sur la sortie d'erreur, qui nomme le compte sans le mot de passe, sortie standard vide, code de sortie 1 (CA-4, décision #74)
+   → BCRYPT_COST invalide : arrêt avec `User seeding failed: <message>` sur la sortie d'erreur, qui nomme BCRYPT_COST et la règle, sortie standard vide, code de sortie 1 (CA-6, décision #74)
    → Tout valide : suite
 5. Hachage de chaque mot de passe avec bcrypt (facteur de coût : BCRYPT_COST, 12 par défaut)
 6. Génération de 11 UUIDv7 (un par compte)
@@ -187,8 +189,8 @@ SEED_PASSWORD_BUZZER_10=<mot_de_passe_buzzer_10_min_12_car>
 |---|---|
 | Création des 11 comptes (1 admin + 10 buzzers) via script de seed | Création dynamique de comptes via API REST |
 | Lecture des mots de passe depuis les variables d'environnement | Interface de gestion des utilisateurs |
-| Validation de la politique de mot de passe (OWASP, ≥ 12 caractères) | Modification des comptes après création |
-| Hachage bcrypt (facteur de coût : 12 par défaut, réglable par `BCRYPT_COST`) | Suppression des comptes |
+| Validation de la politique de mot de passe (OWASP : de 12 à 72 caractères ASCII imprimables, pas uniquement des espaces ; CA-4, décision #74) | Modification des comptes après création |
+| Hachage bcrypt (facteur de coût : 12 par défaut, réglable par `BCRYPT_COST` : entier de 4 à 31 en chiffres ASCII, sans zéro en tête ; CA-6, décision #74) | Suppression des comptes |
 | Idempotence (pas de doublon si le seed est rejoué) | Authentification (gérée par US-003) |
 | Génération des UUIDv7 | Déploiement / CI-CD |
 | Refus de s'exécuter quand `SQLITE_DB_PATH` est définie mais vide, ou faite uniquement de blancs ; blancs de bordure ignorés (CA-8) | |
@@ -197,6 +199,8 @@ SEED_PASSWORD_BUZZER_10=<mot_de_passe_buzzer_10_min_12_car>
 | Base en mémoire (`SQLITE_DB_PATH=:memory:`) : le seed réussit, rien n'est persisté (CA-8) | |
 | Base en lecture seule : le seed réussit sans rien écrire quand les comptes existent, et refuse (code de sortie `1`) quand il devrait en écrire ; constat, pas une règle, Windows non sondé (CA-9, décision #72) | |
 | Ligne de succès sur la sortie standard quand le seed crée les onze comptes, sortie d'erreur vide, code `0` (CA-1, décision #73) | |
+| Refus d'un mot de passe ou de `BCRYPT_COST` invalide : sortie d'erreur `User seeding failed: <message>`, sortie standard vide, code `1` (CA-4 et CA-6, décision #74) | |
+| Création de la table `T_USER_USR` par le seed quand elle manque (CA-9, décisions #64, #72 et #74) ; son schéma reste défini par l'US-003 | |
 | Tests unitaires et d'intégration (couverture ≥ 90%) | |
 
 ---
@@ -213,14 +217,14 @@ Les mots de passe ne doivent **jamais** apparaître dans les logs, les messages 
 
 ### Limite bcrypt à 72 caractères
 
-bcrypt tronque silencieusement les mots de passe à 72 octets. La validation doit donc imposer une longueur maximale de 72 caractères pour éviter que deux mots de passe distincts (mais partageant les 72 premiers caractères) produisent le même hash.
+bcrypt tronque silencieusement les mots de passe à 72 octets. La validation doit donc imposer une longueur maximale de 72 caractères (comme les caractères admis sont tous de l'ASCII, 72 caractères valent 72 octets, CA-4) pour éviter que deux mots de passe distincts (mais partageant les 72 premiers caractères) produisent le même hash.
 
 ### Dépendance avec US-003
 
-La table `T_USER_USR` et son schéma sont définis dans l'US-003. Le script de seed doit s'exécuter **après** l'initialisation de la base de données. L'ordre d'exécution recommandé est : `npm run migrate && npm run seed`.
+Le schéma de `T_USER_USR` est défini dans l'US-003, mais le seed crée la table lui-même quand elle manque (CA-9, décisions #64, #72 et #74) : il n'a pas besoin d'une initialisation préalable de la base, et aucun script `migrate` n'existe. La commande est `npm run seed` seule.
 
 ### Facteur de coût bcrypt
 
-Le facteur de coût bcrypt vaut **12** par défaut, conformément aux recommandations OWASP (2024). Ce facteur peut être ajusté via une variable d'environnement `BCRYPT_COST` pour adapter les performances selon l'environnement (ex. : `10` en tests pour accélérer l'exécution). La variable est un entier de 4 à 31 (bornes de bcrypt), écrit en chiffres seulement ; absente ou vide, elle vaut `12` ; renseignée autrement, le seed refuse de s'exécuter (CA-6, décision #42). Seul le seed hache un mot de passe : le hub ne lit pas `BCRYPT_COST`, la comparaison d'un mot de passe lisant le coût dans le hash stocké.
+Le facteur de coût bcrypt vaut **12** par défaut, conformément aux recommandations OWASP (2024). Ce facteur peut être ajusté via une variable d'environnement `BCRYPT_COST` pour adapter les performances selon l'environnement (ex. : `10` en tests pour accélérer l'exécution). La variable est un entier de 4 à 31 (bornes de bcrypt), écrit en chiffres ASCII seulement, sans zéro en tête ; absente ou vide (chaîne vide), elle vaut `12` ; renseignée autrement (blancs seuls compris), le seed refuse de s'exécuter (CA-6, décisions #42 et #74). Seul le seed hache un mot de passe : le hub ne lit pas `BCRYPT_COST`, la comparaison d'un mot de passe lisant le coût dans le hash stocké.
 
 ---
