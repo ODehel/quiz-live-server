@@ -172,8 +172,9 @@ comportement cassé en production réelle.
     d'erreur sans valeur, rien n'écoute, aucun fichier de base créé) ; ignoré quand
     l'environnement réel porte un chemin valide (le hub écoute, la base est créée au chemin
     réel, décision #52). **Limite dite** : la façon dont un `.env` écrit des blancs
-    (valeur non quotée, guillemets) et `:memory:` dans un `.env` ne sont pas spécifiés ni
-    testés (dette `DEBTS.md`).
+    (valeur non quotée, guillemets, ` #`) et `:memory:` dans un `.env` est spécifiée depuis
+    le 2026-11-19 (constat reporté, décision #71) mais non testée sur processus réel
+    (dette `DEBTS.md`).
 - **Partiels (1)** :
   - **CA-4** (repli `localhost:<PORT>`) : `server.test.ts` (`describe('CA-4`) prouve le
     repli sans interface, avec seulement loopback et IPv6, et avec le port configuré
