@@ -627,6 +627,55 @@ describe('hub startup: JWT_SECRET', () => {
         expect(await canConnect(port)).toBe(false)
         expect(readdirSync(workDirectory)).toEqual([])
     }, TEST_TIMEOUT_MS)
+
+    // The .env file is read at startup and the real environment prevails over it (CONVENTIONS-TECHNIQUES, US-003 CA-19).
+    // Two distinct values: the one of the .env file, valid or not, must never be mistaken for the one of the real environment.
+    const ENV_FILE_VALID_SECRET = 'e'.repeat(32)
+
+    it('US-001/CA-1 reads JWT_SECRET from a .env file in the working directory when the real environment has none: the hub listens and announces its startup', async () => {
+        const port = await freePort()
+        writeFileSync(join(workDirectory, '.env'), 'JWT_SECRET=' + ENV_FILE_VALID_SECRET + '\n')
+        const hub = startHub(String(port), { JWT_SECRET: undefined })
+
+        await waitUntilListening(hub, port)
+        await waitForStartupAnnouncement(hub, port)
+
+        expect(withoutNodeWarnings(hub.errors())).not.toMatch(STARTUP_FAILURE_MARK)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-1 does not read the too short JWT_SECRET of the .env file when the real environment has a valid one: the hub listens and announces its startup', async () => {
+        const port = await freePort()
+        writeFileSync(join(workDirectory, '.env'), 'JWT_SECRET=' + TOO_SHORT_SECRET + '\n')
+        const hub = startHub(String(port))
+
+        await waitUntilListening(hub, port)
+        await waitForStartupAnnouncement(hub, port)
+
+        expect(withoutNodeWarnings(hub.errors())).not.toMatch(STARTUP_FAILURE_MARK)
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['a valid one in the .env file and a too short one in the real environment', ENV_FILE_VALID_SECRET, TOO_SHORT_SECRET],
+        ['a too short one in the .env file and none in the real environment', TOO_SHORT_SECRET, undefined]
+    ] as const)('US-001/CA-1 refuses to start with %s: exit code 1, the message naming JWT_SECRET and its rule without any secret, no database opened, nothing listens', async (_name, envFileSecret, realSecret) => {
+        const port = await freePort()
+        writeFileSync(join(workDirectory, '.env'), 'JWT_SECRET=' + envFileSecret + '\n')
+        const hub = startHub(String(port), { JWT_SECRET: realSecret })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toMatch(/^Server starting failed: JWT_SECRET /m)
+        expect(hub.errors()).toContain('32')
+        expect(hub.errors()).not.toMatch(STACK_TRACE)
+        expect(hub.errors()).not.toContain(TOO_SHORT_SECRET)
+        expect(hub.errors()).not.toContain(ENV_FILE_VALID_SECRET)
+        expect(hub.standardOutput()).toBe('')
+        expect(hub.console()).not.toContain('Server started')
+        expect(hub.console()).not.toContain('Listening on')
+        expect(await canConnect(port)).toBe(false)
+        expect(readdirSync(workDirectory)).toEqual(['.env'])
+    }, TEST_TIMEOUT_MS)
 })
 
 describe('hub startup: unusable database', () => {
