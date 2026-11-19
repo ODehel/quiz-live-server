@@ -6,8 +6,8 @@ Détail complet : `docs/method/WORKFLOW.md` (source de vérité, copie identique
 - Claude fait le code, les tests et les docs, crée la branche, commit, pousse et ouvre la PR.
 - Olivier relit la PR, la fusionne en squash et lance les smoke tests. Il ne code pas.
 
-## Une session = un commit
-Le titre de la session est le titre du commit et de la PR.
+## Une session = une PR unique
+Le titre de la session est le titre de la PR et du commit de squash.
 Branche `session/<titre-du-commit>`, sans parenthèses (ex. `session/test-questions-list-page-beyond-total`).
 
 ## Ouverture
@@ -23,7 +23,8 @@ Puis branche de session. Script : `scripts/session-open.ps1` (lecture seule).
 ## Règles git
 - Staging fichier par fichier, jamais `git add .`.
 - Pas de force push, pas de commit direct sur `main`, jamais de fusion de PR par Claude.
-- Un seul commit par session (la PR est fusionnée en squash).
+- Une PR unique par session : plusieurs commits sur la branche sont acceptés, la PR est
+  fusionnée en squash (un seul commit sur `main`).
 
 ## Smoke tests
 Claude écrit un bloc PowerShell, Olivier le lance, la sortie va dans
