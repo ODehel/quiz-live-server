@@ -18,8 +18,9 @@ le réel qui tranche.
 
 ## Cycle d'une session
 
-Une session = un commit = une branche `session/<titre-du-commit>` = une PR.
-Le titre de la session est le titre du commit et de la PR.
+Une session = une PR unique = une branche `session/<titre-du-commit>`.
+La branche peut porter plusieurs commits ; la PR est fusionnée en squash.
+Le titre de la session est le titre de la PR et du commit de squash.
 Nom de branche sans parenthèses (ex. `session/test-questions-list-page-beyond-total`).
 
 1. **Ouverture (scriptée)** : `scripts/session-open.ps1`
@@ -35,8 +36,8 @@ Nom de branche sans parenthèses (ex. `session/test-questions-list-page-beyond-t
    - résumé par fichier et sorties des vérifications ;
    - points à challenger ;
    - section « ce que j'aurais pu faire autrement et pourquoi j'ai tranché ainsi ».
-   Puis STOP : les corrections demandées en revue sont appliquées sur la branche
-   (le squash garde un seul commit).
+   Puis STOP : les corrections demandées en revue sont appliquées sur la branche, dans
+   la même PR (le squash garde un seul commit sur `main`).
 6. **Fusion** par Olivier, en squash. La branche de session est supprimée.
 7. **Clôture** : voir « Handoff ».
 
@@ -51,7 +52,8 @@ puis supprime le fichier.
 - Fichiers dans `docs/sessions/` du dépôt travaillé, nommés `yyyy-MM-dd-HHmm.md`
   (modèle : `TEMPLATE.md`). Générés par `scripts/session-close.ps1 -Title "<titre>"`.
 - Le handoff est ajouté à la branche de session, donc à la PR : il est fusionné avec
-  le commit de la session (pas de second commit).
+  le reste de la session. Un commit de plus dans la PR est accepté, par exemple pour
+  consigner au handoff le résultat du smoke test avant la fusion.
 - Pas de handoff pour les sessions de workflow.
 - Le SHA d'arrivée noté dans un handoff est celui de la branche de session. Après un squash
   il n'existe plus sur `main` : `session-open` le signale alors comme « inconnu, pas de comparaison ».
@@ -61,7 +63,9 @@ puis supprime le fichier.
 - Staging **fichier par fichier**, jamais `git add .`.
 - Pas de force push, pas de commit direct sur `main`.
 - Identité : celle d'Olivier ; le message porte les lignes `Co-Authored-By` et `Claude-Session`.
-- **Un seul commit par session** (squash à la fusion).
+- **Une PR unique par session** : plusieurs commits sur la branche sont acceptés
+  (par exemple le résultat du smoke test consigné avant la fusion) ; fusion en squash,
+  donc un seul commit sur `main`, au titre de la session.
 - Les PR sont lancées sur `pull_request` : la CI du dépôt tourne avant la fusion.
 
 ## Pièges connus
