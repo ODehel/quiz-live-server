@@ -896,3 +896,32 @@ Hors spec : l'avertissement `DEP0205` (`tsx`, `module.register()`) précède tou
 - `DEBTS.md` : la dette « Comportement sous Windows non sondé » est supprimée (soldée) ; les dettes `SQLITE_DB_PATH` et « Hub qui démarre sur une base en lecture seule » disent que Windows est sondé ; une dette courte est créée : les tests de permissions se sautent sous Windows alors que la sonde montre qu'on pourrait les rejouer (attribut « lecture seule » et `icacls`).
 - Condition de réouverture : une régression de permissions constatée sous Windows, une autre machine ou un autre compte qui donne un autre résultat, ou un besoin de couverture Windows (ce qui rouvrirait aussi la dette de test).
 - À challenger : le constat « base inscriptible dans un dossier fermé : le hub écoute, l'écriture échoue en `500` » est le même risque de démarrage trompeur que #69, avec une cause journalisée différente ; une sonde sur une seule machine ne dit pas ce que fait un dossier réseau ou un disque non NTFS.
+
+## #71 — Un `.env` écrit les blancs de `SQLITE_DB_PATH` comme la bibliothèque `dotenv` les lit : la règle du CA-10 s'applique à la valeur qu'elle produit : constat reporté, pas une règle
+
+*`docs(specs): settle how a .env file writes the blanks of SQLITE_DB_PATH` — US-001/CA-10 (paragraphe « Origine de la valeur »), US-002/CA-8 (même paragraphe, en miroir), ligne « fichier `.env` » de `CONVENTIONS-TECHNIQUES.md`, limite dite de `ETAT-DES-LIEUX-socle-hub.md`. Lève le « non spécifié » laissé par les décisions #60, #61 et #63 ; les décisions #1 à #70 ne sont pas modifiées.*
+
+**Contexte.** Les décisions #60 et #61 ont arrêté la règle de lecture de `SQLITE_DB_PATH` (blancs de bordure ignorés, refus du vide et des blancs seuls) et #63 le cas `:memory:`, en la disant portée sur « la valeur telle que le processus la reçoit ». La façon dont un `.env` écrit ces valeurs (guillemets, valeur non quotée) restait « non spécifiée » : sondée le 2026-11-14 pour deux cas, `DEBTS.md` listait le reste comme non sondé. Sondé le 2026-11-19 (hors dépôt, rien de committé ; Linux ; Node 26.13.1 ; `dotenv` 17.4.0 ; d'abord `dotenv.parse` puis `readDatabasePath` sur quatorze valeurs, puis `tsx src/index.ts` comme `npm start` sur quatre d'entre elles, dossier jetable, `JWT_SECRET` valide) :
+
+| Écriture dans le `.env` | Valeur lue par `dotenv` | Issue |
+|---|---|---|
+| non quotée, blancs seuls (espaces, tabulations, U+3000) | vide | refus, message des blancs (hub réel : code `1`, aucun fichier créé) |
+| entre `"`, `'` ou `` ` ``, blancs seuls, ou `"\n"` | blancs conservés | refus, même message |
+| non quotée, blanc intérieur (`my data.db`) | conservée | acceptée, fichier `my data.db` créé (hub réel) |
+| non quotée, blancs de bordure | rognée par `dotenv` | acceptée, chemin nettoyé |
+| entre guillemets, blancs de bordure (`"  padded.db  "`) | conservés par `dotenv` | acceptée, rognée par la règle du CA-10, fichier `padded.db` créé (hub réel) |
+| non quotée avec ` # note` (`real.db # note`) | `real.db` | acceptée, fichier `real.db` créé (hub réel) |
+| `:memory:` non quotée, ou `" :memory: "` | `:memory:` | acceptée, base en mémoire |
+| U+200B seul, non quoté | conservé | acceptée (n'est pas un blanc, décision #61) |
+
+**Décision.**
+1. **Sur choix d'Olivier (2026-11-19, porte 1)** : constat reporté. Le CDC écrit que le `.env` est lu par `dotenv`, que la valeur contrôlée est celle qu'elle produit, et il consigne les cas constatés ci-dessus. Il n'ajoute aucune règle d'écriture du `.env` ; le code ne change pas.
+2. **Sur choix d'Olivier (2026-11-19, porte 1)** : le même paragraphe est ajouté en miroir à US-002/CA-8 : le seed charge `dotenv` de la même façon et lit la valeur par la même fonction. Les cas ont été sondés sur le hub seulement, ce que la phrase dit.
+3. Le ` #` non quoté qui coupe la valeur est consigné comme les autres cas : il ne fait pas l'objet d'une règle.
+4. Forme : le paragraphe « Origine de la valeur » d'US-001 remplace la phrase « n'est pas spécifiée » ; US-002 reçoit la phrase miroir ; une phrase de plus dans le paragraphe `.env` de `CONVENTIONS-TECHNIQUES.md` ; la « limite dite » de l'état des lieux est mise à jour. Pas de nouveau CA ; numérotation conservée.
+
+**Conséquences.**
+- Le code est déjà conforme : rien n'est codé, aucune modification sous `src/`. Le comportement observable ne change pas.
+- `DEBTS.md` : le point (2) de la dette `SQLITE_DB_PATH` dit que ces écritures sont sondées et consignées ; reste un `test(startup)` de ces cas sur processus réel (nés verts, avec mutation), à planifier quand Olivier le décide.
+- Condition de réouverture : une mise à jour de `dotenv` qui change l'un de ces constats, ou la décision de refuser un chemin dont `dotenv` a rogné ou coupé quelque chose (un `fix(startup)` avec smoke test).
+- À challenger : (a) un chemin non quoté qui contient ` #` est coupé sans bruit, donc le hub peut démarrer sur un autre fichier que celui voulu, comme pour un `:memory:` laissé par erreur (#63) ; (b) le CDC s'appuie sur le comportement d'une bibliothèque sans le figer dans le code ; (c) les cas n'ont pas été sondés sur le seed lui-même.
