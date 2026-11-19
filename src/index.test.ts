@@ -483,6 +483,28 @@ const NOT_BLANK_CHARACTERS: Array<[string, string]> = [
     ['U+180E', '\u180E']
 ]
 
+// Beyond U+3100 (decision #61): none of these is in the closed list of 25 blanks, so each one alone is a one-character path.
+// U+3101 is the first character above U+3100, U+FF21 a full-width letter (Basic Multilingual Plane), U+1F600 a character outside
+// the BMP (two UTF-16 code units). Which characters are sampled is an implementation choice, not an observable behaviour.
+const BEYOND_U3100_CHARACTERS: Array<[string, string]> = [
+    ['U+3101', '\u3101'],
+    ['U+FF21', '\uFF21'],
+    ['U+1F600', '\u{1F600}']
+]
+// A file system that cannot hold a name cannot prove the test: it is skipped explicitly (title and skipIf), never faked. The probe creates the file in a temporary directory.
+function filesystemKeepsTheName(character: string): boolean {
+    const probeDirectory = mkdtempSync(join(tmpdir(), 'quiz-name-probe-'))
+    try {
+        writeFileSync(join(probeDirectory, character), '')
+        const names = readdirSync(probeDirectory)
+        return names.length === 1 && names[0] === character
+    } catch {
+        return false
+    } finally {
+        rmSync(probeDirectory, { recursive: true, force: true })
+    }
+}
+
 const SQLITE_DB_PATH_REFUSAL = 'Server starting failed: SQLITE_DB_PATH cannot be empty or made only of whitespace.'
 // Any message that gives the cause the system gives: a non-empty cause after the prefix.
 const STARTUP_FAILURE = /^Server starting failed: \S/m
@@ -526,6 +548,19 @@ describe('hub startup: SQLITE_DB_PATH', () => {
         expect(hub.errors()).not.toContain('SQLITE_DB_PATH')
         expect(readdirSync(workDirectory)).toEqual([character])
     }, TEST_TIMEOUT_MS)
+
+    for (const [name, character] of BEYOND_U3100_CHARACTERS) {
+        it.skipIf(!filesystemKeepsTheName(character))('US-001/CA-10 does not refuse ' + name + ' alone, beyond U+3100: the hub listens and announces its start, and a file named by this one character is created (skipped when the file system cannot hold this name)', async () => {
+            const port = await freePort()
+            const hub = startHub(String(port), { SQLITE_DB_PATH: character })
+    
+            await waitUntilListening(hub, port)
+            await waitForStartupAnnouncement(hub, port)
+    
+            expect(hub.errors()).not.toContain('SQLITE_DB_PATH')
+            expect(readdirSync(workDirectory)).toEqual([character])
+        }, TEST_TIMEOUT_MS)
+    }
 
     it('US-001/CA-10 does not repeat the blank value in the message', async () => {
         const hub = startHub(String(await freePort()), { SQLITE_DB_PATH: '\t\t\t' })

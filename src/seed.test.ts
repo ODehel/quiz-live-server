@@ -80,6 +80,28 @@ const NOT_BLANK_CHARACTERS: Array<[string, string]> = [
     ['U+180E', '\u180E']
 ]
 
+// Beyond U+3100 (decision #61): none of these is in the closed list of 25 blanks, so each one alone is a one-character path.
+// U+3101 is the first character above U+3100, U+FF21 a full-width letter (Basic Multilingual Plane), U+1F600 a character outside
+// the BMP (two UTF-16 code units). Which characters are sampled is an implementation choice, not an observable behaviour.
+const BEYOND_U3100_CHARACTERS: Array<[string, string]> = [
+    ['U+3101', '\u3101'],
+    ['U+FF21', '\uFF21'],
+    ['U+1F600', '\u{1F600}']
+]
+// A file system that cannot hold a name cannot prove the test: it is skipped explicitly (title and skipIf), never faked.
+function filesystemKeepsTheName(character: string): boolean {
+    const probeDirectory = mkdtempSync(join(tmpdir(), 'quiz-name-probe-'))
+    try {
+        writeFileSync(join(probeDirectory, character), '')
+        const names = readdirSync(probeDirectory)
+        return names.length === 1 && names[0] === character
+    } catch {
+        return false
+    } finally {
+        rmSync(probeDirectory, { recursive: true, force: true })
+    }
+}
+
 describe('seed: SQLITE_DB_PATH', () => {
     it.each(BLANK_PATHS)('US-002/CA-8 refuses to run when SQLITE_DB_PATH is %s: exit code 1, the message on the error output, nothing created', (_name, blankPath) => {
         const result = seed(blankPath)
@@ -97,6 +119,16 @@ describe('seed: SQLITE_DB_PATH', () => {
         expect(readdirSync(workDirectory)).toEqual([character])
         expect(countAccounts(join(workDirectory, character))).toBe(11)
     }, TEST_TIMEOUT_MS)
+
+    for (const [name, character] of BEYOND_U3100_CHARACTERS) {
+        it.skipIf(!filesystemKeepsTheName(character))('US-002/CA-8 does not refuse ' + name + ' alone, beyond U+3100: exit code 0, empty outputs, a file named by this one character holds the accounts (skipped when the file system cannot hold this name)', () => {
+            const result = seed(character)
+
+            expect(result).toEqual({ status: 0, stdout: '', stderr: '' })
+            expect(readdirSync(workDirectory)).toEqual([character])
+            expect(countAccounts(join(workDirectory, character))).toBe(11)
+        }, TEST_TIMEOUT_MS)
+    }
 
     it('US-002/CA-8 does not repeat the blank value in the message', () => {
         const result = seed('\t\t\t')
