@@ -171,10 +171,11 @@ comportement cassé en production réelle.
     quand l'environnement réel n'a pas la variable (code `1`, message sur la sortie
     d'erreur sans valeur, rien n'écoute, aucun fichier de base créé) ; ignoré quand
     l'environnement réel porte un chemin valide (le hub écoute, la base est créée au chemin
-    réel, décision #52). **Limite dite** : la façon dont un `.env` écrit des blancs
-    (valeur non quotée, guillemets, ` #`) et `:memory:` dans un `.env` est spécifiée depuis
-    le 2026-11-19 (constat reporté, décision #71) mais non testée sur processus réel
-    (dette `DEBTS.md`).
+    réel, décision #52). L'écriture des blancs, des guillemets doubles et du ` #` dans un `.env`, et `:memory:` dans
+    un `.env`, sont prouvées sur processus réel depuis le 2026-11-19 (décision #71, constat
+    reporté ; ces constats dépendent de `dotenv` 17.4.0). **Limite dite** : le seed n'a pas
+    été sondé séparément avec un `.env`, et les guillemets simples et les accents graves ne
+    sont pas prouvés sur processus réel (dette `DEBTS.md`).
 - **Partiels (1)** :
   - **CA-4** (repli `localhost:<PORT>`) : `server.test.ts` (`describe('CA-4`) prouve le
     repli sans interface, avec seulement loopback et IPv6, et avec le port configuré
