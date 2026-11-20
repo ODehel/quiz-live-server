@@ -703,6 +703,8 @@ describe('hub startup: SQLITE_DB_PATH written in a .env file', () => {
     }, TEST_TIMEOUT_MS)
 })
 
+const ENV_FILE_VALID_SECRET = 'e'.repeat(32)
+
 describe('hub startup: JWT_SECRET', () => {
     // 31 characters: one short of the rule, and a value no other message of the hub may repeat.
     const TOO_SHORT_SECRET = 'k'.repeat(31)
@@ -731,7 +733,6 @@ describe('hub startup: JWT_SECRET', () => {
 
     // The .env file is read at startup and the real environment prevails over it (CONVENTIONS-TECHNIQUES, US-003 CA-19).
     // Two distinct values: the one of the .env file, valid or not, must never be mistaken for the one of the real environment.
-    const ENV_FILE_VALID_SECRET = 'e'.repeat(32)
 
     it('US-001/CA-1 reads JWT_SECRET from a .env file in the working directory when the real environment has none: the hub listens and announces its startup', async () => {
         const port = await freePort()
@@ -776,6 +777,41 @@ describe('hub startup: JWT_SECRET', () => {
         expect(hub.console()).not.toContain('Listening on')
         expect(await canConnect(port)).toBe(false)
         expect(readdirSync(workDirectory)).toEqual(['.env'])
+    }, TEST_TIMEOUT_MS)
+})
+
+// US-001/CA-1, US-003/CA-19 and decision #76 on the real process: `.env.example` copied to `.env` without any edit is refused by the hub,
+// because JWT_SECRET has no value. The wording after the prefix is not normative (US-003 CA-19 gives an example): the tests fix the prefix,
+// the name of the variable, the exit code, the empty standard output and that nothing listens. env-example.test.ts proves the content of the
+// model; the test is here because it needs the helpers of the real process (the environment is explicit: no JWT_* or SEED_* variable comes from
+// the machine, the model alone writes them). The control run only gives JWT_SECRET a valid value in the copy and is accepted: it proves that the
+// .env file is read (any other failure would give the same exit code), and that the empty JWT_SECRET alone made the difference.
+describe('hub startup: an unedited copy of .env.example', () => {
+    const MODEL = readFileSync(resolve(__dirname, '../.env.example'), 'utf8')
+
+    it('US-001/CA-1 is refused: exit code 1, the prefix and JWT_SECRET on the error output, nothing on the standard output, nothing listens', async () => {
+        const port = await freePort()
+        writeFileSync(join(workDirectory, '.env'), MODEL)
+        const hub = startHub(String(port), { JWT_SECRET: undefined })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toMatch(/^Server starting failed: /m)
+        expect(hub.errors()).toContain('JWT_SECRET')
+        expect(hub.standardOutput()).toBe('')
+        expect(await canConnect(port)).toBe(false)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-1 starts once JWT_SECRET has a valid value in the copy: the hub listens and announces its startup', async () => {
+        const port = await freePort()
+        writeFileSync(join(workDirectory, '.env'), MODEL.replace(/^JWT_SECRET=.*$/m, 'JWT_SECRET=' + ENV_FILE_VALID_SECRET))
+        const hub = startHub(String(port), { JWT_SECRET: undefined })
+
+        await waitUntilListening(hub, port)
+        await waitForStartupAnnouncement(hub, port)
+
+        expect(withoutNodeWarnings(hub.errors())).not.toMatch(STARTUP_FAILURE_MARK)
     }, TEST_TIMEOUT_MS)
 })
 
