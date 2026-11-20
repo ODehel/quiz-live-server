@@ -351,13 +351,14 @@ comportement cassé en production réelle.
     afficher ; aucun test ne couvre le cas ; l'écart est inscrit dans `DEBTS.md`
     (`infrastructure/ & composition`, « Seed (US-002) : bornes du CA-4 non testées,
     atomicité de l'idempotence non couverte et non spécifiée »).
-  - **UUIDv7** (périmètre de la spec) : onze identifiants de version 7 sondés ; aucun test ne
-    vérifie la forme des identifiants insérés. L'écart est inscrit dans `DEBTS.md`
-    (`infrastructure/ & composition`, « Seed (US-002) : forme des identifiants insérés et
-    `.env` non versionné, non testés »).
+  - **UUIDv7** (périmètre de la spec) : onze identifiants de version 7 sondés, puis prouvés par
+    `seed-users.test.ts` (bloc « identifiants stockés » : onze `USR_ID` relus en base, version 7
+    et distincts ; mutation `uuidv7()` remplacé par `randomUUID()` tuée). Plus d'écart inscrit
+    sur ce point.
   - **`.env` non versionné** (CA-2, « Format du fichier `.env` ») : `.gitignore` porte `.env` et
     seul `.env.example` est suivi par git (constaté à la main ; aucun test). Même ligne de
-    `DEBTS.md` que le point UUIDv7.
+    `DEBTS.md` (`infrastructure/ & composition`, « Seed (US-002) : `.env` non versionné, non
+    testé »).
 
 ### US-003 — Token d'authentification (18 CA)
 
