@@ -554,6 +554,92 @@ describe('seed: passwords', () => {
     })
 })
 
+// US-002/CA-6 and decision #74: BCRYPT_COST is an integer from 4 to 31 written in ASCII digits only, without a leading zero; absent or an
+// empty string, it is 12. Anything else that is set (blank-only values included) is refused. The wording after "User seeding failed: " is
+// not normative (CA-6): the tests fix the prefix, the name of the variable, the rule (the two bounds), the absence of the value, the exit
+// code, the empty standard output, the absence of a stack trace and that nothing is created. The bound 31 is not proved on the real process:
+// bcrypt at cost 31 takes hours, so the acceptance of 31 stays at the unit level (bcrypt-cost.test.ts, seed-users.test.ts; see DEBTS.md).
+describe('seed: BCRYPT_COST', () => {
+    const REFUSED_COSTS: Array<[string, string]> = [
+        ['abc', 'abc'],
+        ['12.5', '12.5'],
+        ['3, one under the minimum', '3'],
+        ['32, one over the maximum', '32'],
+        ['-1', '-1'],
+        ['12 with a leading space', ' 12'],
+        ['0', '0'],
+        ['4.0', '4.0'],
+        ['+5', '+5'],
+        ['004, a leading zero', '004'],
+        ['04, a leading zero', '04'],
+        ['an Arabic-Indic digit', '٤'],
+        ['an integer of twenty digits', '1'.repeat(20)],
+        ['a space alone', ' '],
+        ['a tab alone', '\t']
+    ]
+    // A message cannot be told to repeat a value that its own fixed words contain ("3" in "31", a space between two words, "0"): the
+    // absence of the value is proved on the values that no wording of the rule can contain by itself.
+    const DISTINCTIVE_REFUSED_COSTS = REFUSED_COSTS.filter(([, value]) => value.length > 1 || /[^\x20-\x7E]/.test(value))
+
+    function refusedRun(value: string) {
+        const databasePath = join(workDirectory, 'quiz.db')
+        return { result: seed(databasePath, { BCRYPT_COST: value }), databasePath }
+    }
+
+    // The cost bcrypt wrote in the stored hash: "$2b$<cost>$<salt and digest>".
+    function storedCosts(databasePath: string): number[] {
+        return accounts(databasePath).map(({ hash }) => {
+            const match = /^\$2b\$(\d{2})\$/.exec(hash)
+            expect(match, 'a bcrypt hash of the 2b family').not.toBeNull()
+            return Number(match![1])
+        })
+    }
+
+    it.each(REFUSED_COSTS)('US-002/CA-6 refuses %s: exit code 1, BCRYPT_COST and the rule named, nothing on the standard output, no account created', (_name, value) => {
+        const { result, databasePath } = refusedRun(value)
+
+        expect(result.status).toBe(1)
+        expect(result.stdout).toBe('')
+        expect(result.stderr).toMatch(FAILURE)
+        expect(result.stderr.split(/\r?\n/).filter(line => line.startsWith('User seeding failed'))).toHaveLength(1)
+        expect(result.stderr).not.toMatch(STACK_TRACE)
+        expect(result.stderr).toContain('BCRYPT_COST')
+        expect(result.stderr).toMatch(/\b4\b/)
+        expect(result.stderr).toMatch(/\b31\b/)
+        // The opening created the file and its table, the refusal came before any insertion, and the file is not deleted (decision #65).
+        expect(rowCounts(databasePath)).toEqual({ T_USER_USR: 0 })
+    }, TEST_TIMEOUT_MS)
+
+    it.each(DISTINCTIVE_REFUSED_COSTS)('US-002/CA-6 does not repeat the value in the message (%s)', (_name, value) => {
+        const { result } = refusedRun(value)
+
+        expect(result.status).toBe(1)
+        expect(result.stderr).not.toContain(value)
+    }, TEST_TIMEOUT_MS)
+
+    // 4 is the lowest cost, 10 an intermediate one. 31 is not run here (hours of computation, see above).
+    it.each([['4, the minimum', '4', 4], ['10, an intermediate value', '10', 10]] as const)('US-002/CA-6 accepts %s: exit code 0, the success line, eleven accounts hashed at this cost', (_name, value, cost) => {
+        const databasePath = join(workDirectory, 'quiz.db')
+
+        const result = seed(databasePath, { BCRYPT_COST: value })
+
+        expectCreatedSeed(result)
+        expect(countAccounts(databasePath)).toBe(11)
+        expect(storedCosts(databasePath)).toEqual(Array(11).fill(cost))
+    }, TEST_TIMEOUT_MS)
+
+    // 12 is an implementation choice observable through the database only: the cost written in the stored hash (eleven hashes at cost 12 take a few seconds).
+    it.each([['not defined', undefined], ['an empty string', '']] as const)('US-002/CA-6 uses the cost 12 when BCRYPT_COST is %s: exit code 0, the success line, eleven accounts hashed at cost 12', (_name, value) => {
+        const databasePath = join(workDirectory, 'quiz.db')
+
+        const result = seed(databasePath, { BCRYPT_COST: value })
+
+        expectCreatedSeed(result)
+        expect(countAccounts(databasePath)).toBe(11)
+        expect(storedCosts(databasePath)).toEqual(Array(11).fill(12))
+    }, TEST_TIMEOUT_MS)
+})
+
 // How a .env file writes SQLITE_DB_PATH for the seed (US-002 CA-8, "Origine de la valeur", decision #71, point 2). The rule bears on the value
 // the process receives; the .env file is read by the `dotenv` library (17.4.0), loaded by `import 'dotenv/config'` as for the hub, and what
 // these tests observe on the real process (unquoted values trimmed, quoted values kept, " #" starting a comment) is what that library does,
