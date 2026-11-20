@@ -165,19 +165,21 @@ Les noms des onze variables sont fixés par le [tableau des variables d'environn
 Le fichier `.env` doit être créé à la racine du projet. Il n'est **pas versionné** (ajouté au `.gitignore`).
 
 ```dotenv
-# Mots de passe du seed — NE PAS VERSIONNER CE FICHIER
-SEED_PASSWORD_ADMIN=<mot_de_passe_admin_min_12_car>
-SEED_PASSWORD_BUZZER_01=<mot_de_passe_buzzer_01_min_12_car>
-SEED_PASSWORD_BUZZER_02=<mot_de_passe_buzzer_02_min_12_car>
-SEED_PASSWORD_BUZZER_03=<mot_de_passe_buzzer_03_min_12_car>
-SEED_PASSWORD_BUZZER_04=<mot_de_passe_buzzer_04_min_12_car>
-SEED_PASSWORD_BUZZER_05=<mot_de_passe_buzzer_05_min_12_car>
-SEED_PASSWORD_BUZZER_06=<mot_de_passe_buzzer_06_min_12_car>
-SEED_PASSWORD_BUZZER_07=<mot_de_passe_buzzer_07_min_12_car>
-SEED_PASSWORD_BUZZER_08=<mot_de_passe_buzzer_08_min_12_car>
-SEED_PASSWORD_BUZZER_09=<mot_de_passe_buzzer_09_min_12_car>
-SEED_PASSWORD_BUZZER_10=<mot_de_passe_buzzer_10_min_12_car>
+# Modèle du .env du seed : copier en .env (non versionné), puis remplacer chaque valeur
+SEED_PASSWORD_ADMIN=<a_changer>
+SEED_PASSWORD_BUZZER_01=<a_changer>
+SEED_PASSWORD_BUZZER_02=<a_changer>
+SEED_PASSWORD_BUZZER_03=<a_changer>
+SEED_PASSWORD_BUZZER_04=<a_changer>
+SEED_PASSWORD_BUZZER_05=<a_changer>
+SEED_PASSWORD_BUZZER_06=<a_changer>
+SEED_PASSWORD_BUZZER_07=<a_changer>
+SEED_PASSWORD_BUZZER_08=<a_changer>
+SEED_PASSWORD_BUZZER_09=<a_changer>
+SEED_PASSWORD_BUZZER_10=<a_changer>
 ```
+
+> **Placeholder `<a_changer>`** (décision #75, choix de rédaction du modèle, pas une règle de comportement) — `<a_changer>` compte 11 caractères, un de moins que le minimum de 12 du CA-4 : un `.env` copié de ce modèle sans être édité est refusé par le seed au titre du CA-4 (code de sortie `1`, sortie standard vide, sortie d'erreur `User seeding failed: ` suivie d'un message qui nomme un seul compte, aucun compte créé), au lieu de créer onze comptes à mots de passe publics. Le seed ne change pas : il ne connaît pas ce placeholder et n'applique que le CA-4. Un placeholder « de la bonne longueur » (par exemple `<mot_de_passe_admin_min_12_car>`, 31 caractères) passerait le CA-4 et serait accepté. **Lien avec le CA-4** : si le minimum du CA-4 change un jour, le placeholder doit changer avec lui, et rester plus court que le nouveau minimum.
 
 > ⚠️ **Sécurité** — Ne jamais committer le fichier `.env` dans le dépôt Git. Utiliser `.env.example` (avec des valeurs fictives) comme modèle versionné.
 
@@ -213,7 +215,7 @@ Le script vérifie l'état de la table `T_USER_USR` **avant** toute insertion. S
 
 ### Sécurité des mots de passe
 
-Les mots de passe ne doivent **jamais** apparaître dans les logs, les messages d'erreur ou le code source. Le fichier `.env` doit figurer dans `.gitignore`. Le fichier `.env.example` fourni dans le dépôt contient uniquement des valeurs fictives (ex. : `<mot_de_passe_admin_min_12_car>`).
+Les mots de passe ne doivent **jamais** apparaître dans les logs, les messages d'erreur ou le code source. Le fichier `.env` doit figurer dans `.gitignore`. Le fichier `.env.example` fourni dans le dépôt contient uniquement des valeurs fictives (ex. : `<a_changer>`, que le CA-4 refuse : voir la note sous le bloc dotenv, décision #75).
 
 ### Limite bcrypt à 72 caractères
 
