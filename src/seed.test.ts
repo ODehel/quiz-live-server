@@ -595,6 +595,29 @@ describe('seed: an unedited copy of .env.example', () => {
     }, TEST_TIMEOUT_MS)
 })
 
+// The cost bcrypt wrote in the stored hash: "$2b$<cost>$<salt and digest>".
+function storedCosts(databasePath: string): number[] {
+    return accounts(databasePath).map(({ hash }) => {
+        const match = /^\$2b\$(\d{2})\$/.exec(hash)
+        expect(match, 'a bcrypt hash of the 2b family').not.toBeNull()
+        return Number(match![1])
+    })
+}
+
+// US-002/CA-6: what a refused BCRYPT_COST looks like from outside, whatever the way it was written (the environment or a .env file).
+function expectRefusedCost(result: { status: number | null; stdout: string; stderr: string }, databasePath: string): void {
+    expect(result.status).toBe(1)
+    expect(result.stdout).toBe('')
+    expect(result.stderr).toMatch(FAILURE)
+    expect(result.stderr.split(/\r?\n/).filter(line => line.startsWith('User seeding failed'))).toHaveLength(1)
+    expect(result.stderr).not.toMatch(STACK_TRACE)
+    expect(result.stderr).toContain('BCRYPT_COST')
+    expect(result.stderr).toMatch(/\b4\b/)
+    expect(result.stderr).toMatch(/\b31\b/)
+    // The opening created the file and its table, the refusal came before any insertion, and the file is not deleted (decision #65).
+    expect(rowCounts(databasePath)).toEqual({ T_USER_USR: 0 })
+}
+
 // US-002/CA-6 and decision #74: BCRYPT_COST is an integer from 4 to 31 written in ASCII digits only, without a leading zero; absent or an
 // empty string, it is 12. Anything else that is set (blank-only values included) is refused. The wording after "User seeding failed: " is
 // not normative (CA-6): the tests fix the prefix, the name of the variable, the rule (the two bounds), the absence of the value, the exit
@@ -627,28 +650,10 @@ describe('seed: BCRYPT_COST', () => {
         return { result: seed(databasePath, { BCRYPT_COST: value }), databasePath }
     }
 
-    // The cost bcrypt wrote in the stored hash: "$2b$<cost>$<salt and digest>".
-    function storedCosts(databasePath: string): number[] {
-        return accounts(databasePath).map(({ hash }) => {
-            const match = /^\$2b\$(\d{2})\$/.exec(hash)
-            expect(match, 'a bcrypt hash of the 2b family').not.toBeNull()
-            return Number(match![1])
-        })
-    }
-
     it.each(REFUSED_COSTS)('US-002/CA-6 refuses %s: exit code 1, BCRYPT_COST and the rule named, nothing on the standard output, no account created', (_name, value) => {
         const { result, databasePath } = refusedRun(value)
 
-        expect(result.status).toBe(1)
-        expect(result.stdout).toBe('')
-        expect(result.stderr).toMatch(FAILURE)
-        expect(result.stderr.split(/\r?\n/).filter(line => line.startsWith('User seeding failed'))).toHaveLength(1)
-        expect(result.stderr).not.toMatch(STACK_TRACE)
-        expect(result.stderr).toContain('BCRYPT_COST')
-        expect(result.stderr).toMatch(/\b4\b/)
-        expect(result.stderr).toMatch(/\b31\b/)
-        // The opening created the file and its table, the refusal came before any insertion, and the file is not deleted (decision #65).
-        expect(rowCounts(databasePath)).toEqual({ T_USER_USR: 0 })
+        expectRefusedCost(result, databasePath)
     }, TEST_TIMEOUT_MS)
 
     it.each(DISTINCTIVE_REFUSED_COSTS)('US-002/CA-6 does not repeat the value in the message (%s)', (_name, value) => {
@@ -678,6 +683,82 @@ describe('seed: BCRYPT_COST', () => {
         expectCreatedSeed(result)
         expect(countAccounts(databasePath)).toBe(11)
         expect(storedCosts(databasePath)).toEqual(Array(11).fill(12))
+    }, TEST_TIMEOUT_MS)
+})
+
+// US-002/CA-6 (and CA-2 for the reading of the .env file): BCRYPT_COST written in a .env file, proved on the real process. The .env file is read by
+// `dotenv` (17.4.0), loaded by `import 'dotenv/config'`, and the value checked is the one it produces (CONVENTIONS-TECHNIQUES, decisions #52
+// and #71): what these tests observe for the blanks (unquoted, `dotenv` reads the empty string; between `"`, `'` or a backtick, it keeps the
+// blanks) is what that library does, probed on the seed before being asserted, and each outcome follows a rule of CA-6 (the empty string is
+// absent, so 12; a value made only of blanks is refused). A new `dotenv` version that changed it would show up here and must be observed again.
+// BCRYPT_COST is removed from the real environment of the child process (the other tests fix it to 4), so that the .env file alone writes it,
+// except in the two tests of priority; the eleven passwords stay in the real environment. As above, 31 is not run (hours of computation).
+describe('seed: BCRYPT_COST written in a .env file', () => {
+    function seedWithEnvFile(line: string, realCost: string | undefined = undefined) {
+        const databasePath = join(workDirectory, 'quiz.db')
+        writeFileSync(join(workDirectory, '.env'), line + '\n')
+        return { result: seed(databasePath, { BCRYPT_COST: realCost }), databasePath }
+    }
+
+    it.each([['4, the minimum', '4', 4], ['10, an intermediate value', '10', 10]] as const)('US-002/CA-6 accepts %s written in a .env file: exit code 0, the success line, eleven accounts hashed at this cost', (_name, value, cost) => {
+        const { result, databasePath } = seedWithEnvFile('BCRYPT_COST=' + value)
+
+        expectCreatedSeed(result)
+        expect(countAccounts(databasePath)).toBe(11)
+        expect(storedCosts(databasePath)).toEqual(Array(11).fill(cost))
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['abc', 'abc'],
+        ['12.5', '12.5'],
+        ['3, one under the minimum', '3'],
+        ['32, one over the maximum', '32'],
+        ['004, a leading zero', '004'],
+        ['0', '0'],
+        ['-1', '-1']
+    ])('US-002/CA-6 refuses %s written in a .env file: exit code 1, BCRYPT_COST and the rule named, nothing on the standard output, no account created', (_name, value) => {
+        const { result, databasePath } = seedWithEnvFile('BCRYPT_COST=' + value)
+
+        expectRefusedCost(result, databasePath)
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['an empty BCRYPT_COST=', 'BCRYPT_COST='],
+        ['unquoted spaces, read empty by dotenv', 'BCRYPT_COST=   '],
+        ['an unquoted tab, read empty by dotenv', 'BCRYPT_COST=\t']
+    ])('US-002/CA-6 uses the cost 12 when the .env file writes %s: exit code 0, the success line, eleven accounts hashed at cost 12', (_name, line) => {
+        const { result, databasePath } = seedWithEnvFile(line)
+
+        expectCreatedSeed(result)
+        expect(countAccounts(databasePath)).toBe(11)
+        expect(storedCosts(databasePath)).toEqual(Array(11).fill(12))
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['spaces between double quotes', 'BCRYPT_COST="   "'],
+        ['spaces between single quotes', "BCRYPT_COST='   '"],
+        ['spaces between backticks', 'BCRYPT_COST=`   `'],
+        ['a tab between double quotes', 'BCRYPT_COST="\t"'],
+        ['a tab between single quotes', "BCRYPT_COST='\t'"],
+        ['a tab between backticks', 'BCRYPT_COST=`\t`']
+    ])('US-002/CA-6 refuses a BCRYPT_COST made only of blanks, kept by dotenv: %s: exit code 1, BCRYPT_COST and the rule named, no account created', (_name, line) => {
+        const { result, databasePath } = seedWithEnvFile(line)
+
+        expectRefusedCost(result, databasePath)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-002/CA-6 prefers the BCRYPT_COST of the real environment to an invalid one of the .env file (decision #52): exit code 0, eleven accounts hashed at the cost of the real environment', () => {
+        const { result, databasePath } = seedWithEnvFile('BCRYPT_COST=abc', '4')
+
+        expectCreatedSeed(result)
+        expect(countAccounts(databasePath)).toBe(11)
+        expect(storedCosts(databasePath)).toEqual(Array(11).fill(4))
+    }, TEST_TIMEOUT_MS)
+
+    it('US-002/CA-6 refuses an invalid BCRYPT_COST of the real environment even when the .env file writes a valid one (decision #52): exit code 1, no account created', () => {
+        const { result, databasePath } = seedWithEnvFile('BCRYPT_COST=4', 'abc')
+
+        expectRefusedCost(result, databasePath)
     }, TEST_TIMEOUT_MS)
 })
 
