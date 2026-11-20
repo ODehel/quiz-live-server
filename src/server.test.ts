@@ -60,12 +60,10 @@ const mockNetwork: Network = {
 	})
 }
 
-const port: number = 3000
-
 const mockQuizServerConfiguration: QuizServerConfiguration = {
 	clock: mockClock,
 	network: mockNetwork,
-	port: port,
+	port: 0, // le système choisit un port libre à chaque start() : un port fixe (3000) entre en collision avec les autres fichiers de la suite, lancés en parallèle (le hub de index.test.ts écoute sur 3000)
 	rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: 1000 }) }
 }
 
@@ -161,6 +159,13 @@ async function reserveFreePort(): Promise<number> {
 	return port
 }
 
+// Pour les tests qui lisent le numéro de port dans un message (3000, le port par défaut du hub) : ils n'ont pas besoin d'un vrai socket,
+// et ouvrir le 3000 pour un message ferait dépendre le test de la disponibilité de ce port.
+function withoutListening(server: QuizServer): QuizServer {
+	vi.spyOn(server['app'], 'listen').mockResolvedValue(undefined)
+	return server
+}
+
 const firstExternalIPv4Address = Object.values(networkInterfaces()).flat()
 	.find(iface => iface?.family === 'IPv4' && !iface.internal)?.address
 
@@ -235,16 +240,18 @@ describe('CA-3 - La console affiche l`adresse IP et le port', () => {
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
 	})
 	it('should display the IP address and the port within console', async () => {
+		await server.stop()
+		server = withoutListening(aServerOn(mockNetwork, 3000))
 		await server.start()
 		expect(spy).toHaveBeenCalledWith('📡 Listening on http://192.168.1.42:3000')
 	})
 	it('should display the first non loopback IPv4 address when several interfaces are found', async () => {
 		await server.stop()
-		server = aServerOn(aNetworkWith({
+		server = withoutListening(aServerOn(aNetworkWith({
 			'lo': [anInterface('127.0.0.1', 'IPv4', true)],
 			'eth0': [anInterface('fe80::1', 'IPv6', false), anInterface('192.168.1.42', 'IPv4', false)],
 			'wlan0': [anInterface('10.0.0.7', 'IPv4', false)]
-		}), 3000)
+		}), 3000))
 		await server.start()
 		expect(spy).toHaveBeenCalledWith('📡 Listening on http://192.168.1.42:3000')
 	})
@@ -270,7 +277,7 @@ describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 	beforeEach(() => {
 		spy = vi.spyOn(console, 'log')
 		spy.mockClear() // les appels des autres blocs ne doivent pas valider ces assertions
-		server = aServerOn(aNetworkWith({}), 3000)
+		server = withoutListening(aServerOn(aNetworkWith({}), 3000))
 	})
 	it('should display a fallback message if no IP address is found', async () => {
 		await server.start()
@@ -278,10 +285,10 @@ describe('CA-4 - Message de fallback si pas d`adresse IP trouvée', () => {
 	})
 	it('should display the fallback message if only loopback and IPv6 interfaces are found', async () => {
 		await server.stop()
-		server = aServerOn(aNetworkWith({
+		server = withoutListening(aServerOn(aNetworkWith({
 			'lo': [anInterface('127.0.0.1', 'IPv4', true)],
 			'eth0': [anInterface('fe80::1', 'IPv6', false)]
-		}), 3000)
+		}), 3000))
 		await server.start()
 		expect(spy).toHaveBeenCalledWith('⚠️ No network interface found, listening on http://localhost:3000')
 	})
