@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import bcrypt from 'bcryptjs'
 import Database from 'better-sqlite3'
 import { SqliteQuestionRepository } from './questions/sqlite-question-repository'
 import { SqliteThemeRepository } from './themes/sqlite-theme-repository'
@@ -707,6 +708,62 @@ describe('seed: SQLITE_DB_PATH written in a .env file', () => {
 
         expectCreatedSeed(result)
         expect(readdirSync(workDirectory).sort()).toEqual(['.env', 'from-environment.db'])
+    }, TEST_TIMEOUT_MS)
+})
+
+// US-002/CA-2: the passwords are read from environment variables (a .env file, not versioned), then hashed with bcrypt before insertion.
+// The .env file is read by `dotenv` (`import 'dotenv/config'`), which does not override the real environment (decision #52): proved here on
+// the real process, as for SQLITE_DB_PATH above (decision #71). The eleven variables are removed from the environment of the child process
+// (an override set to undefined), so that only the .env file of the temporary working directory can write them; no .env of the repository
+// is read, the working directory being the temporary one. BCRYPT_COST stays 4 in the real environment, as in every other test of the seed.
+// A stored hash is checked with the bcrypt library of the project against the password written for its own account.
+describe('seed: passwords written in a .env file', () => {
+    const LOGINS = ['admin', ...Array.from({ length: 10 }, (_, i) => `quiz_buzzer_${String(i + 1).padStart(2, '0')}`)]
+    const variableOf = (login: string): string => 'SEED_PASSWORD_' + login.replace(/^quiz_/, '').toUpperCase()
+    // One distinct password per account, so that a hash made from another account's password cannot match.
+    const envFilePasswordOf = (login: string): string => `from-the-env-file-${login}`
+    const ABSENT_FROM_THE_REAL_ENVIRONMENT = Object.fromEntries(LOGINS.map(login => [variableOf(login), undefined]))
+
+    function writeEnvFile(passwords: Record<string, string>): void {
+        writeFileSync(join(workDirectory, '.env'), LOGINS.map(login => `${variableOf(login)}=${passwords[login]}\n`).join(''))
+    }
+
+    function storedHashOf(databasePath: string, login: string): string {
+        const account = accounts(databasePath).find(candidate => candidate.login === login)
+        expect(account, `the account ${login} is stored`).toBeDefined()
+        return account!.hash
+    }
+
+    it('US-002/CA-2 reads the eleven passwords from a .env file, absent from the real environment, and stores each as a bcrypt hash of the password written for its account', () => {
+        const databasePath = join(workDirectory, 'quiz.db')
+        writeEnvFile(Object.fromEntries(LOGINS.map(login => [login, envFilePasswordOf(login)])))
+
+        const result = seed(databasePath, ABSENT_FROM_THE_REAL_ENVIRONMENT)
+
+        expectCreatedSeed(result)
+        expect(accounts(databasePath).map(account => account.login).sort()).toEqual([...LOGINS].sort())
+        for (const login of LOGINS) {
+            const hash = storedHashOf(databasePath, login)
+            expect(hash, `${login}: not the password in clear`).not.toBe(envFilePasswordOf(login))
+            expect(hash, `${login}: a bcrypt hash`).toMatch(/^\$2[abxy]\$\d{2}\$/)
+            expect(bcrypt.compareSync(envFilePasswordOf(login), hash), `${login}: the hash matches the password of its .env line`).toBe(true)
+        }
+    }, TEST_TIMEOUT_MS)
+
+    it.each(['admin', 'quiz_buzzer_10'])('US-002/CA-2 prefers the password of the real environment to the one of the .env file for the same variable (%s): the stored hash matches the real one, the other accounts still come from the .env file (decision #52)', (login) => {
+        const databasePath = join(workDirectory, 'quiz.db')
+        const realPassword = `from-the-real-environment-${login}`
+        writeEnvFile(Object.fromEntries(LOGINS.map(other => [other, envFilePasswordOf(other)])))
+
+        const result = seed(databasePath, { ...ABSENT_FROM_THE_REAL_ENVIRONMENT, [variableOf(login)]: realPassword })
+
+        expectCreatedSeed(result)
+        const hash = storedHashOf(databasePath, login)
+        expect(bcrypt.compareSync(realPassword, hash), 'the hash matches the password of the real environment').toBe(true)
+        expect(bcrypt.compareSync(envFilePasswordOf(login), hash), 'the hash does not match the password of the .env file').toBe(false)
+        for (const other of LOGINS.filter(candidate => candidate !== login)) {
+            expect(bcrypt.compareSync(envFilePasswordOf(other), storedHashOf(databasePath, other)), `${other}: read from the .env file`).toBe(true)
+        }
     }, TEST_TIMEOUT_MS)
 })
 
