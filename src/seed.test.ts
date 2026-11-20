@@ -555,6 +555,46 @@ describe('seed: passwords', () => {
     })
 })
 
+// US-002/CA-4 and decision #75 on the real process: `.env.example` copied to `.env` without any edit is refused by the seed. The placeholders
+// are a choice of wording of the model (each one character shorter than the minimum of CA-4), not a rule of the seed: the test only proves
+// the effect, which is that of CA-4 (exit code 1, empty standard output, the prefix on the error output, one account named, no account
+// created). The wording after the prefix and the account named are not normative, so neither is asserted beyond "one account".
+// env-example.test.ts proves the content of the model; the test is here because it needs the helpers of the real process (the environment
+// is isolated, and the eleven passwords come from the copied file alone). The control run edits the copy and is accepted: it proves that the
+// .env file is read (a missing password would give the same exit code and prefix), and that only the placeholders made the difference.
+describe('seed: an unedited copy of .env.example', () => {
+    const LOGINS = ['admin', ...Array.from({ length: 10 }, (_, i) => `quiz_buzzer_${String(i + 1).padStart(2, '0')}`)]
+    const ABSENT_FROM_THE_REAL_ENVIRONMENT = Object.fromEntries(LOGINS.map(login => ['SEED_PASSWORD_' + login.replace(/^quiz_/, '').toUpperCase(), undefined]))
+    const MODEL = readFileSync(resolve(__dirname, '../.env.example'), 'utf8')
+
+    it('US-002/CA-4 is refused: exit code 1, empty standard output, one account named, no account created', () => {
+        const databasePath = join(workDirectory, 'quiz.db')
+        writeFileSync(join(workDirectory, '.env'), MODEL)
+
+        const result = seed(databasePath, ABSENT_FROM_THE_REAL_ENVIRONMENT)
+
+        expect(result.status).toBe(1)
+        expect(result.stdout).toBe('')
+        expect(result.stderr).toMatch(FAILURE)
+        expect(result.stderr.split(/\r?\n/).filter(line => line.startsWith('User seeding failed'))).toHaveLength(1)
+        expect(result.stderr).not.toMatch(STACK_TRACE)
+        expect(LOGINS.filter(login => result.stderr.includes(login))).toHaveLength(1)
+        expect(rowCounts(databasePath)).toEqual({ T_USER_USR: 0 })
+    }, TEST_TIMEOUT_MS)
+
+    it('US-002/CA-4 is accepted once each placeholder is replaced by a valid password: exit code 0, the success line, eleven accounts', () => {
+        const databasePath = join(workDirectory, 'quiz.db')
+        let count = 0
+        writeFileSync(join(workDirectory, '.env'), MODEL.replace(/<a_changer>/g, () => `an-edited-password-${++count}`))
+
+        const result = seed(databasePath, ABSENT_FROM_THE_REAL_ENVIRONMENT)
+
+        expectCreatedSeed(result)
+        expect(count).toBe(11)
+        expect(countAccounts(databasePath)).toBe(11)
+    }, TEST_TIMEOUT_MS)
+})
+
 // US-002/CA-6 and decision #74: BCRYPT_COST is an integer from 4 to 31 written in ASCII digits only, without a leading zero; absent or an
 // empty string, it is 12. Anything else that is set (blank-only values included) is refused. The wording after "User seeding failed: " is
 // not normative (CA-6): the tests fix the prefix, the name of the variable, the rule (the two bounds), the absence of the value, the exit
