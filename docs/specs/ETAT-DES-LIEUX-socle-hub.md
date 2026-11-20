@@ -1,12 +1,17 @@
 # État des lieux — Traçabilité du socle hub (US-001 → US-009)
 
-> **Datation : relevé du HEAD hub `5407e38`, réaligné en partie.** Seule la partie
-> **US-001** (§1, ligne US-001 et ligne Total ; §2, section US-001 ; §3, dette F ;
-> §4, décompte) est réalignée sur le réel au HEAD `25d2388` (2026-11-18).
-> Les parties **US-002, US-003, US-004 et US-009**, le **§0** (184 tests,
-> « US-005 à US-008 jamais implémentées ») et les dettes qui les concernent
-> restent celles du relevé daté et **ne sont plus à jour** (US-005 à US-008
-> existent aujourd'hui). Réalignement des autres US : une session par US.
+> **Datation : relevé du HEAD hub `5407e38`, réaligné en partie.** Sont réalignés sur le
+> réel au HEAD `ef7a221` (2026-11-20) : le **§0**, la partie **US-002** (§1, ligne US-002 ;
+> §2, section US-002), la ligne **Total** du §1, les **dettes A à E, G et H** (§3 ; la
+> dette F l'était déjà, avec une mention d'US-002 de plus) et le **§4**. La partie **US-001**
+> (§1 ligne US-001, §2 section US-001) reste celle du réalignement du HEAD `25d2388`,
+> tenue à jour jusqu'au 2026-11-18.
+> Les parties **US-003, US-004 et US-009** (leurs lignes du §1 et leurs sections du §2)
+> **restent celles du relevé daté (HEAD `5407e38`) et ne sont pas réalignées par cette
+> session** : plusieurs de leurs cellules sont connues périmées (US-003 CA-3, CA-11 et CA-16,
+> US-004 CA-19, CA-30 et CA-35 : voir les dettes A, C, E et H, soldées). La ligne Total
+> additionne les lignes telles qu'elles sont écrites ; elle n'est donc pas un état du réel
+> pour ces trois US. Réalignement des autres US : une session par US.
 
 > **Méthode : audit par implémentation réelle, pas par étiquette de test.**
 > Chaque CA a été confronté à trois sources : la **spec** (`docs/specs`),
@@ -15,27 +20,26 @@
 > exercé par une assertion qui mord — la seule présence d'un test étiqueté
 > `US-00X/CA-Y` ne suffit pas.
 >
-> **Le réel fait foi.** Ce document est daté ; il reflète l'état du dépôt au
-> moment de l'audit (HEAD hub `5407e38`). Toute évolution du code prime sur ce
-> récap : re-confronter avant de s'y fier.
+> **Le réel fait foi.** Ce document est daté ; chaque partie reflète l'état du dépôt à
+> la date de son audit ou de son réalignement (voir la datation ci-dessus). Toute
+> évolution du code prime sur ce récap : re-confronter avant de s'y fier.
 
 ---
 
 ## 0. Portée et faits de départ
 
-- **HEAD hub audité** : `5407e38` — `test(ws): reject an upgrade request on a path other than /ws`
-- **Tests au vert** : 184/184 (24 fichiers), `tsc --noEmit` propre.
-- **Réalignement partiel (2026-11-18)** : seule la partie US-001 est réalignée sur le réel au HEAD `25d2388` (1026 tests verts, 39 fichiers, sous Node 26). Le reste du §0 est celui du relevé daté (HEAD `5407e38`, 184 tests) et n'est plus à jour : US-005 à US-008 existent aujourd'hui.
-- **US auditées** : US-001, US-002, US-003, US-004, US-009 (les seules « prétendument faites »).
-- **US absentes du code ET du git log** : **US-005, US-006, US-007, US-008**
-  (questions CRUD/filtrage/patch, quiz CRUD) — ~148 CA jamais implémentés.
-  Le git log hub saute d'US-004 à US-009. Ce ne sont pas des défauts de
-  couverture : c'est du travail **jamais fait**, à *faire*, pas à *auditer*.
+- **HEAD hub audité** : `ef7a221` — `test(seed): prove BCRYPT_COST written in a .env file is read and checked on the real process (#166)` (`main`, 2026-11-20). Il vaut pour le §0, la partie US-002, les dettes A à E, G et H et le §4. Les autres parties gardent leur date : US-001 au HEAD `25d2388` (2026-11-18, tenue à jour jusqu'au même jour), US-003, US-004 et US-009 au HEAD `5407e38`.
+- **Tests au vert** : à `ef7a221`, sous Node 26.13.1 et sous root, `npx vitest run` donne 40 fichiers, **1201 verts et 22 sautés** (les tests de permissions : 12 de `seed.test.ts` et 10 de `index.test.ts`, sautés en root et sous Windows) ; `npx tsc --noEmit` et `npm run lint` sans erreur (code 0) ; seuils de couverture respectés (94,68 % d'instructions, 97,52 % de branches). Le run de la CI sur ce HEAD (`ubuntu-latest`, hors root, run 44785880839) donne **1223 verts, aucun sauté**. Le relevé daté (184 tests, 24 fichiers) et le réalignement US-001 du 2026-11-18 (1026 tests, 39 fichiers) sont périmés.
+- **US auditées par ce fichier** : US-001, US-002, US-003, US-004, US-009 (les seules « prétendument faites » au relevé daté). Les US livrées depuis ne sont pas auditées ici.
+- **US-005 à US-008** : le relevé daté les disait « absentes du code ET du git log » (~148 CA jamais implémentés). **C'est faux aujourd'hui pour US-005 seule.**
+  - **US-005 existe** : `POST`, `GET /`, `GET /:id`, `PUT` et `DELETE` de `/api/v1/questions` (`questions/question-route.ts`), son service et son repository ; au moins 48 des 55 CA de la spec ont un test dont le titre cite `US-005/CA-n` (comptage par déclaration ; il ne voit pas un second CA cité sans préfixe d'US, comme dans `CA-20 and CA-41`). **Elle n'est pas auditée par ce fichier** : aucune confrontation CA par CA, aucun jugement sur la solidité de ses assertions.
+  - **US-006, US-007 et US-008 ne sont pas implémentées** : `GET /api/v1/questions` ne lit que `page` et `limit` (pas de filtre, US-006), aucune route `PATCH` n'existe (US-007), ni route ni table de quiz (US-008) ; aucun test ne cite leurs CA. Soit 93 CA (18, 25 et 50), du travail à *faire*, pas à *auditer*. Le journal git n'a pas été relu : le clone de travail est en profondeur 1, ce que le relevé daté disait du journal (« saute d'US-004 à US-009 ») n'est ni confirmé ni infirmé.
 
 > ⚠️ **Conséquence de dépendance** : US-010 (créer une partie) référence un
-> `quiz_id` qui doit exister en base. Sans US-005 (questions) ni US-008 (quiz),
-> **aucune partie n'est jouable**. La chaîne réelle vers une partie jouable est :
-> **US-005 → US-008 → US-010 → US-011**.
+> `quiz_id` qui doit exister en base (CA-6 d'US-010 : `404 QUIZ_NOT_FOUND` sinon).
+> Sans US-008 (quiz), **aucune partie n'est jouable**. US-005 (questions) est en place ;
+> la chaîne qui reste vers une partie jouable est : **US-008 → US-010 → US-011**
+> (le relevé daté ajoutait US-005 en tête).
 
 ---
 
@@ -44,15 +48,23 @@
 | US | CA total | Solides | Partiels / non vérifiés | Trous réels | Faux verts |
 |----|:---:|:---:|:---:|:---:|:---:|
 | US-001 — server startup | 9  | 8   | CA-4                                 | —                          | —      |
-| US-002 — seed users     | 5  | 2   | CA-1 (noms), CA-2 (env + bcrypt)    | —                          | —      |
+| US-002 — seed users     | 9  | 8   | CA-4 (bornes U+001F / U+007F)       | —                          | —      |
 | US-003 — auth token     | 18 | ~9  | CA-3, 4, 11, 12, 13, 14, 15         | **CA-16 (405)**, **CA-17 (500)** | — |
 | US-004 — themes CRUD    | 40 | ~31 | CA-12 / 12a / 19 / 34               | **CA-35 (405)**            | **CA-30** |
 | US-009 — websocket      | 29 | ~25 | CA-12, 22, 26                       | —                          | —      |
-| **Total** | **101** | **~74** | **~18** | **4** | **1** |
+| **Total** | **105** | **~81** | **~16** | **3** | **1** |
 
 Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18), puis mise à jour après le
 `test(startup)` des permissions et de `EACCES`, puis après le `test(startup)` de `JWT_SECRET`
-et du `.env`, puis après celui de la création des tables du fichier de zéro octet (2026-11-18) ; les autres lignes sont celles du relevé daté (HEAD `5407e38`).
+et du `.env`, puis après celui de la création des tables du fichier de zéro octet (2026-11-18).
+Ligne US-002 réalignée sur le réel au HEAD `ef7a221` (2026-11-20) : la spec compte neuf CA (le
+relevé daté en comptait cinq), dont CA-5, CA de couverture compté solide au sens du seuil global
+(§2). **Les lignes US-003, US-004 et US-009 sont celles du relevé daté (HEAD `5407e38`), non
+réalignées.** La ligne **Total** est recalculée à partir des lignes telles qu'elles sont écrites
+(105 CA ; solides 8 + 8 + ~9 + ~31 + ~25 ; partiels 1 + 1 + 7 + 4 + 3 ; trous réels 2 + 1 ; faux
+vert 1) : elle compte donc encore trois trous réels (US-003 CA-16 et CA-17, US-004 CA-35) et un
+faux vert (US-004 CA-30), alors que deux de ces trous (CA-16 et CA-35) et le faux vert sont
+corrigés dans le code (dettes C et A, §3).
 
 Légende : *Solide* = comportement implémenté + vérifié par un test qui mord ·
 *Partiel* = implémenté mais vérification faible ou absente · *Trou réel* =
@@ -209,19 +221,141 @@ comportement cassé en production réelle.
     complètes lors de ce relevé (vert aux deux autres). Non corrigé : hors périmètre
     d'une session `docs(specs)`.
 
-### US-002 — Seed des utilisateurs (5 CA)
+### US-002 — Seed des utilisateurs (9 CA : CA-1 à CA-9)
 
-- **Solides (2)** : CA-3 (idempotence : `count≠0` → aucun insert),
-  CA-4 (politique OWASP : refuse et throw `"Invalid password"`).
-- **Partiels** :
-  - **CA-1** (11 comptes `quiz_buzzer_01..10` + admin) : le code génère bien les
-    noms (`padStart(2,'0')`), mais le test ne vérifie **que le compte (11
-    insertions)** — jamais les **noms** ni la répartition des rôles.
-  - **CA-2** (mots de passe lus depuis l'environnement, hashés bcrypt) : le test
-    passe un `mockEnvironment` en dur → prouve l'usage, **pas la lecture d'env** ;
-    le hasher est mocké → **bcrypt réel non prouvé** ici.
-- **Robustesse hors-CA** : contrainte SQL `USR_LOGIN ... UNIQUE` = ceinture-bretelles
-  sur l'idempotence.
+> **Section réalignée sur le réel au HEAD `ef7a221` (2026-11-20)**, avec la méthode du
+> fichier (spec, code de production, corps des tests). La spec compte neuf CA (le relevé
+> daté en comptait cinq) : CA-6 à CA-9 se sont ajoutés depuis (décisions citées dans la spec). Suite
+> concernée : `src/seed.test.ts` (processus réel : `tsx src/seed.ts` lancé en `spawnSync`,
+> environnement explicite, dossier de travail et base jetables), `src/users/seed-users.test.ts`
+> (service), `bcrypt-cost.test.ts`, `owasp-password-validator.test.ts`,
+> `sqlite-user-repository.test.ts`, `role-label.test.ts`, `common/process-environment.test.ts`,
+> `infrastructure/bcrypt-hasher.test.ts` et `env-example.test.ts` : 307 verts et 12 sautés
+> sous root (2026-11-20). Les 12 sautés sont les tests de permissions de `seed.test.ts`
+> (CA-9, base en lecture seule, décision #72) : root les ignore, Windows n'a pas les mêmes ;
+> ils s'exécutent en CI (1223 verts, aucun sauté sur ce HEAD). Un CA n'est *solide* que si
+> chacun de ses comportements est prouvé par une assertion qui mord. Les constats « sondé »
+> viennent d'un hub ou d'un seed lancé à la main le 2026-11-20 sur une base jetable, sonde non
+> committée ; les « mutants » sont des modifications de production rejouées sous les tests puis
+> annulées (aucun test n'est ajouté ni modifié par cette session).
+
+- **Solides (8)** :
+  - **CA-1** (onze comptes, ligne de succès) : sur processus réel, un seed sur base neuve
+    sort avec le code `0`, exactement une ligne non vide sur la sortie standard, la sortie
+    d'erreur vide, et cette ligne n'est ni un message d'échec ni celle du CA-7 ; le sens
+    (« les onze comptes ont été créés ») n'est pas assertable mot à mot : la décision #73 ne
+    fixe ni langue, ni nombre, ni ponctuation. Onze comptes en base, et le lancement suivant
+    d'une base laissée par un refus les crée (deux déclarations de `seed.test.ts` portent
+    `US-002/CA-1` ; `expectCreatedSeed`, qui fixe ces sorties, est appelée à 21 endroits du
+    même fichier). **Noms et rôles (périmé : « le test ne vérifie que le compte »)** : le test du CA-2 sur `.env` compare
+    l'ensemble des logins stockés à `admin` + `quiz_buzzer_01` à `quiz_buzzer_10` ; le rôle
+    (`admin` pour `admin`, `buzzer` pour les dix autres) est lu en base pour les onze comptes
+    par `seed-users.test.ts` (`describe` « Seed with the SQLite repository », vrai repository,
+    hasher simulé). Le processus réel n'asserte pas, lui, le rôle des comptes qu'il crée.
+  - **CA-2** (mots de passe lus de l'environnement, hachés avec bcrypt) : périmé : « le test
+    passe un `mockEnvironment` en dur » et « bcrypt réel non prouvé ». Sur processus réel, les
+    onze `SEED_PASSWORD_*` sont retirés de l'environnement réel et écrits dans un `.env` du
+    dossier de travail : chaque hash stocké n'est pas le mot de passe en clair, a la forme
+    `$2a|b|x|y$`, et `bcrypt.compareSync` (bibliothèque réelle) le rapproche du mot de passe
+    écrit pour son propre compte ; la variable de l'environnement réel l'emporte sur le `.env`
+    (`admin` et `quiz_buzzer_10`, décision #52). Au service : chaque compte reçoit son mot
+    de passe (`seed-users.test.ts`, hasher simulé) ; le coût passé au vrai `BcryptHasher` se
+    lit dans le hash (CA-6).
+  - **CA-3** (idempotence) : un second lancement avec d'autres mots de passe valides et un
+    autre `BCRYPT_COST` laisse les onze comptes identiques, hashs compris (coût `04` de la
+    première passe) ; les tests du CA-7 comparent en plus le fichier (sha256) avant et après.
+    Un seul compte déjà présent suffit à empêcher toute insertion (CA-7).
+  - **CA-5** (couverture ≥ 90 %) : CA de couverture. La spec du CA dit « couverture globale »
+    et la décision #67 en fait un seuil global appliqué par la CI : `vitest.config.ts` fixe 90
+    sur les quatre métriques, mesuré à 94,68 % d'instructions, 97,52 % de branches, 93,99 % de
+    fonctions et 94,74 % de lignes (2026-11-20), et la CI de ce HEAD est verte. Compté solide
+    à ce titre ; `seed.ts` reste à 0 % parce que le processus enfant n'est pas instrumenté
+    (comme `index.ts`), non parce qu'il n'est pas testé. La spec garde le CA et son bandeau
+    (dette de `DEBTS.md` : les CA de couverture restent à retirer, une session par lot).
+  - **CA-6** (`BCRYPT_COST`) : sur processus réel, quinze valeurs refusées (`abc`, `12.5`,
+    `3`, `32`, `-1`, ` 12`, `0`, `4.0`, `+5`, `004`, `04`, un chiffre arabo-indien, vingt
+    chiffres, une espace seule, une tabulation seule) : code `1`, sortie standard vide, une
+    seule ligne `User seeding failed: `, pas de pile, la variable et les deux bornes nommées,
+    aucun compte, fichier de base conservé avec sa table vide (décision #65) ; la valeur n'est
+    pas reprise dans le message ; `4` et `10` acceptés (le coût se lit dans le hash stocké) ;
+    absente ou vide, le coût est `12`. Les mêmes règles sont prouvées pour un `.env` (valeurs
+    acceptées et refusées, vide et blancs non quotés lus comme vide donc `12`, blancs quotés
+    refusés, priorité de l'environnement réel dans les deux sens). **Limite dite** : 31 n'est
+    pas prouvé sur processus (bcrypt à ce coût : des heures) ; il l'est aux unités
+    (`bcrypt-cost.test.ts`, `seed-users.test.ts`) : le mutant « maximum 31 → 30 » est tué par
+    deux tests (2026-11-20).
+  - **CA-7** (table non vide) : sur processus réel, un second lancement sort avec le code
+    `0`, une ligne sur la sortie standard, la sortie d'erreur vide, le fichier et les comptes
+    inchangés ; même ligne, même issue avec un mot de passe trop court, vide ou absent, un
+    `BCRYPT_COST` invalide ou les deux (le CA-7 passe avant les CA-4 et CA-6) ; une table qui
+    ne porte qu'un compte est ignorée aussi, avec ou sans fautes. Sur base en lecture seule
+    qui a ses comptes : même ligne, fichier et dossier intacts (décision #72, tests sautés en
+    root).
+  - **CA-8** (`SQLITE_DB_PATH` vide ou de blancs) : sur processus réel, la chaîne vide, chacun
+    des 25 blancs de la liste fermée, trois espaces et un mélange sont refusés (code `1`,
+    sortie standard vide, message du CA-8 sur la sortie d'erreur, aucun fichier créé), sans
+    reprendre la valeur, et seule l'erreur de `SQLITE_DB_PATH` est rapportée quand un mot de
+    passe et `BCRYPT_COST` sont faux aussi ; U+200B, U+0085 et U+180E seuls, puis U+3101,
+    U+FF21 et U+1F600 (sautés si le système de fichiers ne tient pas le nom) sont acceptés et
+    nomment le fichier ; ` :memory: ` réussit sans fichier ; les blancs de bordure sont
+    retirés. Le `.env` est prouvé sur le seed lui-même (décision #71) : blancs non quotés lus
+    comme vide donc refusés, blancs quotés refusés, sept écritures acceptées (blancs
+    intérieurs, ` #`, bordures retirées, valeur quotée, `:memory:` quoté ou non, U+200B), et
+    l'environnement réel l'emporte. Les règles de lecture : `process-environment.test.ts`
+    (4). Le test fixe le libellé d'exemple du CA-8 (`User seeding failed: SQLITE_DB_PATH cannot
+    be empty or made only of whitespace.`), que la spec dit non normatif : plus strict que
+    la spec, pas un trou. **Limite dite** : la valeur par défaut `quiz.db` n'est prouvée qu'aux
+    unités ; aucun test de processus ne lance le seed sans `SQLITE_DB_PATH` ; sondé à la main :
+    le fichier `quiz.db` est créé dans le dossier de travail et porte onze comptes.
+  - **CA-9** (base non ouvrable ou non SQLite) : sur processus réel, un dossier absent, un
+    dossier, un fichier texte et 200 octets aléatoires sont refusés (code `1`, `User seeding
+    failed: ` suivi d'une cause, pas de pile, sortie standard vide), seule l'erreur de la base
+    est rapportée avec un mot de passe et `BCRYPT_COST` faux, les deux fichiers sont intacts
+    (le second octet pour octet) ; un fichier absent dans un dossier qui existe et un fichier
+    de zéro octet sont seedés ; après un refus du CA-4 ou du CA-6, le fichier absent ou de
+    zéro octet reste avec sa seule table `T_USER_USR` vide, une base existante à table vide
+    n'est pas touchée, et le lancement suivant crée les onze comptes (décision #65). Base en
+    lecture seule (décision #72, constat reporté, pas une règle) : cas (a) à (k), refus en
+    `User seeding failed: <cause>` sans compte, base intacte, ordre des contrôles ; 7
+    déclarations (12 tests) **sautées en root et sous Windows**, exécutées par la CI. **Limites
+    dites** : le texte de la cause n'est pas imposé ; sous Windows le seed n'est pas sondé
+    (décision #72, point 6).
+- **Partiels (1)** :
+  - **CA-4** (politique de mot de passe) : bien prouvé sur processus réel : chacun des onze
+    comptes dont le mot de passe n'est pas défini, `admin` et `quiz_buzzer_10` avec huit
+    valeurs refusées (chaîne vide, 11 et 73 caractères, tabulation, saut de ligne, caractère
+    hors ASCII, 12 et 72 espaces) et quatre acceptées (12 et 72 caractères, onze espaces puis
+    un caractère, un caractère puis 71 espaces) : code `1`, sortie standard vide, une seule
+    ligne à préfixe, un seul compte nommé, pas de pile, mot de passe jamais repris, aucun
+    compte, base conservée ; une copie non éditée de `.env.example` est refusée (décision #75)
+    et acceptée une fois les placeholders remplacés ; règles unitaires dans
+    `owasp-password-validator.test.ts`. **Non prouvé** : les bornes du jeu de caractères :
+    ni U+007F (juste au-dessus de U+007E) ni U+001F (juste sous U+0020) n'apparaissent dans un
+    test ; U+007E et U+0020 sont acceptés (`~` et espaces aux unités). Mutants rejoués le
+    2026-11-20 sur `PRINTABLE_ASCII` de `owasp-password-validator.ts` (`\x20-\x7E` devenu
+    `\x20-\x7F`, puis `\x1F-\x7E`), sous les sept fichiers de test du seed, du service, du
+    validateur et du modèle (291 verts et 12 sautés) : **les deux survivent**. Le CDC est
+    clair (« tous de l'ASCII imprimable (U+0020 à U+007E) ») : c'est une vérification faible,
+    non un trou de spec. → voir **dette H**.
+- **Hors CA** :
+  - **Atomicité de l'idempotence (« Points de vigilance »)** : la spec écrit que la
+    vérification de la table « doit être atomique » pour les instances simultanées. Le code
+    fait un `count()`, onze hachages, puis onze `insert` séparés sans transaction
+    (`seed-users.ts`). Sondé trois fois : deux seeds lancés ensemble sur une base neuve, l'un
+    réussit (code `0`, ligne de succès), l'autre sort avec le code `1` et `User seeding
+    failed: UNIQUE constraint failed: T_USER_USR.USR_LOGIN` ; onze comptes à la fin, aucun
+    doublon : la contrainte `USR_LOGIN … UNIQUE` tient lieu de garde (aucun test ne la cite).
+    **Constat, non jugé** : le CDC ne dit pas ce que l'instance perdante doit rendre ni
+    afficher ; aucun test ne couvre le cas ; l'écart n'est pas inscrit dans `DEBTS.md`.
+  - **UUIDv7** (périmètre de la spec) : onze identifiants de version 7 sondés ; aucun test ne
+    vérifie la forme des identifiants insérés.
+  - **`.env` non versionné** (CA-2, « Format du fichier `.env` ») : `.gitignore` porte `.env` et
+    seul `.env.example` est suivi par git (constaté à la main ; aucun test).
+  - **Deux phrases sont périmées** et ne sont pas corrigées ici (hors périmètre de cette
+    session) : celle du CA-8 de la spec d'US-002 (« sans avoir été sondé séparément » : les
+    tests de `seed.test.ts` sondent le seed avec un `.env`, décision #71) et la « limite dite »
+    du CA-10 de la section US-001 ci-dessus (« le seed n'a pas été sondé séparément avec un
+    `.env` »).
 
 ### US-003 — Token d'authentification (18 CA)
 
@@ -299,45 +433,56 @@ comportement cassé en production réelle.
 
 ## 3. Dettes de complétude, ordonnées
 
+> **Dettes A à E, G et H réalignées sur le réel au HEAD `ef7a221` (2026-11-20)** : chacune
+> est confrontée au code, aux tests et, quand le comportement s'observe, à un hub lancé à la
+> main sur une base jetable (sondes non committées). Statuts : **soldée** (corrigée dans le
+> code, avec la preuve), **toujours vraie** ou **périmée**. Quand une dette vit aussi dans
+> `DEBTS.md`, la ligne y renvoie ; les autres ne vivent que dans ce fichier. La dette F l'était
+> déjà (réalignée avec US-001) ; une mention d'US-002 y est ajoutée.
+
 **Motif transversal** : le cœur fonctionnel (auth, JWT, CRUD, WebSocket temps réel)
-est solide et bien testé. Les faiblesses se concentrent sur les **exigences
-normatives transversales** (405, 500, headers, logs, lecture d'environnement,
-valeurs sémantiques).
+est solide et bien testé. Les faiblesses qui restent se concentrent sur la gestion du `500`
+de `/token`, le plafond des connexions WebSocket et des vérifications (logs, headers, bornes).
+Les exigences transversales `405` et `role` du JWT, elles, sont corrigées.
 
 | # | Dette | Gravité | Déclencheur de résorption |
 |---|-------|---------|---------------------------|
-| **A** | **Faux vert CA-30 / US-004** — `isUsedInQuestions()` renvoie `false` en dur ; un thème lié à des questions serait supprimé en prod. | 🔴 Corruption de données possible | Dès qu'US-005 (questions) existe. |
-| **B** | **CA-12 / US-009** — le plafond mélange admin + buzzers ; en réel 9 buzzers au lieu de 10. | 🟠 Comportemental | Avant le premier jeu à 10 buzzers physiques. |
-| **C** | **405 Method Not Allowed absent partout** (CA-16/US-003, CA-35/US-004). | 🟡 Conformité, effort faible | Passe de mise en conformité REST. |
-| **D** | **Gestion 500 fragile** (CA-17/US-003 sans `try/catch`) — risque d'exposer un détail technique. | 🟡 Sécurité des erreurs | Passe de mise en conformité REST. |
-| **E** | **`role` string vs enum dans le JWT REST** (CA-3/US-003) — `/token` porte `role:1`, pas `"buzzer"`. NB : côté WebSocket, `auth_success` utilise bien `toRoleLabel`. Incohérence entre les deux canaux. | 🟡 Interop consommateurs | Avant qu'un client décode le rôle du JWT REST. |
-| **F** | **Lecture d'environnement non testée de bout en bout** (CA-2/US-002, CA-4/US-003, CA-13). Tout est renvoyé à `ProcessEnvironment`, non audité. US-001 n'est plus concernée : sa lecture d'environnement est réalignée au §2. | 🟢 Vérification | Un dump `process-environment.*` ferme deux US d'un coup. |
-| **G** | **Logs et headers non assertés** (CA-14/15/US-003 ; `Retry-After` CA-13/US-003, CA-34/US-004). Code souvent présent, vérification absente. | 🟢 Vérification | Resserrage de tests. |
-| **H** | **Vérifications faibles** (noms de comptes CA-1/US-002 ; JSON malformé CA-11/US-003 ; état vide CA-19/US-004). | 🟢 Vérification | Resserrage de tests. |
+| **A** | **Soldée dans le code, résidu de vérification.** Faux vert CA-30 / US-004 : `isUsedInQuestions()` renvoyait `false` en dur. Aujourd'hui `SqliteThemeRepository.isUsedInQuestions` interroge `T_QUESTION_QST` (`QST_THEME_ID = ?`) ; `sqlite-theme-repository.test.ts` le prouve avec le vrai repository de questions (vrai quand une question référence le thème, faux sinon). Sondé sur hub réel : `DELETE` d'un thème qui porte une question répond `409 THEME_HAS_QUESTIONS`, puis `204` une fois la question supprimée. **Résidu** : aucun test ne traverse route, service et repository réels (`server.test.ts` n'a pas de cas `409`), et le test du service simule `isUsedInQuestions` à `true` sans vérifier l'argument : un mutant qui lui passe `theme.name` au lieu de l'identifiant survit (155 verts sur `src/themes` et `server.test.ts`, 2026-11-20). La ligne et la section CA-30 d'US-004 restent datées (« faux vert ») : à réaligner avec la session US-004. Le résidu ne vit pas dans `DEBTS.md`. | ~~🔴~~ 🟢 Vérification (résidu) | Résidu : `test(themes)` d'un `409` sur le serveur assemblé, vrai service et vrai repository. |
+| **B** | **Toujours vraie (fait constaté).** CA-12 / US-009 : le plafond mélange admin et buzzers. `ws-route.ts` refuse (`4005`, `Server is full.`) toute nouvelle entrée quand `registry.size >= config.maxConnections`, le registre contenant buzzers **et** admin ; `index.ts` donne `maxConnections: 10`. Sondé sur hub réel : dix buzzers s'authentifient, puis l'admin, onzième connexion, est refusé en `4005` : avec dix buzzers connectés, l'admin ne peut plus se connecter. Les tests ne forcent que `maxConnections = 1` avec un buzzer : la combinaison n'est exercée par aucun test. **Point que le CDC ne tranche pas** : US-009 CA-12 dit « maximum 10 buzzers simultanés », CA-16 « maximum 1 connexion admin », le tableau des codes dit `4005` quand « le registre a atteint sa capacité maximale (10 buzzers) », et le registre décrit contient aussi l'admin (rôle `buzzer` ou `admin`) : il ne dit pas si l'admin compte dans le plafond. La lecture « dix buzzers et un admin » est celle de l'audit initial, pas celle du CDC ; elle n'est pas tranchée ici. Ne vit pas dans `DEBTS.md`. | 🟠 Comportemental | Une décision du CDC (l'admin compte-t-il dans le plafond ?), avant le premier jeu à 10 buzzers physiques. |
+| **C** | **Soldée.** 405 Method Not Allowed absent partout (CA-16/US-003, CA-35/US-004) : `feat(errors)` du 2026-11-11, décision #38 (`routes/not-found-route.ts`, `RouteCatalog`). Sondé sur hub réel : `GET /api/v1/token` répond `405` avec `Allow: POST` (route publique, corps standard `METHOD_NOT_ALLOWED`), `DELETE /api/v1/themes` avec un token admin répond `405` avec `Allow: GET, POST`. Testé sur le serveur assemblé (`server.test.ts`, deux `describe` portant `US-003/CA-16` et `US-004/CA-35` : route protégée, route publique) ; retirer la ligne qui pose `Allow` fait rougir 7 tests (2026-11-20). **Reste, dans `DEBTS.md`** : la couverture se limite aux ressources `/api/v1/` des tokens, thèmes et questions (dette « `405` : seules les ressources… »). Les cellules CA-16 (US-003) et CA-35 (US-004) restent datées. | ~~🟡~~ soldée | Sans objet (voir `DEBTS.md` pour le périmètre). |
+| **D** | **Toujours vraie sur `POST /api/v1/token`, soldée ailleurs.** Gestion 500 fragile (CA-17/US-003) : `token-route.ts` n'a toujours aucun `try/catch` autour de `authenticationService.authenticate`, son `setErrorHandler` ne traite que `INVALID_JSON` et délègue le reste au gestionnaire de Fastify, et `QuizServer` n'en pose pas de global. Sondé sur hub réel : la table `T_USER_USR` supprimée sous un hub en marche, `POST /api/v1/token` répond `500` avec le **corps natif de Fastify** (`statusCode`, `code: "SQLITE_ERROR"`, `error`, `message: "no such table: T_USER_USR"`) : le détail technique est exposé et le corps n'est pas le corps standard. Aucun test ne simule une erreur du service d'authentification. Soldée sur les thèmes (`US-004/CA-36`) et les questions (`US-005/CA-54`) : leurs tests assertent le `500` au corps standard sans le message technique. Ne vit pas dans `DEBTS.md`. | 🟡 Sécurité des erreurs | `fix(authentication)` : `500` au corps standard sur `/token`, avec un test qui fait lever le service ; passe de mise en conformité des erreurs. |
+| **E** | **Soldée.** `role` string vs enum dans le JWT REST (CA-3/US-003) : le `fix(authentication)` du 2026-11-10 écrit `toRoleLabel(user.role)` dans le token (`jwt-generator.ts`) ; `jwt-generator.test.ts` asserte `role: "buzzer"` pour un joueur et `role: "admin"` pour un administrateur. Sondé sur hub réel : le token de `/api/v1/token` porte `"admin"` pour `admin` et `"buzzer"` pour `quiz_buzzer_01`. Côté WebSocket, `auth_success` utilise aussi `toRoleLabel` : les deux canaux concordent. La cellule CA-3 d'US-003 reste datée. | ~~🟡~~ soldée | Sans objet. |
+| **F** | **Lecture d'environnement non testée de bout en bout** (CA-2/US-002, CA-4/US-003, CA-13). Tout est renvoyé à `ProcessEnvironment`, non audité. US-001 n'est plus concernée : sa lecture d'environnement est réalignée au §2. US-002 non plus : le `.env` du seed (mots de passe, `BCRYPT_COST`, `SQLITE_DB_PATH`) est prouvé sur processus réel (§2). | 🟢 Vérification | Un dump `process-environment.*` ferme deux US d'un coup. |
+| **G** | **Toujours vraie, en partie dans `DEBTS.md`.** Logs et headers non assertés. (1) **Logs CA-14 / CA-15 d'US-003** : `token-route.ts` écrit `request.log.info` et `warn` avec le nom d'utilisateur et l'IP ; `token-route.test.ts` monte `Fastify()` sans logger : aucun test ne les capture. Ne vit pas dans `DEBTS.md`. (2) **`Retry-After`, CA-13 / US-003 et CA-34 / US-004** : `token-route.test.ts` et `theme-route.test.ts` n'assertent que le statut `429`. Le header est posé par un hook du middleware de limitation, testé au middleware (`rate-limit-middleware.test.ts`) et, pour la route inconnue, sur le serveur assemblé ; renvoi à `DEBTS.md` : « `429` des tokens non re-testé », « `429` des thèmes non re-testé » et « `Retry-After` constant testé au middleware seul, pas par plugin ». (3) **« Par IP » (CA-13)** : aucun test à deux adresses (la clé est celle de `@fastify/rate-limit` par défaut, l'IP de la requête) ; ne vit pas dans `DEBTS.md`. | 🟢 Vérification | Resserrage de tests. |
+| **H** | **Soldée pour ses trois points ; un point nouveau reste.** (a) Noms de comptes CA-1/US-002 : prouvés (§2 : l'ensemble des onze logins est comparé sur processus réel). (b) JSON malformé CA-11/US-003 : `token-route.test.ts` asserte `400 INVALID_JSON` pour un JSON tronqué et pour un corps vide. (c) État vide CA-19/US-004 : prouvé à la route (`200` et enveloppe vide, service simulé), au service (`total: 0`, `total_pages: 0`) et au repository (liste vide). Les cellules CA-11 (US-003) et CA-19 (US-004) restent datées. **Reste, nouveau** : les bornes du jeu de caractères du mot de passe, CA-4/US-002 (U+001F et U+007F non testés, deux mutants survivants : §2). Ne vit pas dans `DEBTS.md`. | 🟢 Vérification | Resserrage de tests : `test(users)` d'U+007F et d'U+001F refusés (étape de mutation incluse). |
 
 ---
 
 ## 4. Ce que ça signifie pour la suite
 
 Le socle hub est **substantiel mais pas « fini »** au sens strict des specs :
-~74/101 CA solides (US-001 réalignée au HEAD `25d2388` puis mise à jour le 2026-11-18, les autres US au relevé
-daté), avec un angle mort net sur les exigences transversales normatives. **Aucun de ces trous n'empêche d'avancer vers le jeu** — à condition
-de les connaître pour ne pas s'appuyer dessus (notamment les dettes A et B).
+~81/105 CA solides (US-001 réalignée au HEAD `25d2388` puis mise à jour le 2026-11-18,
+US-002 au HEAD `ef7a221` le 2026-11-20, les autres US au relevé daté ; décompte du §1), avec
+un angle mort sur les exigences transversales normatives (le `500` de `/token`, les logs et
+les headers non assertés) et sur le plafond des connexions WebSocket. **Aucun de ces trous
+n'empêche d'avancer vers le jeu** — à condition de les connaître pour ne pas s'appuyer
+dessus (notamment la dette B).
 
 Deux caps possibles pour la suite, à trancher :
 
-1. **Consolider le socle** — résorber les dettes A→H (surtout A, B, C, D) pour un
-   hub conforme avant d'ajouter des fonctionnalités. Petites sessions TDD ciblées,
-   très « un commit par session ».
-2. **Avancer vers le jeu** — attaquer US-005 (questions) → US-008 → US-010 → US-011,
-   en actant les dettes du socle comme connues et datées. C'est le chemin qui
+1. **Consolider le socle** — résorber ce qui reste des dettes (D, B, G, le résidu de A et la
+   borne du CA-4 d'US-002 ; C, E et H sont soldées) pour un hub conforme avant d'ajouter des
+   fonctionnalités. Petites sessions TDD ciblées, très « un commit par session ». La dette B
+   demande d'abord une décision du CDC (l'admin compte-t-il dans le plafond ?).
+2. **Avancer vers le jeu** — attaquer US-008 (quiz) → US-010 → US-011, US-005 (questions)
+   étant en place, en actant les dettes du socle comme connues et datées. C'est le chemin qui
    « réveille la dalle » plus vite (le firmware attend un hub capable d'émettre
    les messages de déroulé de partie).
 
-Les dettes A et B méritent d'être **notées formellement** mais peuvent attendre
-leur déclencheur naturel. Les dettes C et D sont rapides et rendraient le socle
-propre. Rien n'est bloquant : si le plaisir est le moteur, **US-005 → jeu** reste
-le cap qui sort de « Connecté » affiché à l'écran.
+La dette B mérite d'être **notée formellement** (elle ne vit pas dans `DEBTS.md`) mais peut
+attendre son déclencheur naturel. La dette D est rapide et rendrait le socle plus propre.
+Rien n'est bloquant : si le plaisir est le moteur, **US-008 → jeu** reste le cap qui sort de
+« Connecté » affiché à l'écran.
 
 ---
 
