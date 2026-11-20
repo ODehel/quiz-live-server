@@ -282,7 +282,7 @@ bcrypt tronque les mots de passe à **72 bytes**. La politique impose un maximum
 
 ### Fichier `.env` et sécurité
 
-Le fichier `.env` contient des mots de passe en clair et le secret JWT. Il **ne doit jamais** être versionné dans Git. Le fichier `.gitignore` doit inclure `.env`. Un fichier `.env.example` (sans valeurs) est versionné comme template.
+Le fichier `.env` contient des mots de passe en clair et le secret JWT. Il **ne doit jamais** être versionné dans Git. Le fichier `.gitignore` doit inclure `.env`. Un fichier `.env.example` est versionné comme modèle, commun au seed et au hub (décision #76) : `JWT_SECRET` y figure **sans valeur**, et le hub refuse de démarrer tant qu'il n'est pas renseigné (CA-19) ; `JWT_EXPIRATION` y figure en **ligne commentée** avec son défaut (`# JWT_EXPIRATION=3600`, CA-4 et CA-20 : absente ou vide, elle vaut `3600`) ; les mots de passe du seed y sont des placeholders `<a_changer>`, refusés par le seed (voir [US-002](US-002-seed-users.md), décision #75).
 
 ### Rate limiting par IP sur `/token`
 

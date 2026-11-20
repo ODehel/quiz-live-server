@@ -165,7 +165,7 @@ Les noms des onze variables sont fixés par le [tableau des variables d'environn
 Le fichier `.env` doit être créé à la racine du projet. Il n'est **pas versionné** (ajouté au `.gitignore`).
 
 ```dotenv
-# Modèle du .env du seed : copier en .env (non versionné), puis remplacer chaque valeur
+# Modèle du .env : copier en .env (non versionné), puis remplacer chaque valeur
 SEED_PASSWORD_ADMIN=<a_changer>
 SEED_PASSWORD_BUZZER_01=<a_changer>
 SEED_PASSWORD_BUZZER_02=<a_changer>
@@ -181,7 +181,9 @@ SEED_PASSWORD_BUZZER_10=<a_changer>
 
 > **Placeholder `<a_changer>`** (décision #75, choix de rédaction du modèle, pas une règle de comportement) — `<a_changer>` compte 11 caractères, un de moins que le minimum de 12 du CA-4 : un `.env` copié de ce modèle sans être édité est refusé par le seed au titre du CA-4 (code de sortie `1`, sortie standard vide, sortie d'erreur `User seeding failed: ` suivie d'un message qui nomme un seul compte, aucun compte créé), au lieu de créer onze comptes à mots de passe publics. Le seed ne change pas : il ne connaît pas ce placeholder et n'applique que le CA-4. Un placeholder « de la bonne longueur » (par exemple `<mot_de_passe_admin_min_12_car>`, 31 caractères) passerait le CA-4 et serait accepté. **Lien avec le CA-4** : si le minimum du CA-4 change un jour, le placeholder doit changer avec lui, et rester plus court que le nouveau minimum.
 
-> ⚠️ **Sécurité** — Ne jamais committer le fichier `.env` dans le dépôt Git. Utiliser `.env.example` (avec des valeurs fictives) comme modèle versionné.
+> **Modèle partagé avec le hub** (décision #76, choix de rédaction du modèle, pas une règle de comportement) — `.env.example` n'est pas seulement le modèle du seed : le bloc ci-dessus n'en montre que les lignes du seed. Le modèle porte aussi, pour le hub, `JWT_SECRET` **sans valeur** (une copie non éditée est refusée par le hub au démarrage, [US-001](US-001-server-startup.md) CA-1 et [US-003](US-003-authentication-token.md) CA-19) et `JWT_EXPIRATION` en ligne commentée (US-003, CA-20) ; leur contenu est écrit dans US-003, section « Fichier `.env` et sécurité ». Les autres variables du hub ne sont pas traitées par cette décision.
+
+> ⚠️ **Sécurité** — Ne jamais committer le fichier `.env` dans le dépôt Git. Utiliser `.env.example` comme modèle versionné (valeurs fictives pour les mots de passe du seed ; `JWT_SECRET` sans valeur, décision #76).
 
 ---
 
@@ -215,7 +217,7 @@ Le script vérifie l'état de la table `T_USER_USR` **avant** toute insertion. S
 
 ### Sécurité des mots de passe
 
-Les mots de passe ne doivent **jamais** apparaître dans les logs, les messages d'erreur ou le code source. Le fichier `.env` doit figurer dans `.gitignore`. Le fichier `.env.example` fourni dans le dépôt contient uniquement des valeurs fictives (ex. : `<a_changer>`, que le CA-4 refuse : voir la note sous le bloc dotenv, décision #75).
+Les mots de passe ne doivent **jamais** apparaître dans les logs, les messages d'erreur ou le code source. Le fichier `.env` doit figurer dans `.gitignore`. Le fichier `.env.example` fourni dans le dépôt ne contient, pour les mots de passe, que des valeurs fictives (ex. : `<a_changer>`, que le CA-4 refuse : voir la note sous le bloc dotenv, décision #75), et `JWT_SECRET` y est sans valeur (décision #76).
 
 ### Limite bcrypt à 72 caractères
 
