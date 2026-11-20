@@ -472,6 +472,88 @@ describe('seed: a table that already holds accounts', () => {
     })
 })
 
+// US-002/CA-4 (decision #74) on the real process. The rules of the policy are proved by owasp-password-validator.test.ts and the wiring
+// of the service by seed-users.test.ts; here we prove what only the process shows: a missing or refused password stops the seed with exit
+// code 1, an empty standard output, one `User seeding failed: ` line on the error output that names the one account and never the
+// password, and no account in the database. Only the prefix, the name of the account and the absence of the password are normative:
+// the wording after the prefix is not fixed. One account is faulty at a time (which of two faulty accounts comes first is not specified).
+// The eleven accounts are all proved for a missing password; the refused values are proved on the first account of the order of US-002
+// (admin) and on the last (quiz_buzzer_10), as the policy does not depend on the account and each run costs a process.
+describe('seed: passwords', () => {
+    const LOGINS = ['admin', ...Array.from({ length: 10 }, (_, i) => `quiz_buzzer_${String(i + 1).padStart(2, '0')}`)]
+    const variableOf = (login: string): string => 'SEED_PASSWORD_' + login.replace(/^quiz_/, '').toUpperCase()
+    const printable = (length: number): string => 'Ab1-'.repeat(Math.ceil(length / 4)).slice(0, length)
+    // The two accounts on which the refused values are proved.
+    const PROVED_LOGINS = ['admin', 'quiz_buzzer_10']
+    // The border values of the length (12 and 72 are valid, 11 and 73 are not), then one value for each other rule.
+    const REFUSED_PASSWORDS: Array<[string, string]> = [
+        ['an empty string', ''],
+        ['11 characters, one under the minimum', printable(11)],
+        ['73 characters, one over the maximum', printable(73)],
+        ['a tab among 12 characters', 'pass\tword-123'],
+        ['a line feed among 12 characters', 'pass\nword-123'],
+        ['a character beyond printable ASCII among 12 characters', 'passwörd-123'],
+        ['12 spaces', ' '.repeat(12)],
+        ['72 spaces', ' '.repeat(72)]
+    ]
+
+    const ACCEPTED_PASSWORDS: Array<[string, string]> = [
+        ['12 printable characters, the minimum', printable(12)],
+        ['72 printable characters, the maximum', printable(72)],
+        ['11 spaces then one visible character', ' '.repeat(11) + 'x'],
+        ['one visible character then 71 spaces', 'x' + ' '.repeat(71)]
+    ]
+
+    function failedOn(login: string, overrides: Record<string, string | undefined>) {
+        const databasePath = join(workDirectory, 'quiz.db')
+        const result = seed(databasePath, overrides)
+        return { result, databasePath, others: LOGINS.filter(other => other !== login) }
+    }
+
+    function expectRefusedAccount(run: ReturnType<typeof failedOn>, login: string): void {
+        const { result, databasePath, others } = run
+        expect(result.status).toBe(1)
+        expect(result.stdout).toBe('')
+        expect(result.stderr).toMatch(FAILURE)
+        expect(result.stderr.split(/\r?\n/).filter(line => line.startsWith('User seeding failed'))).toHaveLength(1)
+        expect(result.stderr).not.toMatch(STACK_TRACE)
+        expect(result.stderr).toContain(login)
+        for (const other of others) expect(result.stderr).not.toContain(other)
+        // The opening created the file and its table, the refusal came before any insertion (decision #65): no account.
+        expect(rowCounts(databasePath)).toEqual({ T_USER_USR: 0 })
+    }
+
+    it.each(LOGINS)('US-002/CA-4 refuses to run when the password of %s is not defined: exit code 1, one account named, no account created', (login) => {
+        const run = failedOn(login, { [variableOf(login)]: undefined })
+
+        expectRefusedAccount(run, login)
+    }, TEST_TIMEOUT_MS)
+
+    describe.each(PROVED_LOGINS)('with the password of %s', (login) => {
+        it.each(REFUSED_PASSWORDS)('US-002/CA-4 refuses %s: exit code 1, only this account named, no account created', (_name, password) => {
+            const run = failedOn(login, { [variableOf(login)]: password })
+
+            expectRefusedAccount(run, login)
+        }, TEST_TIMEOUT_MS)
+
+        it.each(REFUSED_PASSWORDS.filter(([, password]) => password.trim() !== ''))('US-002/CA-4 does not repeat the password of %s in the message (%s)', (_name, password) => {
+            const run = failedOn(login, { [variableOf(login)]: password })
+
+            expect(run.result.stderr).not.toContain(password)
+        }, TEST_TIMEOUT_MS)
+
+        // The border values of the length, and spaces that are not alone: "not only spaces" is not "without a space at the border".
+        it.each(ACCEPTED_PASSWORDS)('US-002/CA-4 accepts %s: exit code 0, the success line, eleven accounts', (_name, password) => {
+            const databasePath = join(workDirectory, 'quiz.db')
+
+            const result = seed(databasePath, { [variableOf(login)]: password })
+
+            expectCreatedSeed(result)
+            expect(countAccounts(databasePath)).toBe(11)
+        }, TEST_TIMEOUT_MS)
+    })
+})
+
 // How a .env file writes SQLITE_DB_PATH for the seed (US-002 CA-8, "Origine de la valeur", decision #71, point 2). The rule bears on the value
 // the process receives; the .env file is read by the `dotenv` library (17.4.0), loaded by `import 'dotenv/config'` as for the hub, and what
 // these tests observe on the real process (unquoted values trimmed, quoted values kept, " #" starting a comment) is what that library does,
