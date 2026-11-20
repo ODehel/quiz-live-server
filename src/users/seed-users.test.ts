@@ -283,3 +283,29 @@ describe("Seed with the SQLite repository - rôle stocké sous son libellé", ()
         expect(storedRoles()).toEqual(before);
     });
 });
+
+describe("Seed with the SQLite repository - identifiants stockés (US-002, étape 6)", () => {
+    let database: Database.Database;
+    let userSeed: SeedUsers;
+    beforeEach(() => {
+        database = new Database(':memory:');
+        userSeed = new SeedUsers(
+            new SqliteUserRepository(database),
+            { hash: vi.fn((password: string) => Promise.resolve(`hashed_${password}`)), compare: vi.fn() },
+            { validate: vi.fn().mockReturnValue(true) }
+        );
+    });
+    const storedIds = () => (database.prepare("SELECT USR_ID FROM T_USER_USR").all() as { USR_ID: string }[]).map(row => row.USR_ID);
+    it("should store a version-7 UUID as the id of each of the 11 accounts", async () => {
+        await userSeed.seed(mockEnvironment);
+        const ids = storedIds();
+        expect(ids).toHaveLength(11);
+        for (const id of ids) {
+            expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+        }
+    });
+    it("should give the 11 accounts 11 different ids", async () => {
+        await userSeed.seed(mockEnvironment);
+        expect(new Set(storedIds()).size).toBe(11);
+    });
+});
