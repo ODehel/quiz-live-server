@@ -1,6 +1,6 @@
 import Ajv from "ajv";
 import { FastifyError, FastifyInstance } from "fastify";
-import { INVALID_CREDENTIALS, INVALID_JSON, VALIDATION_ERROR } from "../common/error-codes";
+import { INTERNAL_SERVER_ERROR, INVALID_CREDENTIALS, INVALID_JSON, VALIDATION_ERROR } from "../common/error-codes";
 import { TokenRouteConfiguration } from "./token-route-configuration.interface";
 
 interface SchemaViolation {
@@ -42,6 +42,15 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
                 status: 400,
                 error: INVALID_JSON,
                 message: 'Request body must be valid JSON.'
+            });
+        }
+        const status = (error as { status?: number }).status ?? error.statusCode;
+        const isClientError = status !== undefined && status >= 400 && status < 500;
+        if (!isClientError) {
+            return reply.status(500).send({
+                status: 500,
+                error: INTERNAL_SERVER_ERROR,
+                message: 'An unexpected error occurred. Please try again later.'
             });
         }
         return inheritedErrorHandler.call(app, error, request, reply);

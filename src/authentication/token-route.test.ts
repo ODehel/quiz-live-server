@@ -265,3 +265,48 @@ describe('US-003/CA-13: When rate limit is exceeded', () => {
         expect(response.statusCode).toBe(429);
     });
 });
+
+describe('US-003/CA-17: When an unexpected error occurs', () => {
+    const standardBody = {
+        status: 500,
+        error: 'INTERNAL_SERVER_ERROR',
+        message: 'An unexpected error occurred. Please try again later.'
+    };
+
+    async function postValidCredentials() {
+        return app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'User Name', password: 'user-password' })
+        });
+    }
+
+    it('should return the standard 500 body when the authentication service fails', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(new Error('no such table: T_USER_USR'));
+        const response = await postValidCredentials();
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual(standardBody);
+    });
+
+    it('should return the standard 500 body when the token generation fails', async () => {
+        mockTokenGenerator.generateToken = () => { throw new Error('secretOrPrivateKey must have a value'); };
+        const response = await postValidCredentials();
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual(standardBody);
+    });
+
+    it('should return the standard 500 body when the error carries a server status code', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(Object.assign(new Error('database is locked'), { statusCode: 503 }));
+        const response = await postValidCredentials();
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual(standardBody);
+    });
+
+    it('should return the standard 500 body when the error carries a status code that is not an error', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(Object.assign(new Error('moved elsewhere'), { statusCode: 302 }));
+        const response = await postValidCredentials();
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual(standardBody);
+    });
+});
