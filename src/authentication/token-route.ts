@@ -32,6 +32,8 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
     
     await rateLimitMiddleware(app);
 
+    app.removeContentTypeParser('text/plain');
+
     const ajv = new Ajv({ allErrors: true });
     app.setValidatorCompiler(({ schema }) => ajv.compile(schema));
 

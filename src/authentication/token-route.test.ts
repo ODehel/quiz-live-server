@@ -103,6 +103,17 @@ describe('US-003/CA-07: With wrong content type', () => {
         })
         expect(response.json()).toEqual({ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 });
     });
+
+    it('should return the native 415 for a text/plain body, not a validation error', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ username: 'User Name', password: 'user-password' })
+        })
+        expect(response.statusCode).toBe(415)
+        expect(response.json()).toEqual({ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 });
+    });
 });
 
 describe('US-003/CA-08: With wrong credentials', () => {
