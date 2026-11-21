@@ -52,8 +52,10 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-14 | Les connexions réussies sont loggées | Log structuré JSON avec username, IP, timestamp, niveau `INFO` |
-| CA-15 | Les connexions échouées sont loggées | Log structuré JSON avec username tenté, IP, timestamp, niveau `WARN` |
+| CA-14 | Les connexions réussies sont loggées | Une ligne de log au niveau `INFO` porte le `username` et l'adresse IP de la requête |
+| CA-15 | Les connexions échouées sont loggées | Une ligne de log au niveau `WARN` porte le `username` tenté et l'adresse IP de la requête |
+
+> Ces deux CA n'exigent que le **contenu** (`username`, IP) et le **niveau** de la ligne. Sa **forme** (champs `timestamp`, `level` et `event`, représentation du niveau, horodatage ISO 8601 UTC) n'est pas exigée ici : elle relève d'[US-022](US-022-logging.md#format-json-des-entrées-de-log) (CA-6 à CA-8), qui s'applique à toute entrée de log, y compris celles-ci.
 
 ### Méthodes HTTP non supportées
 
@@ -200,7 +202,9 @@ Client → POST /api/v1/token { username, password }
 
 ## 📝 Logging structuré
 
-### Format JSON
+### Exemples du format d'US-022 (non normatifs)
+
+> Les deux exemples ci-dessous illustrent le format commun des logs défini par [US-022](US-022-logging.md#format-json-des-entrées-de-log) (CA-6 à CA-8). Ils ne sont **pas** une exigence d'US-003 : CA-14 et CA-15 n'exigent que le contenu et le niveau de la ligne.
 
 **Connexion réussie :**
 
@@ -258,7 +262,7 @@ Voir [US-002 — Seed des comptes utilisateurs](US-002-seed-users.md) pour le sc
 | Endpoint `POST /api/v1/token` (émission JWT) | Refresh token (YAGNI) |
 | Table `T_USER_USR` et schéma | Endpoint de création de comptes utilisateurs |
 | Hachage bcrypt des mots de passe | Seed des comptes (→ **US-002**) |
-| Logging structuré JSON (succès + échecs) | Changement de mot de passe (US dédiée) |
+| Logs de connexion, succès et échecs (contenu et niveau ; format → **US-022**) | Changement de mot de passe (US dédiée) |
 | Rate limiting spécifique 100 req/min par IP | Déconnexion (gérée côté client) |
 | Gestion complète des erreurs | Authentification WebSocket (US dédiée) |
 | Middlewares `authenticate` et `authorize` (réutilisables) | CRUD des utilisateurs |

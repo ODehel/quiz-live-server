@@ -1178,3 +1178,27 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - `ETAT-DES-LIEUX-socle-hub.md` : la « Limite dite » de la section US-002 renvoie au CA-7 et à la décision #80 au lieu de la dette.
 - Condition de réouverture : une exigence de message ou de délai sur ce refus (par exemple un orchestrateur qui relance le seed et qui lirait la sortie), ou un moteur de base dont le délai ne serait pas celui de `better-sqlite3`.
 - À challenger : (a) sondes sur Linux, Node 22, root, une machine, disque local, mode de journal par défaut ; non jouées sous Windows ni sur un disque réseau, où le verrouillage SQLite se comporte autrement ; (b) le délai de 5 s est celui de `better-sqlite3` aujourd'hui ; une mise à jour de la bibliothèque ou un réglage du délai le changerait sans changer le constat de la spec ; (c) le verrou n'a été tenu que par `BEGIN IMMEDIATE` sur une table existante : un verrou exclusif, une base dont la table est à créer, ou un verrou tenu pendant la lecture initiale de la table ne sont pas sondés.
+
+
+## #81 — US-003 n'exige que le contenu et le niveau des logs de connexion (CA-14, CA-15), pas leur format ; le format est celui d'US-022
+
+*`docs(specs): require only the content of the login logs of US-003, not their format` — US-003 (CA-14, CA-15, section « Logging structuré », diagramme de flux), renvoi à US-022 (CA-6 à CA-8). Les décisions #1 à #80 ne sont pas modifiées.*
+
+**Contexte.** US-003 CA-14 et CA-15 demandaient un « log structuré JSON » avec `timestamp`, et sa section « Logging structuré » donnait deux exemples (`timestamp` ISO, `level` en chaîne, `event` `LOGIN_SUCCESS` / `LOGIN_FAILURE`). Ce format est celui que définit US-022 (CA-6 : `timestamp`, `level`, `event` ; CA-7 : ISO 8601 UTC avec millisecondes ; CA-8 : `level` en chaîne), pour toute entrée de log. US-022 n'est pas implémentée : `src/` ne contient aucun logger singleton. Le code de `token-route.ts` écrit `request.log.warn` et `request.log.info` avec `{ username, ip }`, donc le format natif de pino (niveau numérique, `time`, `msg`, pas d'`event`). US-003 exigeait donc un format que seule US-022 peut produire : un test de CA-14 ou CA-15 ne pouvait pas être écrit sans inventer ce format ici.
+
+**Décision.**
+1. **Sur choix d'Olivier (2026-11-21)** : CA-14 et CA-15 n'exigent que le **contenu** et le **niveau** : une ligne de log portant le `username` (celui tenté pour un échec) et l'adresse IP de la requête, au niveau `INFO` pour une connexion réussie, `WARN` pour une connexion échouée. `timestamp` sort des deux CA.
+2. La **forme** de la ligne (champs `timestamp`, `level`, `event`, représentation du niveau, ISO 8601) relève d'US-022, qui s'applique à toute entrée de log, celles-ci comprises. US-003 le dit sous les deux CA.
+3. Les exemples JSON de la section « Logging structuré » deviennent des exemples **non normatifs** du format d'US-022 (renvoi à ses CA-6 à CA-8). Le diagramme de flux de US-003 ne nomme plus `LOGIN_SUCCESS` / `LOGIN_FAILURE` ni `timestamp` ; la ligne « Périmètre » de la section est reformulée de même.
+4. **Aucun comportement ne change** : ni le code, ni un test. Aucun CA n'est ajouté ni retiré.
+
+**Alternatives écartées.**
+- **Garder l'exigence de format dans US-003** : écartée, elle est impossible à tenir avant US-022 et obligerait un test de CA-14 / CA-15 à figer un format qui n'est pas le sien (ou à rester rouge jusqu'à US-022).
+- **Différer CA-14 et CA-15 à US-022** : écartée, le contenu et le niveau (`username`, IP, `INFO` / `WARN`) sont observables et testables dès maintenant ; les différer laisserait deux CA d'US-003 sans preuve pour une raison qui ne concerne que la forme.
+
+**Conséquences.**
+- `DEBTS.md` : la ligne des logs de CA-14 et CA-15 dit que le CDC n'exige plus que le contenu et le niveau ; le pas `test(authentication)` les prouvera sans asserter le format. La dette n'est pas soldée.
+- Quand US-022 sera implémentée, le format des deux lignes suivra US-022 sans changer US-003 ; les tests de contenu de CA-14 et CA-15 ne devront pas dépendre du format (champs lus par leur contenu, pas par la forme de la ligne).
+- `ETAT-DES-LIEUX-socle-hub.md` : aucun passage n'est devenu faux (il constate l'absence de test sur ces logs), non modifié.
+- Condition de réouverture : une exigence d'exploitation qui imposerait le format des logs de connexion avant US-022 (par exemple un outil qui les lirait), ou une évolution d'US-022 qui exclurait ces lignes de CA-6 à CA-8.
+- À challenger : (a) « une ligne de log porte le `username` et l'IP » laisse ouverte la forme de ces champs (un champ nommé, ou le texte du message) tant que US-022 n'est pas là : un test de contenu devra choisir un moyen de lire ces valeurs sans figer la forme ; (b) le diagramme de flux d'US-003 écrit toujours « > 5 req/min » alors que CA-13 dit 100 req/min : écart préexistant, non traité ici ; (c) le diagramme `US-003-authentication-token.png` a été régénéré avec `mmdc` sous Linux, pas sous la machine d'Olivier : la mise en page a pu bouger de quelques pixels.
