@@ -13,6 +13,7 @@
 > réels ; la décision #79 (#176) a tranché les deux trous de CDC qui restaient (T1, T10). La ligne
 > US-002 du §1, la ligne Total, la section US-002 du §2, la note d'en-tête, les dettes H et la note
 > du §3 et le §4 sont alignés en conséquence. Aucun code ni test n'a changé.
+> **Réalignement du 2026-11-21 (`refactor(users)`, HEAD `76c7eed`)** : CA-5 d'US-002 est retiré du décompte (US-002 : 8 CA, 8 solides ; Total : 104 CA, ~81 solides), voir §1 et §2. Aucun autre CA n'est touché.
 > Les parties **US-003, US-004 et US-009** (leurs lignes du §1 et leurs sections du §2)
 > **restent celles du relevé daté (HEAD `5407e38`) et ne sont pas réalignées par cette
 > session** : plusieurs de leurs cellules sont connues périmées (US-003 CA-3, CA-11 et CA-16,
@@ -55,21 +56,23 @@
 | US | CA total | Solides | Partiels / non vérifiés | Trous réels | Faux verts |
 |----|:---:|:---:|:---:|:---:|:---:|
 | US-001 — server startup | 9  | 8   | CA-4                                 | —                          | —      |
-| US-002 — seed users     | 9  | 9   | —                                   | —                          | —      |
+| US-002 — seed users     | 8  | 8   | —                                   | —                          | —      |
 | US-003 — auth token     | 18 | ~9  | CA-3, 4, 11, 12, 13, 14, 15         | **CA-16 (405)**, **CA-17 (500)** | — |
 | US-004 — themes CRUD    | 40 | ~31 | CA-12 / 12a / 19 / 34               | **CA-35 (405)**            | **CA-30** |
 | US-009 — websocket      | 29 | ~25 | CA-12, 22, 26                       | —                          | —      |
-| **Total** | **105** | **~82** | **~15** | **3** | **1** |
+| **Total** | **104** | **~81** | **~15** | **3** | **1** |
 
 Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18), puis mise à jour après le
 `test(startup)` des permissions et de `EACCES`, puis après le `test(startup)` de `JWT_SECRET`
 et du `.env`, puis après celui de la création des tables du fichier de zéro octet (2026-11-18).
-Ligne US-002 réalignée sur le réel au HEAD `ef7a221` (2026-11-20) : la spec compte neuf CA (le
-relevé daté en comptait cinq), dont CA-5, CA de couverture compté solide au sens du seuil global
-(§2) ; CA-3 et CA-7, partiels depuis la décision #77, sont solides depuis le `fix(seed)` et le
+Ligne US-002 réalignée sur le réel au HEAD `ef7a221` (2026-11-20) : la spec comptait neuf CA (le
+relevé daté en comptait cinq), dont CA-5, CA de couverture alors compté solide au sens du seuil
+global ; CA-5 est retiré de la spec le 2026-11-21 (décision #54, #183) : **huit CA** depuis,
+CA-1 à CA-4 et CA-6 à CA-9, numérotation conservée, et la ligne passe à 8 CA, 8 solides ;
+CA-3 et CA-7, partiels depuis la décision #77, sont solides depuis le `fix(seed)` et le
 `test(seed)` du 2026-11-21 (HEAD `33823bf`). **Les lignes US-003, US-004 et US-009 sont celles du relevé daté (HEAD `5407e38`), non
 réalignées.** La ligne **Total** est recalculée à partir des lignes telles qu'elles sont écrites
-(105 CA ; solides 8 + 9 + ~9 + ~31 + ~25 ; partiels 1 + 0 + 7 + 4 + 3 ; trous réels 2 + 1 ; faux
+(104 CA ; solides 8 + 8 + ~9 + ~31 + ~25 ; partiels 1 + 0 + 7 + 4 + 3 ; trous réels 2 + 1 ; faux
 vert 1) : elle compte donc encore trois trous réels (US-003 CA-16 et CA-17, US-004 CA-35) et un
 faux vert (US-004 CA-30), alors que deux de ces trous (CA-16 et CA-35) et le faux vert sont
 corrigés dans le code (dettes C et A, §3).
@@ -231,7 +234,14 @@ comportement cassé en production réelle.
     complètes lors de ce relevé (vert aux deux autres). Non corrigé : hors périmètre
     d'une session `docs(specs)`.
 
-### US-002 — Seed des utilisateurs (9 CA : CA-1 à CA-9)
+### US-002 — Seed des utilisateurs (8 CA : CA-1 à CA-4 et CA-6 à CA-9)
+
+> **Réalignement du 2026-11-21 (`refactor(users)`, HEAD `76c7eed`)** : CA-5 (couverture ≥ 90 %) est
+> retiré de la spec d'US-002 par le `docs(specs)` #183 (décision #54, numérotation conservée) ; la
+> section et le décompte suivent : **8 CA, 8 solides**, plus de ligne CA-5 ci-dessous. Le seuil
+> global de 90 % reste appliqué par la CI (décision #67) ; `seed.ts` reste à 0 % parce que le
+> processus enfant n'est pas instrumenté (comme `index.ts`), non parce qu'il n'est pas testé.
+> Aucun autre CA n'est touché.
 
 > **Réalignement du 2026-11-21 (`docs(specs)`, HEAD `33823bf`)** : la spec d'US-002 écrit, à CA-3
 > et CA-7, le tout ou rien (onze comptes ou aucun, arrêt brutal compris) et le comportement de
@@ -240,12 +250,12 @@ comportement cassé en production réelle.
 > arrêt avant tout compte. **Le code les tient** depuis le `fix(seed)` (#174, décision #78) :
 > `SqliteUserRepository.insertAllIfEmpty` recompte puis écrit les onze comptes dans une seule
 > transaction immédiate, et `SeedUsers` n'annonce le succès que si elle a écrit. Les deux CA
-> reviennent donc dans les solides (« Solides (9) »), prouvés sur processus réels par le
+> reviennent donc dans les solides (« Solides (8) »), prouvés sur processus réels par le
 > `test(seed)` (#175) et rejoués ici (mutants du CA-7) ; le reste de la section date du HEAD
 > `ef7a221`. Aucun code ni test n'a changé.
 
 > **Section réalignée sur le réel au HEAD `ef7a221` (2026-11-20)**, avec la méthode du
-> fichier (spec, code de production, corps des tests). La spec compte neuf CA (le relevé
+> fichier (spec, code de production, corps des tests). La spec comptait alors neuf CA (CA-5 est retiré depuis, voir la note ci-dessus ; le relevé
 > daté en comptait cinq) : CA-6 à CA-9 se sont ajoutés depuis (décisions citées dans la spec). Suite
 > concernée : `src/seed.test.ts` (processus réel : `tsx src/seed.ts` lancé en `spawnSync`,
 > environnement explicite, dossier de travail et base jetables), `src/users/seed-users.test.ts`
@@ -260,7 +270,7 @@ comportement cassé en production réelle.
 > committée ; les « mutants » sont des modifications de production rejouées sous les tests puis
 > annulées (aucun test n'est ajouté ni modifié par cette session).
 
-- **Solides (9)** :
+- **Solides (8)** :
   - **CA-1** (onze comptes, ligne de succès) : sur processus réel, un seed sur base neuve
     sort avec le code `0`, exactement une ligne non vide sur la sortie standard, la sortie
     d'erreur vide, et cette ligne n'est ni un message d'échec ni celle du CA-7 ; le sens
@@ -282,13 +292,6 @@ comportement cassé en production réelle.
     (`admin` et `quiz_buzzer_10`, décision #52). Au service : chaque compte reçoit son mot
     de passe (`seed-users.test.ts`, hasher simulé) ; le coût passé au vrai `BcryptHasher` se
     lit dans le hash (CA-6).
-  - **CA-5** (couverture ≥ 90 %) : CA de couverture. La spec du CA dit « couverture globale »
-    et la décision #67 en fait un seuil global appliqué par la CI : `vitest.config.ts` fixe 90
-    sur les quatre métriques, mesuré à 94,68 % d'instructions, 97,52 % de branches, 93,99 % de
-    fonctions et 94,74 % de lignes (2026-11-20), et la CI de ce HEAD est verte. Compté solide
-    à ce titre ; `seed.ts` reste à 0 % parce que le processus enfant n'est pas instrumenté
-    (comme `index.ts`), non parce qu'il n'est pas testé. La spec garde le CA et son bandeau
-    (dette de `DEBTS.md` : les CA de couverture restent à retirer, une session par lot).
   - **CA-6** (`BCRYPT_COST`) : sur processus réel, quinze valeurs refusées (`abc`, `12.5`,
     `3`, `32`, `-1`, ` 12`, `0`, `4.0`, `+5`, `004`, `04`, un chiffre arabo-indien, vingt
     chiffres, une espace seule, une tabulation seule) : code `1`, sortie standard vide, une
@@ -500,7 +503,7 @@ Les exigences transversales `405` et `role` du JWT, elles, sont corrigées.
 ## 4. Ce que ça signifie pour la suite
 
 Le socle hub est **substantiel mais pas « fini »** au sens strict des specs :
-~82/105 CA solides (US-001 réalignée au HEAD `25d2388` puis mise à jour le 2026-11-18,
+~81/104 CA solides (US-001 réalignée au HEAD `25d2388` puis mise à jour le 2026-11-18,
 US-002 au HEAD `ef7a221` le 2026-11-20, puis CA-3 et CA-7 au HEAD `33823bf` le 2026-11-21, les autres US au relevé daté ; décompte du §1), avec
 un angle mort sur les exigences transversales normatives (le `500` de `/token`, les logs et
 les headers non assertés) et sur le plafond des connexions WebSocket. **Aucun de ces trous
