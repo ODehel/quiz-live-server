@@ -372,15 +372,18 @@ comportement cassé en production réelle.
     (`count !== 0` ignoré) : **tués tous les deux** par le test de la course (un échec chacun,
     `src/seed-all-or-none.test.ts`, 7 tests au vert sur le code réel). Les deux autres mutants du
     handoff du `test(seed)` (écriture hors transaction ; `written` ignoré) : non rejoués ici.
-    **Limite dite** : l'attente du verrou au-delà du délai de la base (5 s) n'est pas spécifiée
-    (sondé : code `1`, `database is locked`) ; dette de `DEBTS.md`.
+    **Verrou tenu par un autre processus** (décision #80, constat reporté, pas une règle) : le
+    seed dont l'écriture n'obtient pas le verrou dans le délai de la base (5 s) sort en code `1`,
+    `User seeding failed: database is locked`, rien d'écrit ; verrou relâché avant la fin du
+    délai : il réussit (sondé le 2026-11-21, Linux, Node 22, root). Aucun test ne l'asserte ;
+    dette de `DEBTS.md`.
 - **Hors CA** :
   - **Atomicité de l'idempotence (« Points de vigilance »)** : tranchée par la décision #77
     (2026-11-21), déplacée dans CA-3 et CA-7 (« Solides » ci-dessus), codée par le `fix(seed)`
     (décision #78) et prouvée sur processus réels. Plus d'écart ; la spec n'a plus de paragraphe
-    « Écart connu ». Restent dans `DEBTS.md` (`infrastructure/ & composition`) : l'attente du
-    verrou d'écriture, non spécifiée, et les deux issues de la table après un arrêt avant tout
-    compte, non assertées (décision #79).
+    « Écart connu ». Restent dans `DEBTS.md` (`infrastructure/ & composition`) : le constat du
+    verrou d'écriture tenu par un autre processus (décision #80), et les deux issues de la table
+    après un arrêt avant tout compte (décision #79), non assertés.
   - **UUIDv7** (périmètre de la spec) : onze identifiants de version 7 sondés, puis prouvés par
     `seed-users.test.ts` (bloc « identifiants stockés » : onze `USR_ID` relus en base, version 7
     et distincts ; mutation `uuidv7()` remplacé par `randomUUID()` tuée). Plus d'écart inscrit
@@ -490,7 +493,7 @@ Les exigences transversales `405` et `role` du JWT, elles, sont corrigées.
 | **E** | **Soldée.** `role` string vs enum dans le JWT REST (CA-3/US-003) : le `fix(authentication)` du 2026-11-10 écrit `toRoleLabel(user.role)` dans le token (`jwt-generator.ts`) ; `jwt-generator.test.ts` asserte `role: "buzzer"` pour un joueur et `role: "admin"` pour un administrateur. Sondé sur hub réel : le token de `/api/v1/token` porte `"admin"` pour `admin` et `"buzzer"` pour `quiz_buzzer_01`. Côté WebSocket, `auth_success` utilise aussi `toRoleLabel` : les deux canaux concordent. La cellule CA-3 d'US-003 reste datée. | ~~🟡~~ soldée | Sans objet. |
 | **F** | **Lecture d'environnement non testée de bout en bout** (CA-2/US-002, CA-4/US-003, CA-13). Tout est renvoyé à `ProcessEnvironment`, non audité. US-001 n'est plus concernée : sa lecture d'environnement est réalignée au §2. US-002 non plus : le `.env` du seed (mots de passe, `BCRYPT_COST`, `SQLITE_DB_PATH`) est prouvé sur processus réel (§2). | 🟢 Vérification | Un dump `process-environment.*` ferme deux US d'un coup. |
 | **G** | **Toujours vraie, inscrite dans `DEBTS.md`.** Logs et headers non assertés. (1) **Logs CA-14 / CA-15 d'US-003** : `token-route.ts` écrit `request.log.info` et `warn` avec le nom d'utilisateur et l'IP ; `token-route.test.ts` monte `Fastify()` sans logger : aucun test ne les capture ; renvoi à `DEBTS.md` : « `POST /api/v1/token` : le `500` expose le détail technique, les logs de CA-14 et CA-15 ne sont pas assertés ». (2) **`Retry-After`, CA-13 / US-003 et CA-34 / US-004** : `token-route.test.ts` et `theme-route.test.ts` n'assertent que le statut `429`. Le header est posé par un hook du middleware de limitation, testé au middleware (`rate-limit-middleware.test.ts`) et, pour la route inconnue, sur le serveur assemblé ; renvoi à `DEBTS.md` : « `429` des tokens non re-testé », « `429` des thèmes non re-testé » et « `Retry-After` constant testé au middleware seul, pas par plugin ». (3) **« Par IP » (CA-13)** : aucun test à deux adresses (la clé est celle de `@fastify/rate-limit` par défaut, l'IP de la requête) ; renvoi à `DEBTS.md` : « `429` des tokens non re-testé ». | 🟢 Vérification | Resserrage de tests. |
-| **H** | **Soldée.** (a) Noms de comptes CA-1/US-002 : prouvés (§2 : l'ensemble des onze logins est comparé sur processus réel). (b) JSON malformé CA-11/US-003 : `token-route.test.ts` asserte `400 INVALID_JSON` pour un JSON tronqué et pour un corps vide. (c) État vide CA-19/US-004 : prouvé à la route (`200` et enveloppe vide, service simulé), au service (`total: 0`, `total_pages: 0`) et au repository (liste vide). Les cellules CA-11 (US-003) et CA-19 (US-004) restent datées. (d) Bornes du jeu de caractères du mot de passe, CA-4/US-002 : U+007F et U+001F refusés, prouvés par `owasp-password-validator.test.ts`, les deux mutants tués (§2). Ce qui reste d'US-002 (`.env` non versionné et non testé ; attente du verrou d'écriture, non spécifiée) n'est pas de cette dette : renvoi à `DEBTS.md`. | ~~🟢~~ soldée | Sans objet. |
+| **H** | **Soldée.** (a) Noms de comptes CA-1/US-002 : prouvés (§2 : l'ensemble des onze logins est comparé sur processus réel). (b) JSON malformé CA-11/US-003 : `token-route.test.ts` asserte `400 INVALID_JSON` pour un JSON tronqué et pour un corps vide. (c) État vide CA-19/US-004 : prouvé à la route (`200` et enveloppe vide, service simulé), au service (`total: 0`, `total_pages: 0`) et au repository (liste vide). Les cellules CA-11 (US-003) et CA-19 (US-004) restent datées. (d) Bornes du jeu de caractères du mot de passe, CA-4/US-002 : U+007F et U+001F refusés, prouvés par `owasp-password-validator.test.ts`, les deux mutants tués (§2). Ce qui reste d'US-002 (`.env` non versionné et non testé ; constat du verrou d'écriture tenu par un autre processus, non asserté, décision #80) n'est pas de cette dette : renvoi à `DEBTS.md`. | ~~🟢~~ soldée | Sans objet. |
 
 ---
 
