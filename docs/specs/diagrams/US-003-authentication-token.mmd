@@ -16,13 +16,13 @@ flowchart TD
         FIELDS -->|"Oui"| DB["SELECT * FROM T_USER_USR\nWHERE username COLLATE NOCASE"]
         DB --> UEXIST{"Utilisateur\ntrouvé ?"}
         UEXIST -->|"Non"| FAKE["bcrypt.compare factice\n(anti-timing attack)"]
-        FAKE --> LOGFAIL["Log WARN : LOGIN_FAILURE\nusername, IP, timestamp"]
+        FAKE --> LOGFAIL["Log WARN\nusername, IP"]
         LOGFAIL --> E401["401 INVALID_CREDENTIALS\n(message générique)"]
         UEXIST -->|"Oui"| BC["bcrypt.compare\n(password, hash stocké)"]
         BC --> MATCH{"Mot de passe\ncorrect ?"}
         MATCH -->|"Non"| LOGFAIL
         MATCH -->|"Oui"| GEN["Générer JWT\nsub=UUIDv7, role, iat, exp\nAlgo HS256 + JWT_SECRET"]
-        GEN --> LOGOK["Log INFO : LOGIN_SUCCESS\nusername, IP, timestamp"]
+        GEN --> LOGOK["Log INFO\nusername, IP"]
         LOGOK --> OK(["200 OK\n{ token, expires_in, token_type: Bearer }"])
     end
 
