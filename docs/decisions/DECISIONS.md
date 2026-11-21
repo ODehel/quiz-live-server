@@ -1202,3 +1202,29 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - `ETAT-DES-LIEUX-socle-hub.md` : aucun passage n'est devenu faux (il constate l'absence de test sur ces logs), non modifié.
 - Condition de réouverture : une exigence d'exploitation qui imposerait le format des logs de connexion avant US-022 (par exemple un outil qui les lirait), ou une évolution d'US-022 qui exclurait ces lignes de CA-6 à CA-8.
 - À challenger : (a) « une ligne de log porte le `username` et l'IP » laisse ouverte la forme de ces champs (un champ nommé, ou le texte du message) tant que US-022 n'est pas là : un test de contenu devra choisir un moyen de lire ces valeurs sans figer la forme ; (b) le diagramme de flux d'US-003 écrit toujours « > 5 req/min » alors que CA-13 dit 100 req/min : écart préexistant, non traité ici ; (c) le diagramme `US-003-authentication-token.png` a été régénéré avec `mmdc` sous Linux, pas sous la machine d'Olivier : la mise en page a pu bouger de quelques pixels.
+
+
+## #82 — Un `Content-Type` absent ou vide est un type non conforme sur toute route avec corps ; `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`, corps natif (#11), corps vide ou non
+
+*`docs(specs): settle what POST /api/v1/token answers when the Content-Type header is absent` — US-003 (CA-7), `SECURITE-TRANSVERSALE.md` (tableau « Content-Type obligatoire », CA-ContentType), `error-codes.md` (ligne du `415`). Solde la dette « `POST /api/v1/token` sans `Content-Type` » de `DEBTS.md` côté spec ; les décisions #1 à #81 ne sont pas modifiées.*
+
+**Contexte.** US-003 CA-7 dit « le `Content-Type` doit être `application/json` », sinon `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`. Le CDC ne disait pas si l'absence d'en-tête relevait de ce CA. Le `fix(authentication)` du 2026-11-21 (`text/plain`, CA-7) l'a relevé sans le trancher. Constats du 2026-11-21 (sondes `app.inject` jetables des sessions précédentes et du cadrage, hors dépôt, rien de committé ; non rejouées dans cette session, qui n'a pas pu installer les dépendances) : sur Fastify nu, un `POST` avec corps et sans `Content-Type` répond `415` ; un `Content-Type` présent mais vide répond `415`, comportement natif ; sur le plugin de `POST /api/v1/token`, un `POST` sans corps et sans `Content-Type` répond `400 FST_ERR_VALIDATION` (« body must be object »).
+
+**Décision.**
+1. **Sur choix d'Olivier (2026-11-21)** : un `Content-Type` absent est un type non conforme. Un `POST` sans `Content-Type` répond `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`, que le corps soit vide ou non.
+2. Un `Content-Type` présent mais vide est traité comme l'absence : même réponse `415`, avec ou sans corps.
+3. La règle est **transversale** : elle vaut pour toute route avec corps (`POST`, `PUT`, `PATCH`). `GET` et `DELETE` ignorent toujours le `Content-Type`. Écrite dans `SECURITE-TRANSVERSALE.md` (tableau et CA-ContentType), reprise par une phrase au CA-7 d'US-003 ; `error-codes.md` dit « incorrect ou absent » sur la ligne du `415`.
+4. Le corps de la réponse reste le corps natif de Fastify (décision #11).
+5. **Aucun CA n'est ajouté, retiré ni renuméroté.** Aucun comportement ne change par cette session : ni le code, ni un test.
+
+**Alternatives écartées.**
+- **Traiter l'absence comme `application/json`** : écartée, CA-7 dit « doit être `application/json` » ; une requête sans en-tête ne le déclare pas, et le code natif de Fastify la refuse déjà quand elle porte un corps.
+- **Distinguer l'absence de l'en-tête vide** : écartée, aucun besoin exprimé, et le comportement natif les confond ; deux réponses obligeraient à tenir deux règles pour un même constat.
+- **Limiter la règle à `POST /api/v1/token`** : écartée, la règle de `SECURITE-TRANSVERSALE.md` porte déjà sur toutes les routes avec corps ; une exception ici contredirait le tableau.
+- **Une note « Écart connu » dans la spec** : écartée sur choix d'Olivier, l'écart du code est consigné en dette seulement.
+
+**Conséquences.**
+- Le code est conforme, sauf `POST /api/v1/token` sans corps et sans `Content-Type` : `400 FST_ERR_VALIDATION` aujourd'hui, au lieu de `415`. Un `fix(authentication)` à venir le corrige ; il solde la dette (pas de pas séparé).
+- `DEBTS.md` : la ligne `POST /api/v1/token` sans `Content-Type` est remplacée par ce constat ; deux lignes consignent que la conformité à #82 n'est pas sondée sur les thèmes et les questions (`POST`, `PUT`, `PATCH` sans `Content-Type`).
+- Condition de réouverture : un client légitime qui enverrait un `POST` sans `Content-Type` et qu'il faudrait accepter, ou un changement de Fastify qui modifierait le traitement natif de l'absence d'en-tête.
+- À challenger : (a) les constats viennent de sondes d'autres sessions sur Fastify nu et sur le plugin des tokens (Linux, Node 22), pas sous Windows ni sur le hub assemblé, et cette session ne les a pas rejouées ; thèmes et questions ne sont pas sondés (`better-sqlite3` ne s'installe pas dans l'environnement de Claude) ; (b) US-004 CA-8 et US-007 CA-18 disent encore « Content-Type incorrect » : ils restent vrais, la règle transversale précise leur lecture, non modifiés ici ; (c) `application/json; charset=utf-8` accepté ou non, et l'ordre `405` contre `415`, restent hors CDC.

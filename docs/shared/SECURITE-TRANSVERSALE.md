@@ -189,6 +189,7 @@ Corps standard à trois champs, comme toute autre erreur de l'API (décision #34
 | Critère | Résultat attendu |
 |---|---|
 | **Routes avec body** (POST, PUT, PATCH) exigent `Content-Type: application/json` | Autre type → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
+| Un `Content-Type` **absent** ou **présent mais vide** est un type non conforme (décision #82) | `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`, que le body soit vide ou non |
 | Les routes **sans body** (GET, DELETE) ignorent le `Content-Type` | Quelle que soit sa valeur, aucune validation n'est effectuée |
 | Le serveur ne doit pas interpréter d'autres formats (XML, form-encoded, etc.) sur les routes qui attendent JSON | Rejeter avec `415` |
 
@@ -357,7 +358,7 @@ curl -s -X GET "$BASE_URL/api/v1/themes/00000000-0000-0000-0000-000000000000" \
 
 ---
 
-### CA-ContentType — Content-Type incorrect → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`
+### CA-ContentType — Content-Type incorrect ou absent → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`
 
 ```bash
 # POST avec Content-Type: text/plain
@@ -366,6 +367,13 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/themes" \
   -H "Content-Type: text/plain" \
   -d '{"name": "Musique"}'
 # Attendu : 415 FST_ERR_CTP_INVALID_MEDIA_TYPE
+
+# POST sans en-tête Content-Type (même avec un body ; sans body, même réponse)
+curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/themes" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type:" \
+  -d '{"name": "Musique"}'
+# Attendu : 415 FST_ERR_CTP_INVALID_MEDIA_TYPE (en-tête absent ou vide : même réponse, décision #82)
 
 # DELETE avec n'importe quel Content-Type (ignoré sur GET/DELETE)
 curl -s -w "\n→ HTTP %{http_code}\n" -X DELETE "$BASE_URL/api/v1/themes/some-id" \
