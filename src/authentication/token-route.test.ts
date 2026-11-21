@@ -310,3 +310,67 @@ describe('US-003/CA-17: When an unexpected error occurs', () => {
         expect(response.json()).toEqual(standardBody);
     });
 });
+
+describe('US-003/CA-14 and US-003/CA-15: The logins are logged', () => {
+    const clientIp = '203.0.113.7';
+    let logs: Record<string, unknown>[];
+
+    beforeEach(async () => {
+        logs = [];
+        app = Fastify({
+            logger: {
+                level: 'info',
+                stream: { write: (line: string) => { logs.push(JSON.parse(line) as Record<string, unknown>); } }
+            }
+        });
+        await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, rateLimitMiddleware: mockRateLimitMiddleware });
+    });
+
+    async function login(username: string, password: string) {
+        return app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            remoteAddress: clientIp,
+            body: JSON.stringify({ username, password })
+        });
+    }
+
+    // Only the content is asserted, never the shape (US-022): the lines are found by what they carry.
+    function levelsOfTheLinesCarrying(username: string, ip: string): unknown[] {
+        return logs
+            .filter(line => Object.values(line).includes(username) && Object.values(line).includes(ip))
+            .map(line => line.level);
+    }
+
+    it('US-003/CA-14: should log a successful login at INFO level with the username and the IP', async () => {
+        const response = await login('User Name', 'user-password');
+        expect(response.statusCode).toBe(200);
+        expect(levelsOfTheLinesCarrying('User Name', clientIp)).toContain(30);
+    });
+
+    it('US-003/CA-15: should log a login with a wrong password at WARN level with the username and the IP', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockResolvedValue(undefined);
+        const response = await login('User Name', 'wrong-password');
+        expect(response.statusCode).toBe(401);
+        expect(levelsOfTheLinesCarrying('User Name', clientIp)).toContain(40);
+    });
+
+    it('US-003/CA-15: should log a login with an unknown user at WARN level with the username tried and the IP', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockResolvedValue(undefined);
+        const response = await login('Ghost', 'user-password');
+        expect(response.statusCode).toBe(401);
+        expect(levelsOfTheLinesCarrying('Ghost', clientIp)).toContain(40);
+    });
+
+    it('US-003/CA-14: should not log a successful login at WARN level', async () => {
+        await login('User Name', 'user-password');
+        expect(levelsOfTheLinesCarrying('User Name', clientIp)).not.toContain(40);
+    });
+
+    it('US-003/CA-15: should not log a failed login at INFO level', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockResolvedValue(undefined);
+        await login('User Name', 'wrong-password');
+        expect(levelsOfTheLinesCarrying('User Name', clientIp)).not.toContain(30);
+    });
+});
