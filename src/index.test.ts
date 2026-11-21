@@ -780,6 +780,42 @@ describe('hub startup: JWT_SECRET', () => {
     }, TEST_TIMEOUT_MS)
 })
 
+// US-003/CA-20 on the real process. The failure goes on the error output behind the prefix of US-001 CA-7 (decision #50). The wording after
+// the prefix is not normative (decision #53): the tests fix the prefix, the name of the variable and the words that carry the rule
+// (an integer, strictly positive, in seconds), never the sentence. The 20 digits are the probe of DEBTS.md: no ceiling (decision #42).
+describe('hub startup: JWT_EXPIRATION', () => {
+    it.each(['abc', '3600s', '1.5', '1e3', '0', '-5', ' 3600'])('US-003/CA-20 refuses to start when JWT_EXPIRATION is %j: exit code 1, the message naming JWT_EXPIRATION and its rule on the error output, nothing listens', async (expiration) => {
+        const port = await freePort()
+        const hub = startHub(String(port), { JWT_EXPIRATION: expiration })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toMatch(/^Server starting failed: .*JWT_EXPIRATION/m)
+        expect(hub.errors()).toMatch(/integer/i)
+        expect(hub.errors()).toMatch(/positive/i)
+        expect(hub.errors()).toMatch(/seconds/i)
+        expect(hub.errors()).not.toMatch(STACK_TRACE)
+        expect(hub.standardOutput()).not.toContain('JWT_EXPIRATION')
+        expect(hub.console()).not.toContain('Server started')
+        expect(hub.console()).not.toContain('Listening on')
+        expect(await canConnect(port)).toBe(false)
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['absent', undefined],
+        ['empty', ''],
+        ['a 20-digit integer, with no ceiling', '9'.repeat(20)]
+    ] as const)('US-003/CA-20 starts and listens when JWT_EXPIRATION is %s', async (_name, expiration) => {
+        const port = await freePort()
+        const hub = startHub(String(port), { JWT_EXPIRATION: expiration })
+
+        await waitUntilListening(hub, port)
+
+        expect(hub.errors()).not.toContain('JWT_EXPIRATION')
+    }, TEST_TIMEOUT_MS)
+})
+
 // US-001/CA-1, US-003/CA-19 and decision #76 on the real process: `.env.example` copied to `.env` without any edit is refused by the hub,
 // because JWT_SECRET has no value. The wording after the prefix is not normative (US-003 CA-19 gives an example): the tests fix the prefix,
 // the name of the variable, the exit code, the empty standard output and that nothing listens. env-example.test.ts proves the content of the
