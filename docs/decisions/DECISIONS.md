@@ -1153,3 +1153,28 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe79`, rien de committé), Linux, N
 - `DEBTS.md` : les lignes T1 et T10 sont soldées et supprimées ; une ligne consigne que les deux issues de T10 ne sont pas assertées (le module préchargé ne sait pas arrêter le processus avant ou juste après la création de la table).
 - Condition de réouverture : une exigence de message sur la perdante (par exemple un outil qui lirait la ligne), ou un consommateur qui lirait la table après un arrêt.
 - À challenger : (a) les sondes sont sur Linux, Node 22, root, une machine, disque local ; non jouées sous Windows ni sur un disque réseau ; (b) « même sens » reste un jugement : aucun test ne peut le prouver mot à mot, comme pour la ligne du CA-7 (dette existante, décision #66).
+
+
+## #80 — Ce que rend le seed quand son écriture n'obtient pas le verrou d'écriture de la base dans le délai n'est pas imposé (constat reporté)
+
+*`docs(specs): settle what the seed returns when it cannot get the write lock` — US-002 (CA-7, étape 7 du flux). Solde « À challenger (a) » de la décision #77, consigné par la décision #78 et par `DEBTS.md` ; les décisions #1 à #79 ne sont pas modifiées.*
+
+**Contexte.** La décision #77 garantit le tout ou rien et la perdante d'une course en code `0`, mais le CDC ne disait rien du cas où l'écriture du seed n'obtient pas le verrou d'écriture de la base dans le délai de celle-ci (`better-sqlite3`, 5 s par défaut). La décision #78 l'a laissé hors périmètre. Ce cas n'est pas la course : l'autre processus qui tient le verrou n'est pas forcément un seed gagnant, donc il n'y a pas de « perdante » au sens du CA-7.
+
+Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux, Node 22.23.5 (le dépôt demande Node 26), root, `BCRYPT_COST=4`, `tsx src/seed.ts`, base jetable dont la table `T_USER_USR` existe et est vide, un second processus Node qui tient `BEGIN IMMEDIATE` : verrou tenu 10 s, trois essais : code `1`, sortie standard vide, sortie d'erreur `User seeding failed: database is locked`, table vide, 5,59 s et 5,61 s au total (démarrage de `tsx` compris, environ 0,5 s sans verrou) pour deux d'entre eux, 7,9 s pour le premier, à froid ; verrou tenu 3 s, relâché avant la fin du délai : code `0`, ligne de succès du CA-1, sortie d'erreur vide, onze comptes, 3,0 s ; verrou tenu 9 s : code `1`, même sortie d'erreur, 5,5 s, table vide.
+
+**Décision.**
+1. **Sur choix d'Olivier (2026-11-21), constat reporté, pas une règle** : le CDC n'impose pas ce que rend le seed quand son écriture n'obtient pas le verrou d'écriture dans le délai de la base. Constaté : il attend, puis sort en code `1`, sortie standard vide, sortie d'erreur `User seeding failed: database is locked`, aucun compte écrit ; si le verrou est relâché avant la fin du délai, il réussit normalement. Écrit au CA-7 (à côté de la course) et à l'étape 7 du flux.
+2. Le texte exact, la durée de l'attente et la cause sont ceux du système et de la base et ne sont pas imposés ; seul le préfixe `User seeding failed: ` suit la convention des autres refus (CA-4, CA-6, CA-8 et CA-9).
+3. **Aucun comportement ne change** : ni le code, ni un test, ni un diagramme. Aucun CA n'est ajouté.
+
+**Alternatives écartées.**
+- **Imposer le code `1` et le message** : écartée, elle figerait le texte et le délai de la base, que rien n'impose à un administrateur qui relance le seed.
+- **Faire du verrou tenu par un autre processus un cas du CA-7 (code `0`, ligne « ignoré »)** : écartée, le CA-7 décrit une table qui porte des comptes ; ici la table est vide et rien n'a été écrit, une sortie en code `0` annoncerait un état que le seed n'a pas atteint.
+- **Un code ou un message dédié** : écartée, aucun besoin exprimé ; elle ajouterait une règle à tenir par le code et par un test.
+
+**Conséquences.**
+- `DEBTS.md` : la ligne de l'attente du verrou est soldée côté spec et supprimée ; une ligne consigne que ce constat n'est asserté par aucun test (`test(seed)` d'un verrou tenu par un autre processus, facultatif).
+- `ETAT-DES-LIEUX-socle-hub.md` : la « Limite dite » de la section US-002 renvoie au CA-7 et à la décision #80 au lieu de la dette.
+- Condition de réouverture : une exigence de message ou de délai sur ce refus (par exemple un orchestrateur qui relance le seed et qui lirait la sortie), ou un moteur de base dont le délai ne serait pas celui de `better-sqlite3`.
+- À challenger : (a) sondes sur Linux, Node 22, root, une machine, disque local, mode de journal par défaut ; non jouées sous Windows ni sur un disque réseau, où le verrouillage SQLite se comporte autrement ; (b) le délai de 5 s est celui de `better-sqlite3` aujourd'hui ; une mise à jour de la bibliothèque ou un réglage du délai le changerait sans changer le constat de la spec ; (c) le verrou n'a été tenu que par `BEGIN IMMEDIATE` sur une table existante : un verrou exclusif, une base dont la table est à créer, ou un verrou tenu pendant la lecture initiale de la table ne sont pas sondés.
