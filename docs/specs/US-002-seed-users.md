@@ -18,8 +18,6 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 
 ## ✅ Critères d'acceptance
 
-> 🧪 **Exigence de couverture** — Voir [Conventions techniques — Couverture des tests](../shared/CONVENTIONS-TECHNIQUES.md#-exigence-de-couverture-des-tests). Chaque CA doit être couvert par au moins un test automatisé. Couverture globale ≥ 90 %.
-
 ### Seed des utilisateurs — `npm run seed`
 
 | # | Critère | Résultat attendu |
@@ -29,11 +27,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-3 | Le seed est idempotent : si les comptes existent déjà, le script ne fait rien | Pas de doublon ni de réinitialisation. **Tout ou rien** (décision #77) : quel que soit le moment où le processus du seed s'arrête, arrêt brutal compris (signal `SIGKILL`, coupure), la table `T_USER_USR` contient ensuite les onze comptes ou aucun, jamais une partie ; un arrêt après l'écriture des onze comptes peut seulement faire manquer la ligne de succès du CA-1, et le lancement suivant affiche alors la ligne du CA-7. Un lancement qui suit un arrêt qui n'a rien laissé trouve la table vide et crée les onze comptes (CA-1). La garantie vaut aussi quand deux seeds s'exécutent en même temps (CA-7). Le CDC dit la garantie, pas le mécanisme (décision #77). **Table après un arrêt qui n'a rien laissé** (décision #79, constat reporté, pas une règle) : « aucun compte » ne dit rien de l'existence de la table `T_USER_USR`, et le CDC n'impose ni qu'elle existe ni qu'elle soit absente. Sondé le 2026-11-21 (Linux, Node 22, root, `tsx src/seed.ts`, une seule machine) : un arrêt brutal avant la création de la table laisse un fichier de base sans table ; un arrêt après sa création, y compris juste après le premier `INSERT` de l'écriture, laisse la table vide, sans compte. Dans les deux cas le lancement suivant crée la table si elle manque (CA-9) puis les onze comptes (CA-1) |
 | CA-4 | Les mots de passe respectent la politique OWASP : de 12 à 72 caractères, tous de l'ASCII imprimable (U+0020 à U+007E), et pas uniquement des espaces (U+0020) ; 72 caractères valent 72 octets, la limite de bcrypt (décision #74) | Le seed refuse de s'exécuter si un mot de passe manque (variable non définie) ou ne respecte pas la politique (trop court, trop long, un caractère hors de l'ASCII imprimable, tabulation ou saut de ligne compris, variable définie mais vide, ou faite uniquement d'espaces) : aucun compte n'est créé, le processus se termine avec le code de sortie `1`, la sortie standard est vide, et la sortie d'erreur affiche un message qui commence par `User seeding failed: `, nomme un seul compte (celui dont le mot de passe est refusé) et ne reprend pas le mot de passe. Seuls sont normatifs ce préfixe, le nom du compte et l'absence du mot de passe ; les libellés sont des exemples, non normatifs, comme les lignes du CA-7 et du CA-1 : `User seeding failed: Missing password for account <login>` (variable non définie) et `User seeding failed: Invalid password for account <login>` (tout autre refus, variable définie mais vide comprise). La base que l'ouverture a créée n'est pas supprimée (CA-9, décision #65) |
 
-### Sécurité et transversalité
-
-| # | Critère | Résultat attendu |
-|---|---|---|
-| CA-5 | Tests unitaires et d'intégration | Couverture de tests ≥ 90% |
+> **Note du 2026-11-21 (décision #54)** — CA-5 (« Tests unitaires et d'intégration — Couverture de tests ≥ 90% ») est retiré, comme CA-6 d'US-001 le 2026-11-14 : la couverture relève de la méthode TDD, pas d'un critère d'acceptance (le seuil global de 90 % est appliqué par la CI, décision #67 ; la règle « un CA = au moins un test » est inchangée). Le bandeau « Exigence de couverture » est retiré avec lui. La numérotation des autres CA est conservée (CA-6 est cité par les décisions, par les tests et par les handoffs) : il n'y a donc pas de CA-5.
 
 ### Coût bcrypt et message du seed
 
@@ -210,7 +204,6 @@ SEED_PASSWORD_BUZZER_10=<a_changer>
 | Ligne de succès sur la sortie standard quand le seed crée les onze comptes, sortie d'erreur vide, code `0` (CA-1, décision #73) | |
 | Refus d'un mot de passe ou de `BCRYPT_COST` invalide : sortie d'erreur `User seeding failed: <message>`, sortie standard vide, code `1` (CA-4 et CA-6, décision #74) | |
 | Création de la table `T_USER_USR` par le seed quand elle manque (CA-9, décisions #64, #72 et #74) ; son schéma reste défini par l'US-003 | |
-| Tests unitaires et d'intégration (couverture ≥ 90%) | |
 
 ---
 
