@@ -1130,3 +1130,26 @@ Sondes du 2026-11-21, hors dépôt (dossier `/tmp`, rien de committé), Linux, N
 - **Hors périmètre, non décidé** : l'attente du verrou au-delà du délai de la base (5 s) : sondée, le seed sort en code `1` avec `User seeding failed: database is locked` ; aucun code dédié, aucun test (« À challenger (a) » de la décision #77, dette).
 - Les mocks de `UserRepository` d'`authentication/` déclarent la nouvelle méthode (changement de type seulement).
 - À challenger : le choix de l'`immediate` n'est tué par aucun test committé, seulement par la sonde de course à fenêtre élargie ; le `test(seed)` de la course doit le tuer. La perdante qui attend le verrou affiche la ligne du CA-7 après l'attente (jusqu'à 5 s) : sans conséquence observable pour la spec.
+
+
+## #79 — La ligne de la perdante d'une course n'est normative que par son sens (pas d'égalité mot à mot avec celle d'un second lancement) ; l'existence de la table après un arrêt qui n'a rien laissé n'est pas imposée (constat reporté)
+
+*`docs(specs): settle the skipped-seed line of a lost race and the table left by a killed seed` — US-002 (CA-3, CA-7). Solde les trous de CDC T1 et T10 consignés par `DEBTS.md` après le `test(seed)` de la course ; les décisions #1 à #78 ne sont pas modifiées.*
+
+**Contexte.** Le CA-7 (décision #77) dit que la perdante d'une course « affiche cette même ligne » que le seed lancé sur une table non vide, alors que la décision #66 ne rend normatif que le sens de cette ligne : le CDC ne disait pas si l'égalité mot à mot était exigée (T1). Le CA-3 dit que la table contient « les onze comptes ou aucun » après un arrêt brutal, sans dire si la table `T_USER_USR` doit exister quand l'arrêt tombe avant tout compte (T10).
+
+Sondes du 2026-11-21, hors dépôt (`/tmp/probe79`, rien de committé), Linux, Node 22.23.5 (le dépôt demande Node 26), root, `BCRYPT_COST=4`, `tsx src/seed.ts`, base neuve, `SIGKILL` : juste avant la création de la table, code 137, fichier de base présent **sans table** ; juste après la création, code 137, **table présente et vide** ; juste après le premier `INSERT` de l'écriture (module préchargé du `test(seed)`), code 137, table présente, **zéro compte**. Après chacun des deux premiers arrêts, un relancement crée les onze comptes (code `0`, ligne du CA-1).
+
+**Décision.**
+1. **T1, sur choix d'Olivier (2026-11-21)** : seul le **sens** de la ligne de la perdante est normatif, comme pour la ligne du CA-7 (décision #66) : une ligne sur la sortie standard qui dit qu'aucun compte n'a été créé parce que la table n'est pas vide. Le texte exact n'est pas imposé, ni son égalité avec la ligne d'un second lancement, ni sa différence avec celle du gagnant. Écrit au CA-7 (« même sens, pas forcément même texte »).
+2. **T10, sur choix d'Olivier (2026-11-21), constat reporté, pas une règle** : le CDC n'impose pas que la table `T_USER_USR` existe après un arrêt avant tout compte. Constaté : elle peut être absente (fichier de base sans table) ou présente et vide ; dans les deux cas elle ne porte aucun compte et le lancement suivant crée la table si elle manque (CA-9) puis les onze comptes (CA-1). Écrit au CA-3.
+3. **Aucun comportement ne change** : ni le code, ni un test, ni un diagramme. Aucun CA n'est ajouté.
+
+**Alternatives écartées.**
+- **Égalité mot à mot de la ligne de la perdante avec celle d'un second lancement** : écartée, elle ferait de l'exemple non normatif du CA-7 une règle de texte que la décision #66 a refusée.
+- **Imposer que la table existe après un arrêt** : écartée, elle fige un moment de création de la table (à l'instanciation du repository, hors de la transaction d'écriture) que rien d'observable ne distingue de l'autre issue, pour le seul administrateur qui relance le seed.
+
+**Conséquences.**
+- `DEBTS.md` : les lignes T1 et T10 sont soldées et supprimées ; une ligne consigne que les deux issues de T10 ne sont pas assertées (le module préchargé ne sait pas arrêter le processus avant ou juste après la création de la table).
+- Condition de réouverture : une exigence de message sur la perdante (par exemple un outil qui lirait la ligne), ou un consommateur qui lirait la table après un arrêt.
+- À challenger : (a) les sondes sont sur Linux, Node 22, root, une machine, disque local ; non jouées sous Windows ni sur un disque réseau ; (b) « même sens » reste un jugement : aucun test ne peut le prouver mot à mot, comme pour la ligne du CA-7 (dette existante, décision #66).
