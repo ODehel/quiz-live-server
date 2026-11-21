@@ -223,7 +223,6 @@ Plusieurs instances peuvent démarrer simultanément (décision #77). Le CDC fix
 - **Tout ou rien** : quel que soit le moment où le processus s'arrête, arrêt brutal compris, la table contient les onze comptes ou aucun (CA-3). Un compte partiel n'existe jamais.
 - **Course** : la perdante ne modifie rien, affiche la ligne du CA-7 sur la sortie standard, se termine avec le code de sortie `0`, sortie d'erreur vide (CA-7). Jamais le code `1` ni un message de contrainte d'unicité pour cette cause.
 - **Mécanisme non imposé** : une transaction unique qui englobe la vérification et les onze insertions est le moyen évident, mais la spec ne l'impose pas ; c'est un choix d'implémentation, non observable, laissé au code. Seul compte le comportement ci-dessus.
-- **Écart connu** : le code ne le tient pas encore. Il fait les onze insertions séparément, sans transaction : la règle « aucun compte partiel » n'y tient, pour la course, que par l'ordre d'insertion fixe (les deux instances visent `quiz_buzzer_01` en premier, la perdante échoue avant d'avoir écrit), et elle est fausse après un arrêt brutal ; la perdante sort tantôt en `1` avec la contrainte d'unicité, tantôt en `0` avec la ligne du CA-7. Dette de `DEBTS.md`.
 
 ### Sécurité des mots de passe
 
