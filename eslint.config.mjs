@@ -2,7 +2,8 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist/", "coverage/"] },
+  // The probe preloaded into the real seed process by seed-all-or-none.test.ts is plain JavaScript, outside the tsconfig (no type-checked rules apply to it).
+  { ignores: ["dist/", "coverage/", "src/test-support/*.mjs"] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
