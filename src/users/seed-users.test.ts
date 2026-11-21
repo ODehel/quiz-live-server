@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UserRepository } from "./user-repository.interface";
-import { SeedUsers } from './seed-users';
+import { SeedUsers, accountsCreatedMessage } from './seed-users';
 import { UserRole } from './user-role';
 import { User } from './user.interface';
 import { Hasher } from '../common/hasher.interface';
@@ -68,10 +68,21 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
         await userSeed.seed(configuration);
         expect(configuration.seedPasswordFor).not.toHaveBeenCalled();
     });
-    it("should report that the accounts were created when the table is empty", async () => {
+    it("should report that the accounts were created when the table is empty, with the success line of the seed", async () => {
         const result = await userSeed.seed(mockEnvironment);
-        expect(result).toEqual({ created: true });
+        expect(result).toEqual({ created: true, message: "Seed terminé — 11 comptes créés." });
     });
+    it("should count in its success line the accounts it handed to the repository", async () => {
+        const result = await userSeed.seed(mockEnvironment);
+        expect(result.message).toBe(accountsCreatedMessage(writtenUsers(mockRepository).length));
+    });
+});
+
+describe("CA-1 - la ligne de succès compte les comptes qu'on lui donne", () => {
+    it.each([[11, "Seed terminé — 11 comptes créés."], [3, "Seed terminé — 3 comptes créés."], [42, "Seed terminé — 42 comptes créés."]])(
+        "should write the figure %i in the line", (count, expected) => {
+            expect(accountsCreatedMessage(count)).toBe(expected);
+        });
 });
 
 describe("CA-7 - le seed dit qu'aucun compte n'a été créé quand la table n'est pas vide", () => {
@@ -378,14 +389,14 @@ describe("Seed with the SQLite repository - tout ou rien et perdante d'une cours
         await expect(seedUsers.seed(mockEnvironment)).rejects.toThrow();
         database.exec("DROP TRIGGER refuse_admin");
         const result = await seedWith(database, hasherTagging("B")).seed(mockEnvironment);
-        expect(result).toEqual({ created: true });
+        expect(result.created).toBe(true);
         expect(storedAccounts(database)).toHaveLength(11);
     });
 
     it("should lose the race without error and without leaving an account when another run fills the table after its check", async () => {
         const winner = seedWith(otherDatabase, hasherTagging("WINNER"));
         const loserHasher = hasherTagging("LOSER", async () => {
-            expect(await winner.seed(mockEnvironment)).toEqual({ created: true });
+            expect((await winner.seed(mockEnvironment)).created).toBe(true);
         });
         const result = await seedWith(database, loserHasher).seed(mockEnvironment);
         expect(result).toEqual({

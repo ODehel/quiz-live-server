@@ -6,7 +6,12 @@ import { UserRole } from "./user-role"
 import { SeedUserConfiguration } from "./seed-user-configuration.interface";
 import { readBcryptCost } from "./bcrypt-cost";
 
-export type SeedResult = { created: true } | { created: false; message: string };
+// US-002/CA-1 and decision #73: one line, whose sense (the accounts were created) is the only normative part; the figure is the number of accounts written.
+export type SeedResult = { created: true; message: string } | { created: false; message: string };
+
+export function accountsCreatedMessage(count: number): string {
+    return `Seed terminé — ${count} comptes créés.`;
+}
 
 const TABLE_NOT_EMPTY_MESSAGE = "Seed ignoré — la table T_USER_USR contient déjà des comptes.";
 const ADMIN_LOGIN = 'admin';
@@ -47,7 +52,7 @@ export class SeedUsers {
         if (!written) {
             return { created: false, message: TABLE_NOT_EMPTY_MESSAGE };
         }
-        return { created: true };
+        return { created: true, message: accountsCreatedMessage(defaultUsers.length) };
     }
 
     private readValidPasswords(configuration: SeedUserConfiguration): Map<string, string> {

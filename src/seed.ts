@@ -6,9 +6,6 @@ import { OwaspPasswordValidator } from './users/owasp-password-validator';
 import { ProcessEnvironment } from './common/process-environment';
 import Database from 'better-sqlite3';
 
-// US-002/CA-1 and decision #73: one line on the standard output, whose sense (the eleven accounts were created) is the only normative part.
-const ACCOUNTS_CREATED_MESSAGE = "Seed terminé — 11 comptes créés.";
-
 // Everything runs inside the promise, in the order of US-002: SQLITE_DB_PATH (ProcessEnvironment), then the opening of the database
 // and its first statement (the table created by the repository constructor), then the table, the passwords and BCRYPT_COST (SeedUsers).
 // A single failure, whichever the step, leaves through the one catch below.
@@ -19,7 +16,7 @@ async function seed(): Promise<void> {
     const passwordValidator = new OwaspPasswordValidator();
     const seedUsers: SeedUsers = new SeedUsers(userRepository, hasher, passwordValidator);
     const result = await seedUsers.seed(environment);
-    console.log(result.created ? ACCOUNTS_CREATED_MESSAGE : result.message);
+    console.log(result.message);
 }
 
 seed().catch((error: unknown) => {
