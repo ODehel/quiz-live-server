@@ -29,6 +29,23 @@ export class SqliteUserRepository implements UserRepository {
         stmt.run(user.id, user.username, user.password, toRoleLabel(user.role));
         return Promise.resolve();
     }
+    // One transaction, whose write lock is taken at its start (immediate): the count and the insertions are a single step for the other connections,
+    // so an instance that waits for the lock reads the accounts of the one that wrote first instead of failing on a unique constraint at its first insert.
+    // A process killed before the commit leaves no account: SQLite rolls the transaction back when the file is next opened.
+    insertAllIfEmpty(users: User[]): Promise<boolean> {
+        const insertAll = this.db.transaction((rows: User[]): boolean => {
+            const { count } = this.db.prepare("SELECT COUNT(USR_LOGIN) as count FROM T_USER_USR").get() as { count: number };
+            if (count !== 0) {
+                return false;
+            }
+            const stmt = this.db.prepare("INSERT INTO T_USER_USR (USR_ID, USR_LOGIN, USR_HASH_PASSWORD, USR_ROLE) VALUES (?, ?, ?, ?)");
+            for (const row of rows) {
+                stmt.run(row.id, row.username, row.password, toRoleLabel(row.role));
+            }
+            return true;
+        });
+        return Promise.resolve().then(() => insertAll.immediate(users));
+    }
     retrieveByLogin(login: string): Promise<User | undefined> {
         const row = this.db.prepare("SELECT USR_ID as id, USR_LOGIN as username, USR_HASH_PASSWORD as password, USR_ROLE as role FROM T_USER_USR WHERE USR_LOGIN = ?").get(login) as StoredUser | undefined;
         return Promise.resolve(toUser(row));

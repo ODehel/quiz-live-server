@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UserRepository } from "./user-repository.interface";
 import { SeedUsers } from './seed-users';
 import { UserRole } from './user-role';
+import { User } from './user.interface';
 import { Hasher } from '../common/hasher.interface';
 import { PasswordValidator } from './password-validator.interface';
 import { SeedUserConfiguration } from './seed-user-configuration.interface';
@@ -9,6 +10,9 @@ import { SqliteUserRepository } from './sqlite-user-repository';
 import Database from 'better-sqlite3';
 import { BcryptHasher } from '../infrastructure/bcrypt-hasher';
 import { OwaspPasswordValidator } from './owasp-password-validator';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const logins = ['admin', ...Array.from({ length: 10 }, (_, i) => `quiz_buzzer_${String(i + 1).padStart(2, '0')}`)];
 
@@ -21,6 +25,8 @@ const configurationWith = (overrides: Record<string, string | undefined> = {}, b
 
 const mockEnvironment: SeedUserConfiguration = configurationWith();
 
+const writtenUsers = (repository: UserRepository): User[] => vi.mocked(repository.insertAllIfEmpty).mock.calls.flatMap(call => call[0]);
+
 describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore", () => {
     let userSeed: SeedUsers;
     let mockRepository: UserRepository;
@@ -30,6 +36,7 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -45,13 +52,15 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
     it("should create 11 user accounts if there are none", async () => {
         await userSeed.seed(mockEnvironment);
         expect(mockRepository.count).toHaveBeenCalled();
-        expect(mockRepository.insert).toHaveBeenCalledTimes(11);
+        expect(mockRepository.insertAllIfEmpty).toHaveBeenCalledTimes(1);
+        expect(writtenUsers(mockRepository)).toHaveLength(11);
+        expect(mockRepository.insert).not.toHaveBeenCalled();
     });
     it("should not create user accounts if there are already some", async () => {
         vi.mocked(mockRepository.count).mockResolvedValue(5);
         await userSeed.seed(mockEnvironment);
         expect(mockRepository.count).toHaveBeenCalled();
-        expect(mockRepository.insert).not.toHaveBeenCalled();
+        expect(mockRepository.insertAllIfEmpty).not.toHaveBeenCalled();
     });
     it("should stop before reading the passwords if there are already some accounts", async () => {
         vi.mocked(mockRepository.count).mockResolvedValue(1);
@@ -72,6 +81,7 @@ describe("CA-7 - le seed dit qu'aucun compte n'a été créé quand la table n'e
         mockRepository = {
             count: vi.fn().mockResolvedValue(5),
             insert: vi.fn().mockResolvedValue(undefined),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -83,7 +93,17 @@ describe("CA-7 - le seed dit qu'aucun compte n'a été créé quand la table n'e
             created: false,
             message: "Seed ignoré — la table T_USER_USR contient déjà des comptes."
         });
-        expect(mockRepository.insert).not.toHaveBeenCalled();
+        expect(mockRepository.insertAllIfEmpty).not.toHaveBeenCalled();
+    });
+    it("should say the same when another run filled the table between the check and the write", async () => {
+        vi.mocked(mockRepository.count).mockResolvedValue(0);
+        vi.mocked(mockRepository.insertAllIfEmpty).mockResolvedValue(false);
+        const seedWithValidPasswords = new SeedUsers(mockRepository, { hash: vi.fn().mockResolvedValue('a-hash'), compare: vi.fn() }, { validate: vi.fn().mockReturnValue(true) });
+        const result = await seedWithValidPasswords.seed(mockEnvironment);
+        expect(result).toEqual({
+            created: false,
+            message: "Seed ignoré — la table T_USER_USR contient déjà des comptes."
+        });
     });
 });
 
@@ -96,6 +116,7 @@ describe("CA-2 - Les mots de passe sont lus depuis les variables d'environnement
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -111,13 +132,13 @@ describe("CA-2 - Les mots de passe sont lus depuis les variables d'environnement
     it("should give each account its own password", async () => {
         await userSeed.seed(mockEnvironment);
         for (const login of logins) {
-            expect(mockRepository.insert).toHaveBeenCalledWith(expect.objectContaining({ username: login, password: `hashed_${passwordOf(login)}` }));
+            expect(writtenUsers(mockRepository)).toContainEqual(expect.objectContaining({ username: login, password: `hashed_${passwordOf(login)}` }));
         }
     });
     it("should give the admin account the admin role and the buzzer accounts the player role", async () => {
         await userSeed.seed(mockEnvironment);
-        expect(mockRepository.insert).toHaveBeenCalledWith(expect.objectContaining({ username: 'admin', role: UserRole.ADMIN }));
-        expect(mockRepository.insert).toHaveBeenCalledWith(expect.objectContaining({ username: 'quiz_buzzer_07', role: UserRole.PLAYER }));
+        expect(writtenUsers(mockRepository)).toContainEqual(expect.objectContaining({ username: 'admin', role: UserRole.ADMIN }));
+        expect(writtenUsers(mockRepository)).toContainEqual(expect.objectContaining({ username: 'quiz_buzzer_07', role: UserRole.PLAYER }));
     });
 });
 
@@ -130,6 +151,7 @@ describe("CA-4 - Les mots de passe respectent les règles de validation", () => 
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -167,7 +189,7 @@ describe("CA-4 - Les mots de passe respectent les règles de validation", () => 
     it("should not insert any account if a password is invalid", async () => {
         vi.mocked(mockPasswordValidator.validate).mockImplementation((password: string) => password !== passwordOf('quiz_buzzer_10'));
         await expect(userSeed.seed(mockEnvironment)).rejects.toThrow();
-        expect(mockRepository.insert).not.toHaveBeenCalled();
+        expect(mockRepository.insertAllIfEmpty).not.toHaveBeenCalled();
     });
     it("should not expose the password in the error message", async () => {
         vi.mocked(mockPasswordValidator.validate).mockReturnValue(false);
@@ -176,7 +198,7 @@ describe("CA-4 - Les mots de passe respectent les règles de validation", () => 
     it("should refuse a password made only of spaces, naming the account and without repeating the password", async () => {
         const seedWithRealValidator = new SeedUsers(mockRepository, mockHasher, new OwaspPasswordValidator());
         await expect(seedWithRealValidator.seed(configurationWith({ quiz_buzzer_04: " ".repeat(12) }))).rejects.toThrow(/^Invalid password for account quiz_buzzer_04$/);
-        expect(mockRepository.insert).not.toHaveBeenCalled();
+        expect(mockRepository.insertAllIfEmpty).not.toHaveBeenCalled();
     });
 });
 
@@ -189,6 +211,7 @@ describe("CA-6 - le seed refuse un BCRYPT_COST invalide et applique le coût au 
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -206,7 +229,7 @@ describe("CA-6 - le seed refuse un BCRYPT_COST invalide et applique le coût au 
     });
     it("should not create any account nor hash any password when BCRYPT_COST is not valid", async () => {
         await expect(userSeed.seed(configurationWith({}, "32"))).rejects.toThrow();
-        expect(mockRepository.insert).not.toHaveBeenCalled();
+        expect(mockRepository.insertAllIfEmpty).not.toHaveBeenCalled();
         expect(mockHasher.hash).not.toHaveBeenCalled();
     });
     it.each([["10", 10], ["4", 4], ["31", 31]])("should hash every password with the cost %j given by BCRYPT_COST", async (raw, expected) => {
@@ -245,15 +268,15 @@ describe("CA-6 - le seed refuse un BCRYPT_COST invalide et applique le coût au 
     });
     it.each(["004", "04"])("should refuse BCRYPT_COST written with a leading zero (%j) without creating any account", async (raw) => {
         await expect(userSeed.seed(configurationWith({}, raw))).rejects.toThrow("BCRYPT_COST must be an integer between 4 and 31.");
-        expect(mockRepository.insert).not.toHaveBeenCalled();
+        expect(mockRepository.insertAllIfEmpty).not.toHaveBeenCalled();
         expect(mockHasher.hash).not.toHaveBeenCalled();
     });
     it("should store hashes of the cost given by BCRYPT_COST when the real hasher is used", async () => {
         const seedWithRealHasher = new SeedUsers(mockRepository, new BcryptHasher(), mockPasswordValidator);
         await seedWithRealHasher.seed(configurationWith({}, "4"));
-        expect(mockRepository.insert).toHaveBeenCalledTimes(11);
-        for (const call of vi.mocked(mockRepository.insert).mock.calls) {
-            expect(call[0].password).toMatch(/^\$2b\$04\$/);
+        expect(writtenUsers(mockRepository)).toHaveLength(11);
+        for (const written of writtenUsers(mockRepository)) {
+            expect(written.password).toMatch(/^\$2b\$04\$/);
         }
     });
 });
@@ -307,5 +330,70 @@ describe("Seed with the SQLite repository - identifiants stockés (US-002, étap
     it("should give the 11 accounts 11 different ids", async () => {
         await userSeed.seed(mockEnvironment);
         expect(new Set(storedIds()).size).toBe(11);
+    });
+});
+
+describe("Seed with the SQLite repository - tout ou rien et perdante d'une course (US-002, CA-3 et CA-7)", () => {
+    let directory: string;
+    let database: Database.Database;
+    let otherDatabase: Database.Database;
+    beforeEach(() => {
+        directory = mkdtempSync(join(tmpdir(), 'quiz-seed-users-'));
+        database = new Database(join(directory, 'quiz.db'));
+        otherDatabase = new Database(join(directory, 'quiz.db'));
+    });
+    afterEach(() => {
+        database.close();
+        otherDatabase.close();
+        rmSync(directory, { recursive: true, force: true });
+    });
+    const storedAccounts = (db: Database.Database) =>
+        db.prepare("SELECT USR_LOGIN AS login, USR_HASH_PASSWORD AS hash FROM T_USER_USR ORDER BY USR_LOGIN").all() as { login: string; hash: string }[];
+    const hasherTagging = (tag: string, beforeFirstHash: () => Promise<void> = () => Promise.resolve()) => {
+        let first = true;
+        return {
+            hash: vi.fn(async (password: string) => {
+                if (first) {
+                    first = false;
+                    await beforeFirstHash();
+                }
+                return `${tag}:${password}`;
+            }),
+            compare: vi.fn()
+        };
+    };
+    const seedWith = (db: Database.Database, hasher: ReturnType<typeof hasherTagging>) =>
+        new SeedUsers(new SqliteUserRepository(db), hasher, { validate: vi.fn().mockReturnValue(true) });
+
+    it("should leave no account at all when the write of one of them fails", async () => {
+        const seedUsers = seedWith(database, hasherTagging("A"));
+        database.exec("CREATE TRIGGER refuse_admin BEFORE INSERT ON T_USER_USR WHEN NEW.USR_LOGIN = 'admin' BEGIN SELECT RAISE(ABORT, 'write refused'); END");
+        await expect(seedUsers.seed(mockEnvironment)).rejects.toThrow("write refused");
+        expect(storedAccounts(database)).toEqual([]);
+    });
+
+    it("should create the 11 accounts of a new run after a run that wrote nothing", async () => {
+        const seedUsers = seedWith(database, hasherTagging("A"));
+        database.exec("CREATE TRIGGER refuse_admin BEFORE INSERT ON T_USER_USR WHEN NEW.USR_LOGIN = 'admin' BEGIN SELECT RAISE(ABORT, 'write refused'); END");
+        await expect(seedUsers.seed(mockEnvironment)).rejects.toThrow();
+        database.exec("DROP TRIGGER refuse_admin");
+        const result = await seedWith(database, hasherTagging("B")).seed(mockEnvironment);
+        expect(result).toEqual({ created: true });
+        expect(storedAccounts(database)).toHaveLength(11);
+    });
+
+    it("should lose the race without error and without leaving an account when another run fills the table after its check", async () => {
+        const winner = seedWith(otherDatabase, hasherTagging("WINNER"));
+        const loserHasher = hasherTagging("LOSER", async () => {
+            expect(await winner.seed(mockEnvironment)).toEqual({ created: true });
+        });
+        const result = await seedWith(database, loserHasher).seed(mockEnvironment);
+        expect(result).toEqual({
+            created: false,
+            message: "Seed ignoré — la table T_USER_USR contient déjà des comptes."
+        });
+        const accounts = storedAccounts(database);
+        expect(accounts).toHaveLength(11);
+        expect(accounts.every(account => account.hash.startsWith("WINNER:"))).toBe(true);
     });
 });
