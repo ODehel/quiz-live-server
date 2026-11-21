@@ -19,10 +19,15 @@ sequenceDiagram
             loop Pour chaque compte (1 admin + 10 buzzers)
                 S->>S: Générer UUIDv7
                 S->>S: Hasher le mot de passe (bcrypt, cost 12)
-                S->>DB: INSERT INTO T_USER_USR (id, username, password_hash, role)
-                DB-->>S: OK
             end
-            S->>U: ✅ 11 comptes créés (1 admin + 10 buzzers)
+            S->>DB: Écrire les 11 comptes dans T_USER_USR (tout ou rien)
+            alt Une autre instance a gagné la course
+                DB-->>S: table déjà remplie, rien n'est écrit par cette instance
+                S->>U: ⚠️ Seed ignoré — table non vide, rien modifié (code 0, CA-7)
+            else Écriture complète
+                DB-->>S: OK (11 comptes)
+                S->>U: ✅ 11 comptes créés (1 admin + 10 buzzers)
+            end
         end
     else Table non vide
         DB-->>S: count > 0
