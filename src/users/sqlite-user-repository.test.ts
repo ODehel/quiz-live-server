@@ -24,24 +24,24 @@ beforeEach(() => {
 
 describe("Sqlite User repository", () => {
     it.each([UserRole.ADMIN, UserRole.PLAYER])("should return the user with the specified id and the role %s", async (role) => {
-        await repository.insert({ ...user, role });
+        await repository.insertAllIfEmpty([{ ...user, role }]);
         const searchedUser = await repository.retrieveById(user.id);
         expect(searchedUser).toEqual({ ...user, role });
     });
 
     it.each([UserRole.ADMIN, UserRole.PLAYER])("should return the user with the specified login and the role %s", async (role) => {
-        await repository.insert({ ...user, role });
+        await repository.insertAllIfEmpty([{ ...user, role }]);
         const searchedUser = await repository.retrieveByLogin(user.username);
         expect(searchedUser).toEqual({ ...user, role });
     });
 
     it("should return undefined when user is not in database", async () => {
-        await repository.insert({
+        await repository.insertAllIfEmpty([{
             id: "019f752c-89ab-7b0a-8b6e-690b063b9136",
             username: "a-user-name",
             password: "it-is-a-secret",
             role: UserRole.ADMIN
-        });
+        }]);
         const searchedUser = await repository.retrieveById(user.id);
         expect(searchedUser).toBeUndefined();
     });
@@ -50,7 +50,7 @@ describe("Sqlite User repository", () => {
         [UserRole.ADMIN, "admin"],
         [UserRole.PLAYER, "buzzer"]
     ])("should store the role %s under the label %s", async (role, label) => {
-        await repository.insert({ ...user, role });
+        await repository.insertAllIfEmpty([{ ...user, role }]);
         const row = database.prepare("SELECT USR_ROLE FROM T_USER_USR WHERE USR_ID = ?").get(user.id);
         expect(row).toEqual({ USR_ROLE: label });
     });
@@ -93,7 +93,7 @@ describe("Sqlite User repository - insertAllIfEmpty (all or none, only on an emp
     });
 
     it("should write nothing and say zero when the table already holds an account", async () => {
-        await repository.insert(user);
+        await repository.insertAllIfEmpty([user]);
         const written = await repository.insertAllIfEmpty(aBatch("a"));
         expect(written).toBe(0);
         expect(storedLogins()).toEqual(["any-login"]);

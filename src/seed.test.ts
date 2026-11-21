@@ -439,19 +439,20 @@ describe('seed: a table that already holds accounts', () => {
         const STORED = { id: '0192f0f0-0000-7000-8000-000000000001', username: 'quiz_buzzer_07', password: 'a-hash-that-no-run-may-rewrite', role: UserRole.PLAYER }
 
         // The table is prepared with the real repository, that creates the real schema, not with a schema made up by the test.
-        function databaseWithOneAccount(): string {
+        // The write of insertAllIfEmpty is deferred to a microtask: it is awaited before the connection is closed.
+        async function databaseWithOneAccount(): Promise<string> {
             const databasePath = join(workDirectory, 'one.db')
             const database = new Database(databasePath)
             try {
-                void new SqliteUserRepository(database).insert(STORED)
+                await new SqliteUserRepository(database).insertAllIfEmpty([STORED])
             } finally {
                 database.close()
             }
             return databasePath
         }
 
-        it('US-002/CA-7 skips the seed: this account alone stays, and no account is added', () => {
-            const databasePath = databaseWithOneAccount()
+        it('US-002/CA-7 skips the seed: this account alone stays, and no account is added', async () => {
+            const databasePath = await databaseWithOneAccount()
             const accountsBefore = accounts(databasePath)
             expect(accountsBefore).toEqual([{ id: STORED.id, login: STORED.username, hash: STORED.password, role: 'buzzer' }])
 
@@ -461,8 +462,8 @@ describe('seed: a table that already holds accounts', () => {
             expect(accounts(databasePath)).toEqual(accountsBefore)
         }, TEST_TIMEOUT_MS)
 
-        it('US-002/CA-7 skips the seed on this table even with a wrong password and an invalid BCRYPT_COST', () => {
-            const databasePath = databaseWithOneAccount()
+        it('US-002/CA-7 skips the seed on this table even with a wrong password and an invalid BCRYPT_COST', async () => {
+            const databasePath = await databaseWithOneAccount()
             const accountsBefore = accounts(databasePath)
 
             const result = seed(databasePath, { SEED_PASSWORD_ADMIN: 'short', BCRYPT_COST: 'abc' })

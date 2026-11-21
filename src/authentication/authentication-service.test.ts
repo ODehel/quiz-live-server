@@ -10,7 +10,6 @@ describe("Login inexistant en base de données", () => {
         // Arrange : Faire un mock de IUserRepository pour qu'il retourne undefined
         mockUserRepository = {
             count: () => Promise.resolve(0),
-            insert: () => Promise.resolve(),
             insertAllIfEmpty: () => Promise.resolve(0),
             retrieveByLogin: () => Promise.resolve(undefined),
             retrieveById: () => Promise.resolve(undefined)
@@ -32,7 +31,6 @@ describe("Login with wrong password", () => {
         // Arrange : Faire un mock de IUserRepository pour qu'il retourne un utilisateur avec un mot de passe hashé
         mockUserRepository = {
             count: () => Promise.resolve(1),
-            insert: () => Promise.resolve(),
             insertAllIfEmpty: () => Promise.resolve(0),
             retrieveByLogin: () => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER }),
             retrieveById: () => Promise.resolve(undefined)
@@ -61,7 +59,6 @@ describe("Login with correct credentials", () => {
         // Arrange : Faire un mock de IUserRepository pour qu'il retourne un utilisateur avec un mot de passe hashé
         mockUserRepository = {
             count: () => Promise.resolve(1),
-            insert: () => Promise.resolve(),
             insertAllIfEmpty: () => Promise.resolve(0),
             retrieveByLogin: () => Promise.resolve({ id: "1", username: "testuser", password: "$2b$10$...", role: UserRole.PLAYER }),
             retrieveById: () => Promise.resolve(undefined)
