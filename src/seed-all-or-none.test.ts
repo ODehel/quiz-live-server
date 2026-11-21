@@ -17,7 +17,7 @@ import { SqliteUserRepository } from './users/sqlite-user-repository'
 // Not asserted, on purpose (gaps of the specification, kept in DEBTS.md):
 // - T1: the wording of the line of the loser, and its equality with the line of a second launch. Only its sense is asserted: one line on the standard
 //   output, no account created, exit code 0, nothing on the error output (decision #66: only the sense is normative).
-// - T10: whether the table exists after a stop before any account. A missing table counts as zero account here, without being asserted.
+// - T10: whether the table exists after a stop before any account (decision #79). A missing table counts as zero account here, without being asserted.
 const TSX_CLI = resolve(__dirname, '../node_modules/tsx/dist/cli.mjs')
 const SEED = resolve(__dirname, 'seed.ts')
 const PROBE = pathToFileURL(resolve(__dirname, 'test-support/seed-probe.mjs')).href
@@ -159,6 +159,22 @@ describe('seed: a process killed with SIGKILL leaves no partial account (US-002/
         expect(final.map(account => account.login)).toEqual(ELEVEN_LOGINS)
         if (left.length === 0) expect(writtenBy('next', final)).toBe(true)
         else expect(final).toEqual(left)
+    }, TEST_TIMEOUT_MS)
+})
+
+// Points before any account: right before the table is created (the statement does not run), right after it was created (the table exists, empty).
+const BEFORE_ANY_ACCOUNT_POINTS = ['create-table:before', 'create-table:after'] as const
+
+describe('seed: a process killed before or just after creating the table leaves no account (US-002/CA-3, decision #79)', () => {
+    it.each(BEFORE_ANY_ACCOUNT_POINTS)('US-002/CA-3 spec test: killed at %s, the database holds no account (a missing table counts as zero account, neither outcome is required)', (point) => {
+        const killed = seedSync(environment('kill', { SEED_PROBE_KILL_AT: point }))
+
+        // The point was reached (the marker is written just before the kill), the process did not end normally, and it printed nothing: it never reached its last line.
+        expect(existsSync(join(probeDirectory, 'killed-at-' + point.replace(':', '-')))).toBe(true)
+        expect(killed.status).not.toBe(0)
+        expect(killed.stdout).toBe('')
+        // Zero account, a missing table included (T10, decision #79): neither outcome of the table is required.
+        expect(accountsOf(databasePath)).toEqual([])
     }, TEST_TIMEOUT_MS)
 })
 
