@@ -1205,3 +1205,57 @@ describe('hub startup: database file permissions', () => {
         expect(Object.keys(rowCounts(databasePath))).toEqual(['T_USER_USR'])
     }, TEST_TIMEOUT_MS)
 })
+
+// US-003/CA-4 on the real process: the token that a real `POST /api/v1/token` returns lives `exp - iat` seconds, 3600 by default and
+// the value of JWT_EXPIRATION otherwise, read from the real environment or, when it has none, from a .env file of the working directory
+// (the real environment prevails, see the JWT_SECRET tests above). The rule on the value is proved by jwt-settings.test.ts and the
+// refusal of an invalid one by the JWT_EXPIRATION tests above; here we prove that index.ts wires the setting to the token it emits.
+// The payload is read without verifying the signature (CA-2) nor the other claims (CA-3): only `iat` and `exp` matter here.
+describe('hub token lifetime (JWT_EXPIRATION)', () => {
+    const ADMIN = { username: 'admin', password: 'an-admin-password-1' }
+
+    function jwtPayload(token: string): { iat: number, exp: number } {
+        const [, payload] = token.split('.')
+        if (token.split('.').length !== 3 || payload === undefined) throw new Error('Not a JWT: ' + token)
+        return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { iat: number, exp: number }
+    }
+
+    // A real token of a real hub: seeded database, then `POST /api/v1/token` with the admin account of the seed.
+    async function tokenLifetime(overrides: Record<string, string | undefined>): Promise<{ lifetime: number, expiresIn: number }> {
+        const databasePath = join(workDirectory, 'hub.db')
+        seedAccounts(databasePath)
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath, ...overrides })
+        await waitUntilListening(hub, port)
+
+        const response = await fetch('http://127.0.0.1:' + port + '/api/v1/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ADMIN) })
+
+        expect(response.status).toBe(200)
+        const body = await response.json() as { token: string, expires_in: number }
+        const { iat, exp } = jwtPayload(body.token)
+        return { lifetime: exp - iat, expiresIn: body.expires_in }
+    }
+
+    it('US-003/CA-4 gives the token a lifetime of 3600 seconds when JWT_EXPIRATION is absent from the environment and from any .env file', async () => {
+        const { lifetime, expiresIn } = await tokenLifetime({ JWT_EXPIRATION: undefined })
+
+        expect(lifetime).toBe(3600)
+        expect(expiresIn).toBe(3600)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-4 gives the token a lifetime of 7200 seconds when JWT_EXPIRATION is 7200 in the real environment', async () => {
+        const { lifetime, expiresIn } = await tokenLifetime({ JWT_EXPIRATION: '7200' })
+
+        expect(lifetime).toBe(7200)
+        expect(expiresIn).toBe(7200)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-4 gives the token the lifetime written in the .env file of the working directory when the real environment has no JWT_EXPIRATION', async () => {
+        writeFileSync(join(workDirectory, '.env'), 'JWT_EXPIRATION=5400\n')
+
+        const { lifetime, expiresIn } = await tokenLifetime({ JWT_EXPIRATION: undefined })
+
+        expect(lifetime).toBe(5400)
+        expect(expiresIn).toBe(5400)
+    }, TEST_TIMEOUT_MS)
+})
