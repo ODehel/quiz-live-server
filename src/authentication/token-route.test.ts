@@ -1,5 +1,5 @@
 import Fastify, { FastifyInstance } from "fastify";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthenticationService } from "./authentication-service.interface";
 import { TokenGenerator } from "./token-generator.interface";
 import { UserRole } from "../users/user-role";
@@ -241,27 +241,77 @@ describe('US-003/CA-11: Without body', () => {
 });
 
 describe('US-003/CA-13: When rate limit is exceeded', () => {
-    let lowRateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
-    beforeEach(async () => {
+    const limit = 5;
+    const firstAddress = '203.0.113.7';
+    const secondAddress = '198.51.100.42';
+    const requestFrom = (remoteAddress: string) => app.inject({
+        method: 'POST',
+        url: '/api/v1/token',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'User Name', password: 'user-password' }),
+        remoteAddress
+    });
+    const exhaustTheLimit = async (remoteAddress: string, count = limit) => {
+        const statusCodes: number[] = [];
+        for (let i = 0; i < count; i++) { statusCodes.push((await requestFrom(remoteAddress)).statusCode); }
+        return statusCodes;
+    };
+    const mountWithLimit = async (maxRequestsPerMinute: number) => {
         app = Fastify();
-        lowRateLimitMiddleware = (app) => rateLimitMiddleware(app, { maxRequestsPerMinute: 5 });
-        await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, rateLimitMiddleware: lowRateLimitMiddleware });
+        await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, rateLimitMiddleware: (app) => rateLimitMiddleware(app, { maxRequestsPerMinute }) });
+    };
+    beforeEach(async () => {
+        await mountWithLimit(limit);
+    });
+    afterEach(() => {
+        vi.useRealTimers();
     });
     it('should return 429', async () => {
-        for (let i = 0; i < 5; i++) {
-            await app.inject({
-                method: 'POST',
-                url: '/api/v1/token',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: 'User Name', password: 'user-password' })
-            })
-        }
-        const response = await app.inject({
-            method: 'POST',
-            url: '/api/v1/token',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: 'User Name', password: 'user-password' })
-        });
+        await exhaustTheLimit(firstAddress);
+        const response = await requestFrom(firstAddress);
+        expect(response.statusCode).toBe(429);
+    });
+    it('should tell the client to retry after 60 seconds', async () => {
+        await exhaustTheLimit(firstAddress);
+        const response = await requestFrom(firstAddress);
+        expect(response.headers['retry-after']).toBe('60');
+    });
+    it('should still tell the client to retry after 60 seconds when refused later in the same window', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        await exhaustTheLimit(firstAddress);
+        vi.advanceTimersByTime(3000);
+        const response = await requestFrom(firstAddress);
+        expect(response.statusCode).toBe(429);
+        expect(response.headers['retry-after']).toBe('60');
+    });
+    it('should explain the refusal with the standard error body', async () => {
+        await exhaustTheLimit(firstAddress);
+        const response = await requestFrom(firstAddress);
+        expect(response.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' });
+    });
+    it('should still answer another IP address once the first one is refused', async () => {
+        const statusCodes = await exhaustTheLimit(firstAddress);
+        const refused = await requestFrom(firstAddress);
+        const other = await requestFrom(secondAddress);
+        expect(statusCodes).not.toContain(429);
+        expect(refused.statusCode).toBe(429);
+        expect(other.statusCode).toBe(200);
+    });
+    it('should count the requests of each IP address on its own', async () => {
+        await exhaustTheLimit(firstAddress, limit - 1);
+        await exhaustTheLimit(secondAddress, limit - 1);
+        const first = await requestFrom(firstAddress);
+        const second = await requestFrom(secondAddress);
+        expect(first.statusCode).toBe(200);
+        expect(second.statusCode).toBe(200);
+        expect((await requestFrom(firstAddress)).statusCode).toBe(429);
+        expect((await requestFrom(secondAddress)).statusCode).toBe(429);
+    });
+    it('should accept 100 requests per minute from an IP address and refuse the 101st', async () => {
+        await mountWithLimit(100);
+        const statusCodes = await exhaustTheLimit(firstAddress, 100);
+        const response = await requestFrom(firstAddress);
+        expect(statusCodes.every((statusCode) => statusCode === 200)).toBe(true);
         expect(response.statusCode).toBe(429);
     });
 });
