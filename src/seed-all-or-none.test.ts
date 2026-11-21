@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -6,8 +6,9 @@ import { pathToFileURL } from 'node:url'
 import bcrypt from 'bcryptjs'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { SqliteUserRepository } from './users/sqlite-user-repository'
 
-// US-002/CA-3 (all or nothing, abrupt stop included) and CA-7 (the run that loses a race), decisions #66, #77 and #78, on REAL processes:
+// US-002/CA-3 (all or nothing, abrupt stop included) and CA-7 (the run that loses a race, the write lock held by another process), decisions #66, #77, #78 and #80, on REAL processes:
 // `tsx src/seed.ts`, an explicit environment, a throw-away SQLite file, as in seed.test.ts. These are spec tests: the code already holds the guarantees
 // (fix(seed) #174), so each test was born green and was proved by mutating the production code (see the handoff of the session), never by a red.
 // A preloaded module (src/test-support/seed-probe.mjs, `--import`) makes the race real and picks the point where a process is killed. Nothing waits on
@@ -25,11 +26,15 @@ const PROCESS_TIMEOUT_MS = 45_000
 // Node 26 prints the DEP0205 deprecation warning of tsx on the error output: silenced by its code, so that the error output of a successful run can be required to be empty.
 const SILENCE_TSX_DEPRECATION = '--disable-warning=DEP0205'
 const FAILURE = /^User seeding failed: \S/
+const LOCK_HOLDER = resolve(__dirname, 'test-support/lock-holder.mjs')
+// Success case: how long the lock is held after the seed has reached its write. Far under the 5 s delay of the database (better-sqlite3 default), far over the time the seed needs to block.
+const HOLD_MS = 1_000
 const BUZZER_VARIABLES = Array.from({ length: 10 }, (_, i) => String(i + 1).padStart(2, '0'))
 
 let workDirectory: string
 let databasePath: string
 let probeDirectory: string
+let holder: ChildProcess | undefined
 
 beforeEach(() => {
     workDirectory = mkdtempSync(join(tmpdir(), 'quiz-seed-all-or-none-'))
@@ -39,6 +44,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+    holder?.kill('SIGKILL')
+    holder = undefined
     rmSync(workDirectory, { recursive: true, force: true, maxRetries: 5 })
 })
 
@@ -152,5 +159,75 @@ describe('seed: a process killed with SIGKILL leaves no partial account (US-002/
         expect(final.map(account => account.login)).toEqual(ELEVEN_LOGINS)
         if (left.length === 0) expect(writtenBy('next', final)).toBe(true)
         else expect(final).toEqual(left)
+    }, TEST_TIMEOUT_MS)
+})
+
+// US-002/CA-7, decision #80 (a finding, not a rule): another process holds the write lock of the database. Only the sense is asserted: the exit code, the empty standard output,
+// the prefix of the error output, and no account. Not asserted, on purpose (decision #80, item 2): the text after the prefix, the length of the wait, the cause.
+const LOCK_FAILURE = /^User seeding failed: /
+
+// The table exists and is empty, as the seed leaves it after its opening (CA-9): the repository creates it, as the seed does.
+function createEmptyTable(): void {
+    const database = new Database(databasePath)
+    new SqliteUserRepository(database)
+    database.close()
+}
+
+// Another real process takes `BEGIN IMMEDIATE` on the database and holds it until `release()`. Resolves once the lock is held.
+async function holdWriteLock(): Promise<() => void> {
+    const child = spawn(process.execPath, [LOCK_HOLDER], { env: { LOCK_DB_PATH: databasePath }, stdio: ['pipe', 'pipe', 'inherit'] })
+    const { stdin, stdout } = child
+    holder = child
+    await new Promise<void>((done, fail) => {
+        child.on('error', fail)
+        child.on('exit', code => fail(new Error('the lock holder exited with code ' + code + ' before holding the lock')))
+        stdout.setEncoding('utf8').on('data', (chunk: string) => { if (chunk.includes('locked')) done() })
+    })
+    return () => { stdin.end() }
+}
+
+// The probe writes `<name>.begun` just before the seed runs `BEGIN`: from then on, the seed is at, or waiting for, its write lock. Polling a file, not waiting for a result.
+async function waitForMarker(file: string): Promise<void> {
+    const deadline = Date.now() + PROCESS_TIMEOUT_MS
+    while (!existsSync(join(probeDirectory, file))) {
+        if (Date.now() > deadline) throw new Error('marker ' + file + ' never written')
+        await new Promise(wake => setTimeout(wake, 20))
+    }
+}
+
+describe('seed: the write lock is held by another process (US-002/CA-7, decision #80)', () => {
+    it('US-002/CA-7 spec test: the lock is still held at the end of the delay of the database, the seed exits with code 1, prints nothing on the standard output, ends the error output with the prefix "User seeding failed: " and writes no account', async () => {
+        createEmptyTable()
+        const release = await holdWriteLock()
+
+        // The lock is held for the whole run of the seed (released only after its exit), so the delay of the database (5 s) runs out whatever the speed of the machine.
+        const outcome = await seedAsync(environment('locked', { SEED_PROBE_NAME: 'seed' }))
+        release()
+
+        // The probe proves the seed went as far as its write: the failure comes from the lock, not from an earlier step.
+        expect(existsSync(join(probeDirectory, 'seed.begun'))).toBe(true)
+        expect(outcome.status).toBe(1)
+        expect(outcome.stdout).toBe('')
+        expect(outcome.stderr).toMatch(LOCK_FAILURE)
+        expect(accountsOf(databasePath)).toEqual([])
+    }, TEST_TIMEOUT_MS)
+
+    it('US-002/CA-7 spec test: the lock is released before the end of the delay of the database, the seed waits, then succeeds: code 0, the line of CA-1, empty error output, eleven accounts', async () => {
+        createEmptyTable()
+        const release = await holdWriteLock()
+
+        let exited = false
+        const running = seedAsync(environment('released', { SEED_PROBE_NAME: 'seed' })).finally(() => { exited = true })
+        await waitForMarker('seed.begun')
+        await new Promise(wake => setTimeout(wake, HOLD_MS))
+        // After HOLD_MS with the lock held, the seed has not ended: it was waiting for the lock, not past it.
+        expect(exited).toBe(false)
+        release()
+        const outcome = await running
+
+        expectOneLineAndExitZero(outcome)
+        const accounts = accountsOf(databasePath)
+        expect(accounts.map(account => account.login)).toEqual(ELEVEN_LOGINS)
+        expect(writtenBy('released', accounts)).toBe(true)
     }, TEST_TIMEOUT_MS)
 })
