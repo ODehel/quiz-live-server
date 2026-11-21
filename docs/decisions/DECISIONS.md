@@ -1105,3 +1105,28 @@ Sondes du 2026-11-21, hors dépôt (dossier `/tmp`, rien de committé), Linux, N
 - `DEBTS.md` : la dette « atomicité … non spécifiée » est remplacée par « tout ou rien et perdante d'une course non tenus par le code » (pas séparé : `fix(seed)`, puis `test(seed)`).
 - Condition de réouverture : un seed qui ne serait plus lancé par un administrateur seul (une instance par service, un orchestrateur qui relance après un arrêt) ; la décision de réparer une base partielle ; un moteur de base qui ne tiendrait pas le tout ou rien.
 - À challenger : (a) « dans tous les cas » : la spec ne dit rien de l'attente d'un verrou d'écriture qui dépasse le délai de la base (`better-sqlite3`, 5 s par défaut) ; le comportement observable dans ce cas n'est pas décidé, le `fix(seed)` devra le sonder ; (b) la perdante dit que la table « contient déjà des comptes », ce qui est vrai à la fin de la course mais pas au moment où elle a lu la table ; (c) l'arrêt brutal peut manquer la ligne de succès du CA-1 alors que les onze comptes sont écrits : le lancement suivant affiche la ligne du CA-7, l'administrateur ne voit jamais « 11 comptes créés » ; (d) le tout ou rien ne couvre pas une base partielle laissée par un seed antérieur : aucun chemin de réparation, une table à vider à la main ; (e) la sonde de course est sur Linux, Node 22, root, une seule machine, base sur disque local ; non sondée sous Windows ni sur un disque réseau, où le verrouillage SQLite se comporte autrement ; (f) 20 essais de course ne prouvent pas l'absence de compte mélangé, seule la lecture du code l'explique.
+
+
+## #78 — Le seed écrit ses onze comptes par une seule opération du repository qui prend le verrou d'écriture avant de recompter la table ; le hachage reste hors verrou
+
+*`fix(seed): create the eleven accounts all or none and skip the run that loses a race` — US-002/CA-3 et CA-7 (partie course), décision #77. Choisit le mécanisme que la décision #77 laissait au `fix(seed)` ; les décisions #1 à #77 ne sont pas modifiées.*
+
+**Contexte.** La décision #77 fixe deux garanties observables (tout ou rien, arrêt brutal compris ; la perdante d'une course ne modifie rien, affiche la ligne du CA-7, sort en code `0`) et laisse le mécanisme au `fix(seed)`. `SeedUsers.seed` faisait un `count()`, onze hachages, puis onze `insert` séparés sans transaction. Contraintes constatées en sondant sur processus réels (Linux, Node 22, base SQLite en fichier, mode de journal par défaut) : une transaction qui lit la table puis écrit (différée) fait échouer l'une des deux instances au lieu de la faire attendre (`database is locked`, code `1`) ; une transaction qui prend le verrou d'écriture dès son début fait attendre la seconde instance jusqu'au commit de la première, puis elle lit la table remplie ; un processus tué avant le `COMMIT` ne laisse aucun compte (SQLite annule la transaction à la réouverture du fichier).
+
+**Décision.**
+1. `UserRepository` gagne `insertAllIfEmpty(users): Promise<boolean>` : une transaction unique, dont le verrou d'écriture est pris dès le début (`immediate` de `better-sqlite3`), qui recompte la table, n'écrit rien et rend `false` si elle porte un compte, sinon écrit tous les utilisateurs et rend `true`. La vérification et les onze insertions forment ainsi un seul pas pour les autres connexions.
+2. `SeedUsers.seed` garde son ordre : `count()` (CA-7, avant toute lecture de mot de passe), mots de passe (CA-4), `BCRYPT_COST` (CA-6), hachage des onze mots de passe, puis `insertAllIfEmpty`. Le hachage reste **hors verrou** : le verrou n'est tenu que le temps des onze insertions, pas celui de onze hachages bcrypt. Un `false` rend `{ created: false, message }` avec le message du CA-7 (le même que le `count()` initial). Un échec d'écriture (autre que le verrou) reste une erreur : code `1`, comme avant.
+3. Le `count()` initial est conservé : il sert l'ordre des contrôles (une table non vide refuse avant les mots de passe) ; le recomptage dans la transaction ne le remplace pas, il ne sert que la course.
+4. `insert` reste dans l'interface (tests, mocks) ; il n'a plus de consommateur de production (dette).
+
+**Alternatives écartées.**
+- **Transaction différée** (lire puis écrire) : la perdante échoue en `database is locked` (code `1`) dès que les deux instances lisent avant que l'une écrive ; sondé, 15 essais sur 15 avec une fenêtre élargie.
+- **Attraper la violation d'unicité et la traduire en « perdante »** : écarte le message `UNIQUE` mais laisse un compte partiel possible après un arrêt brutal entre deux `insert` ; ne tient pas le tout ou rien.
+- **Hacher dans la transaction** : tient le verrou pendant onze hachages au coût configuré (jusqu'à 31), sans bénéfice observable.
+- **Une interface d'écriture propre au seed** (`authentication/` ne dépendrait pas de `insertAllIfEmpty`) : plus propre, plus large que ce `fix` ; consignée en dette.
+
+**Conséquences.**
+- Comportement observable : CA-3 et CA-7 tenus par le code (voir `DEBTS.md` pour ce qui est prouvé et non prouvé) ; aucun autre refus ni sortie ne change.
+- **Hors périmètre, non décidé** : l'attente du verrou au-delà du délai de la base (5 s) : sondée, le seed sort en code `1` avec `User seeding failed: database is locked` ; aucun code dédié, aucun test (« À challenger (a) » de la décision #77, dette).
+- Les mocks de `UserRepository` d'`authentication/` déclarent la nouvelle méthode (changement de type seulement).
+- À challenger : le choix de l'`immediate` n'est tué par aucun test committé, seulement par la sonde de course à fenêtre élargie ; le `test(seed)` de la course doit le tuer. La perdante qui attend le verrou affiche la ligne du CA-7 après l'attente (jusqu'à 5 s) : sans conséquence observable pour la spec.

@@ -1,8 +1,11 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SqliteUserRepository } from "./sqlite-user-repository";
 import { User } from "./user.interface";
 import { UserRole } from "./user-role";
 import Database from "better-sqlite3";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 let database: Database.Database;
 let repository: SqliteUserRepository;
@@ -70,5 +73,60 @@ describe("Sqlite User repository", () => {
     it("should declare the role column as a non-null text defaulting to buzzer", () => {
         const columns = database.prepare("PRAGMA table_info(T_USER_USR)").all() as { name: string; type: string; notnull: number; dflt_value: string | null }[];
         expect(columns.find(column => column.name === "USR_ROLE")).toMatchObject({ type: "TEXT", notnull: 1, dflt_value: "'buzzer'" });
+    });
+});
+
+describe("Sqlite User repository - insertAllIfEmpty (all or none, only on an empty table)", () => {
+    const aBatch = (prefix: string): User[] => Array.from({ length: 3 }, (_, i) => ({
+        id: `${prefix}-id-${i}`,
+        username: `${prefix}-login-${i}`,
+        password: `${prefix}-hash-${i}`,
+        role: UserRole.PLAYER
+    }));
+    const storedLogins = (db: Database.Database = database) =>
+        (db.prepare("SELECT USR_LOGIN FROM T_USER_USR ORDER BY USR_LOGIN").all() as { USR_LOGIN: string }[]).map(row => row.USR_LOGIN);
+
+    it("should write every user and say so when the table is empty", async () => {
+        const written = await repository.insertAllIfEmpty(aBatch("a"));
+        expect(written).toBe(true);
+        expect(storedLogins()).toEqual(["a-login-0", "a-login-1", "a-login-2"]);
+    });
+
+    it("should write nothing and say so when the table already holds an account", async () => {
+        await repository.insert(user);
+        const written = await repository.insertAllIfEmpty(aBatch("a"));
+        expect(written).toBe(false);
+        expect(storedLogins()).toEqual(["any-login"]);
+    });
+
+    it("should leave no user at all when one of them cannot be written", async () => {
+        const [first, second] = aBatch("a");
+        const batch = [first!, second!, { ...second!, id: "a-id-other", username: first!.username }];
+        await expect(repository.insertAllIfEmpty(batch)).rejects.toThrow(/UNIQUE/);
+        expect(storedLogins()).toEqual([]);
+    });
+
+    describe("with two connections on the same database file", () => {
+        let directory: string;
+        let first: Database.Database;
+        let second: Database.Database;
+        beforeEach(() => {
+            directory = mkdtempSync(join(tmpdir(), "quiz-user-repository-"));
+            first = new Database(join(directory, "quiz.db"));
+            second = new Database(join(directory, "quiz.db"));
+        });
+        afterEach(() => {
+            first.close();
+            second.close();
+            rmSync(directory, { recursive: true, force: true });
+        });
+
+        it("should write nothing when another connection filled the table first, and keep the accounts of that connection", async () => {
+            const winner = new SqliteUserRepository(first);
+            const loser = new SqliteUserRepository(second);
+            expect(await winner.insertAllIfEmpty(aBatch("winner"))).toBe(true);
+            expect(await loser.insertAllIfEmpty(aBatch("loser"))).toBe(false);
+            expect(storedLogins(second)).toEqual(["winner-login-0", "winner-login-1", "winner-login-2"]);
+        });
     });
 });

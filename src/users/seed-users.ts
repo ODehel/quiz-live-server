@@ -41,8 +41,11 @@ export class SeedUsers {
             ...buzzers,
             { id: uuidv7(), username: ADMIN_LOGIN, password: await this.hasher.hash(passwords.get(ADMIN_LOGIN)!, cost), role: UserRole.ADMIN }
         ]
-        for (const user of defaultUsers) {
-            await this.repository.insert(user)
+        // The hashing above runs outside any lock. The write is a single step on the repository: the eleven accounts, or none,
+        // and only if no other run filled the table since the check above (the run that loses behaves like a run on a non-empty table).
+        const written = await this.repository.insertAllIfEmpty(defaultUsers);
+        if (!written) {
+            return { created: false, message: TABLE_NOT_EMPTY_MESSAGE };
         }
         return { created: true };
     }
