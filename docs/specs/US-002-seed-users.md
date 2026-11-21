@@ -26,7 +26,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 |---|---|---|
 | CA-1 | Au premier démarrage, si la table `T_USER_USR` est vide, les 11 comptes sont créés automatiquement | 1 admin + 10 buzzers (`quiz_buzzer_01` à `quiz_buzzer_10`). Le seed se termine avec le code de sortie `0` et affiche une ligne de succès sur la sortie standard ; la sortie d'erreur reste vide (décision #73). Normatif : la ligne dit que les onze comptes ont été créés. Ex, non normatif : `Seed terminé — 11 comptes créés.` |
 | CA-2 | Les mots de passe sont lus depuis des variables d'environnement (fichier `.env` non versionné) | Hashés avec bcrypt avant insertion |
-| CA-3 | Le seed est idempotent : si les comptes existent déjà, le script ne fait rien | Pas de doublon ni de réinitialisation |
+| CA-3 | Le seed est idempotent : si les comptes existent déjà, le script ne fait rien | Pas de doublon ni de réinitialisation. **Tout ou rien** (décision #77) : quel que soit le moment où le processus du seed s'arrête, arrêt brutal compris (signal `SIGKILL`, coupure), la table `T_USER_USR` contient ensuite les onze comptes ou aucun, jamais une partie ; un arrêt après l'écriture des onze comptes peut seulement faire manquer la ligne de succès du CA-1, et le lancement suivant affiche alors la ligne du CA-7. Un lancement qui suit un arrêt qui n'a rien laissé trouve la table vide et crée les onze comptes (CA-1). La garantie vaut aussi quand deux seeds s'exécutent en même temps (CA-7). Le CDC dit la garantie, pas le mécanisme (décision #77) |
 | CA-4 | Les mots de passe respectent la politique OWASP : de 12 à 72 caractères, tous de l'ASCII imprimable (U+0020 à U+007E), et pas uniquement des espaces (U+0020) ; 72 caractères valent 72 octets, la limite de bcrypt (décision #74) | Le seed refuse de s'exécuter si un mot de passe manque (variable non définie) ou ne respecte pas la politique (trop court, trop long, un caractère hors de l'ASCII imprimable, tabulation ou saut de ligne compris, variable définie mais vide, ou faite uniquement d'espaces) : aucun compte n'est créé, le processus se termine avec le code de sortie `1`, la sortie standard est vide, et la sortie d'erreur affiche un message qui commence par `User seeding failed: `, nomme un seul compte (celui dont le mot de passe est refusé) et ne reprend pas le mot de passe. Seuls sont normatifs ce préfixe, le nom du compte et l'absence du mot de passe ; les libellés sont des exemples, non normatifs, comme les lignes du CA-7 et du CA-1 : `User seeding failed: Missing password for account <login>` (variable non définie) et `User seeding failed: Invalid password for account <login>` (tout autre refus, variable définie mais vide comprise). La base que l'ouverture a créée n'est pas supprimée (CA-9, décision #65) |
 
 ### Sécurité et transversalité
@@ -40,7 +40,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | # | Critère | Résultat attendu |
 |---|---|---|
 | CA-6 | `BCRYPT_COST` est renseignée mais n'est pas un entier de 4 à 31 écrit en chiffres ASCII seulement, sans zéro en tête. Refusés : `abc`, `12.5`, `3`, `32`, `-1`, ` 12`, `0`, `4.0`, `+5`, `004`, un chiffre d'une autre écriture (par exemple arabo-indien : `٤`), un entier hors de la plage de lecture (par exemple vingt chiffres), et une valeur faite uniquement de blancs (` `, une tabulation : seule la chaîne vide vaut absente) (décision #74) | Le seed refuse de s'exécuter : aucun compte n'est créé, le processus se termine avec le code de sortie `1`, la sortie standard est vide, et la sortie d'erreur affiche un message qui commence par `User seeding failed: `, nomme `BCRYPT_COST` et la règle (entier de 4 à 31), comme les refus des CA-8 et CA-9. Ex, non normatif : `User seeding failed: BCRYPT_COST must be an integer between 4 and 31.` Absente ou vide (chaîne vide), la variable vaut `12`. À la différence de `PORT` ([US-001](US-001-server-startup.md) CA-7), qui accepte les zéros en tête (`08080` vaut 8080), `004` est refusée (choix d'Olivier, décision #74). La base que l'ouverture a créée n'est pas supprimée (CA-9, décision #65) |
-| CA-7 | La table `T_USER_USR` contient déjà au moins un compte | Le seed ne modifie rien (CA-3) et se termine avec le code de sortie `0`. Il affiche une ligne sur la sortie standard ; la sortie d'erreur reste vide (décision #66). Normatif : la ligne dit qu'aucun compte n'a été créé parce que la table n'est pas vide. Ex, non normatif : `Seed ignoré — la table T_USER_USR contient déjà des comptes.` (décisions #53 et #66) |
+| CA-7 | La table `T_USER_USR` contient déjà au moins un compte, que ce soit au moment du contrôle de l'étape 2 ou parce qu'une autre instance du seed l'a remplie entre ce contrôle et l'écriture de celle-ci (**course**, décision #77) | Le seed ne modifie rien (CA-3) et se termine avec le code de sortie `0`. Il affiche une ligne sur la sortie standard ; la sortie d'erreur reste vide (décision #66). Normatif : la ligne dit qu'aucun compte n'a été créé parce que la table n'est pas vide. Ex, non normatif : `Seed ignoré — la table T_USER_USR contient déjà des comptes.` (décisions #53 et #66). **Course** (décision #77) : quand deux instances du seed s'exécutent en même temps sur une table vide, une seule crée les onze comptes (code de sortie `0`, ligne de succès du CA-1) ; l'autre, la perdante, se comporte comme un seed lancé sur une table non vide : elle ne modifie rien, affiche cette même ligne sur la sortie standard (mêmes règles de flux), se termine avec le code de sortie `0`, la sortie d'erreur vide, et ne laisse aucun compte à elle. Il n'y a pas de cas où la perdante sort avec le code `1` ou affiche une contrainte d'unicité, quel que soit le moment où elle s'aperçoit qu'elle a perdu, avant ou pendant son écriture. La base contient alors les onze comptes du gagnant, tous issus du même lancement (mêmes mots de passe). **Ordre des contrôles inchangé** : une instance qui voit la table vide à l'étape 2 et dont un mot de passe ou `BCRYPT_COST` est invalide se refuse avant toute écriture (CA-4 et CA-6, code `1`) ; la course ne se joue qu'à l'écriture. **Base laissée par une version antérieure** (constat reporté, pas une règle) : le CA-7 parle d'au moins un compte ; une base qui porte une partie des comptes, laissée par un arrêt brutal d'un seed antérieur à la décision #77 (sondé : de 1 à 10 comptes `quiz_buzzer_*`, jamais l'admin), est ignorée comme toute table non vide, et ses comptes manquants ne sont pas créés par le seed ; une fois la garantie du CA-3 tenue, une table non vide porte les onze comptes |
 
 ### Chemin de la base de données
 
@@ -130,7 +130,7 @@ Le script `src/seed.ts` suit les étapes suivantes :
    → Base en lecture seule (ou dossier en lecture seule) : constat reporté, l'échec n'a lieu qu'à la première écriture, donc à l'étape 1 seulement si `T_USER_USR` doit être créée (arrêt avec `User seeding failed: <cause>`, code de sortie 1, aucun compte créé), sinon à l'étape 7 (CA-9, décision #72)
 2. Vérification : la table T_USER_USR est-elle vide ?
    → Non : arrêt immédiat (idempotence — CA-3), avec la ligne du CA-7 sur la sortie standard et le code de sortie 0 (décision #66) ; même issue sur une base en lecture seule, rien n'étant écrit (CA-9, décision #72)
-   → Oui : suite
+   → Oui : suite (une autre instance peut encore la remplir avant l'étape 7 : voir l'étape 7)
 3. Lecture des 11 mots de passe et de BCRYPT_COST depuis les variables d'environnement
 4. Validation de chaque mot de passe (de 12 à 72 caractères, ASCII imprimable U+0020 à U+007E, pas uniquement des espaces), puis de BCRYPT_COST (entier de 4 à 31 en chiffres ASCII, sans zéro en tête ; chaîne vide ou absente : 12)
    → Mot de passe invalide ou manquant : arrêt avec `User seeding failed: <message>` sur la sortie d'erreur, qui nomme le compte sans le mot de passe, sortie standard vide, code de sortie 1 (CA-4, décision #74)
@@ -138,7 +138,9 @@ Le script `src/seed.ts` suit les étapes suivantes :
    → Tout valide : suite
 5. Hachage de chaque mot de passe avec bcrypt (facteur de coût : BCRYPT_COST, 12 par défaut)
 6. Génération de 11 UUIDv7 (un par compte)
-7. Insertion des 11 comptes dans T_USER_USR
+7. Écriture des 11 comptes dans T_USER_USR : tout ou rien, jamais une partie, quel que soit le moment d'un arrêt (CA-3, décision #77)
+   → Une autre instance a rempli la table avant cette écriture (course perdue) : rien n'est modifié, la ligne du CA-7 sur la sortie standard, sortie d'erreur vide, code de sortie 0 (CA-7, décision #77)
+   → Tout est écrit : suite
 8. Affichage du résultat : une ligne de succès sur la sortie standard, la sortie d'erreur restant vide, code de sortie 0 (CA-1, décision #73 ; ex, non normatif : "Seed terminé — 11 comptes créés.")
 ```
 
@@ -196,6 +198,8 @@ SEED_PASSWORD_BUZZER_10=<a_changer>
 | Validation de la politique de mot de passe (OWASP : de 12 à 72 caractères ASCII imprimables, pas uniquement des espaces ; CA-4, décision #74) | Modification des comptes après création |
 | Hachage bcrypt (facteur de coût : 12 par défaut, réglable par `BCRYPT_COST` : entier de 4 à 31 en chiffres ASCII, sans zéro en tête ; CA-6, décision #74) | Suppression des comptes |
 | Idempotence (pas de doublon si le seed est rejoué) | Authentification (gérée par US-003) |
+| Tout ou rien : onze comptes ou aucun, arrêt brutal compris ; jamais de compte partiel (CA-3, décision #77) | |
+| Course entre deux seeds : la perdante ne modifie rien, affiche la ligne du CA-7, code `0`, sortie d'erreur vide (CA-7, décision #77) ; le mécanisme (transaction ou autre) n'est pas imposé | |
 | Génération des UUIDv7 | Déploiement / CI-CD |
 | Refus de s'exécuter quand `SQLITE_DB_PATH` est définie mais vide, ou faite uniquement de blancs ; blancs de bordure ignorés (CA-8) | |
 | Refus de s'exécuter quand la base de données ne peut pas être ouverte ou que le fichier désigné n'est pas une base SQLite (CA-9) | |
@@ -213,7 +217,13 @@ SEED_PASSWORD_BUZZER_10=<a_changer>
 
 ### Idempotence stricte
 
-Le script vérifie l'état de la table `T_USER_USR` **avant** toute insertion. Si au moins un enregistrement existe, le script s'arrête sans effectuer aucune modification. Cette vérification doit être atomique pour éviter les conditions de course dans un environnement où plusieurs instances démarreraient simultanément.
+Le script vérifie l'état de la table `T_USER_USR` **avant** toute insertion. Si au moins un enregistrement existe, le script s'arrête sans effectuer aucune modification.
+
+Plusieurs instances peuvent démarrer simultanément (décision #77). Le CDC fixe ce qui s'observe, pas le mécanisme :
+- **Tout ou rien** : quel que soit le moment où le processus s'arrête, arrêt brutal compris, la table contient les onze comptes ou aucun (CA-3). Un compte partiel n'existe jamais.
+- **Course** : la perdante ne modifie rien, affiche la ligne du CA-7 sur la sortie standard, se termine avec le code de sortie `0`, sortie d'erreur vide (CA-7). Jamais le code `1` ni un message de contrainte d'unicité pour cette cause.
+- **Mécanisme non imposé** : une transaction unique qui englobe la vérification et les onze insertions est le moyen évident, mais la spec ne l'impose pas ; c'est un choix d'implémentation, non observable, laissé au code. Seul compte le comportement ci-dessus.
+- **Écart connu** : le code ne le tient pas encore. Il fait les onze insertions séparément, sans transaction : la règle « aucun compte partiel » n'y tient, pour la course, que par l'ordre d'insertion fixe (les deux instances visent `quiz_buzzer_01` en premier, la perdante échoue avant d'avoir écrit), et elle est fausse après un arrêt brutal ; la perdante sort tantôt en `1` avec la contrainte d'unicité, tantôt en `0` avec la ligne du CA-7. Dette de `DEBTS.md`.
 
 ### Sécurité des mots de passe
 
