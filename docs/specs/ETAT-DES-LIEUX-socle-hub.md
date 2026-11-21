@@ -6,11 +6,13 @@
 > dette F l'était déjà, avec une mention d'US-002 de plus) et le **§4**. La partie **US-001**
 > (§1 ligne US-001, §2 section US-001) reste celle du réalignement du HEAD `25d2388`,
 > tenue à jour jusqu'au 2026-11-18.
-> **Mise à jour du 2026-11-21 (`docs(specs)`, décision #77)** : dans la partie US-002, CA-3 et CA-7
-> passent de solides à partiels : la spec écrit désormais le tout ou rien et le comportement de
-> l'instance perdante d'une course, que le code ne tient pas encore (aucun code n'a changé). La
-> ligne US-002 du §1, la ligne Total, la section US-002 du §2, la note d'en-tête et la dette H du §3 et le §4
-> sont alignés en conséquence.
+> **Réalignement du 2026-11-21 (`docs(specs)`, HEAD `33823bf`)** : dans la partie US-002, CA-3 et
+> CA-7 repassent de partiels à solides. La décision #77 avait fait passer les deux CA en partiels
+> (la spec écrivait le tout ou rien et la perdante d'une course, le code ne les tenait pas) ; le
+> `fix(seed)` (#174, décision #78) les tient, et le `test(seed)` (#175) les prouve sur processus
+> réels ; la décision #79 (#176) a tranché les deux trous de CDC qui restaient (T1, T10). La ligne
+> US-002 du §1, la ligne Total, la section US-002 du §2, la note d'en-tête, les dettes H et la note
+> du §3 et le §4 sont alignés en conséquence. Aucun code ni test n'a changé.
 > Les parties **US-003, US-004 et US-009** (leurs lignes du §1 et leurs sections du §2)
 > **restent celles du relevé daté (HEAD `5407e38`) et ne sont pas réalignées par cette
 > session** : plusieurs de leurs cellules sont connues périmées (US-003 CA-3, CA-11 et CA-16,
@@ -53,21 +55,21 @@
 | US | CA total | Solides | Partiels / non vérifiés | Trous réels | Faux verts |
 |----|:---:|:---:|:---:|:---:|:---:|
 | US-001 — server startup | 9  | 8   | CA-4                                 | —                          | —      |
-| US-002 — seed users     | 9  | 7   | CA-3, CA-7 (décision #77, code non aligné) | —                    | —      |
+| US-002 — seed users     | 9  | 9   | —                                   | —                          | —      |
 | US-003 — auth token     | 18 | ~9  | CA-3, 4, 11, 12, 13, 14, 15         | **CA-16 (405)**, **CA-17 (500)** | — |
 | US-004 — themes CRUD    | 40 | ~31 | CA-12 / 12a / 19 / 34               | **CA-35 (405)**            | **CA-30** |
 | US-009 — websocket      | 29 | ~25 | CA-12, 22, 26                       | —                          | —      |
-| **Total** | **105** | **~80** | **~17** | **3** | **1** |
+| **Total** | **105** | **~82** | **~15** | **3** | **1** |
 
 Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18), puis mise à jour après le
 `test(startup)` des permissions et de `EACCES`, puis après le `test(startup)` de `JWT_SECRET`
 et du `.env`, puis après celui de la création des tables du fichier de zéro octet (2026-11-18).
 Ligne US-002 réalignée sur le réel au HEAD `ef7a221` (2026-11-20) : la spec compte neuf CA (le
 relevé daté en comptait cinq), dont CA-5, CA de couverture compté solide au sens du seuil global
-(§2) ; CA-3 et CA-7 sont partiels depuis la décision #77 (2026-11-21), dont les règles (tout ou
-rien, instance perdante d'une course) ne sont pas encore tenues par le code. **Les lignes US-003, US-004 et US-009 sont celles du relevé daté (HEAD `5407e38`), non
+(§2) ; CA-3 et CA-7, partiels depuis la décision #77, sont solides depuis le `fix(seed)` et le
+`test(seed)` du 2026-11-21 (HEAD `33823bf`). **Les lignes US-003, US-004 et US-009 sont celles du relevé daté (HEAD `5407e38`), non
 réalignées.** La ligne **Total** est recalculée à partir des lignes telles qu'elles sont écrites
-(105 CA ; solides 8 + 7 + ~9 + ~31 + ~25 ; partiels 1 + 2 + 7 + 4 + 3 ; trous réels 2 + 1 ; faux
+(105 CA ; solides 8 + 9 + ~9 + ~31 + ~25 ; partiels 1 + 0 + 7 + 4 + 3 ; trous réels 2 + 1 ; faux
 vert 1) : elle compte donc encore trois trous réels (US-003 CA-16 et CA-17, US-004 CA-35) et un
 faux vert (US-004 CA-30), alors que deux de ces trous (CA-16 et CA-35) et le faux vert sont
 corrigés dans le code (dettes C et A, §3).
@@ -231,12 +233,16 @@ comportement cassé en production réelle.
 
 ### US-002 — Seed des utilisateurs (9 CA : CA-1 à CA-9)
 
-> **Réalignement du 2026-11-21 (décision #77, `docs(specs)`)** : la spec d'US-002 écrit maintenant,
-> à CA-3 et CA-7, le tout ou rien (onze comptes ou aucun, arrêt brutal compris) et le comportement
-> de l'instance perdante d'une course (rien modifié, ligne du CA-7, code `0`, sortie d'erreur
-> vide). **Le code n'est pas aligné** : `SeedUsers.seed` fait un `count()`, onze hachages, puis
-> onze `insert` séparés sans transaction. CA-3 et CA-7 quittent donc les solides (voir « Partiels »
-> plus bas) ; aucun code ni test n'a changé, le reste de la section date du HEAD `ef7a221`.
+> **Réalignement du 2026-11-21 (`docs(specs)`, HEAD `33823bf`)** : la spec d'US-002 écrit, à CA-3
+> et CA-7, le tout ou rien (onze comptes ou aucun, arrêt brutal compris) et le comportement de
+> l'instance perdante d'une course (rien modifié, ligne du CA-7, code `0`, sortie d'erreur vide) :
+> décision #77, puis #79 pour le sens seul de la ligne de la perdante et la table laissée par un
+> arrêt avant tout compte. **Le code les tient** depuis le `fix(seed)` (#174, décision #78) :
+> `SqliteUserRepository.insertAllIfEmpty` recompte puis écrit les onze comptes dans une seule
+> transaction immédiate, et `SeedUsers` n'annonce le succès que si elle a écrit. Les deux CA
+> reviennent donc dans les solides (« Solides (9) »), prouvés sur processus réels par le
+> `test(seed)` (#175) et rejoués ici (mutants du CA-7) ; le reste de la section date du HEAD
+> `ef7a221`. Aucun code ni test n'a changé.
 
 > **Section réalignée sur le réel au HEAD `ef7a221` (2026-11-20)**, avec la méthode du
 > fichier (spec, code de production, corps des tests). La spec compte neuf CA (le relevé
@@ -254,7 +260,7 @@ comportement cassé en production réelle.
 > committée ; les « mutants » sont des modifications de production rejouées sous les tests puis
 > annulées (aucun test n'est ajouté ni modifié par cette session).
 
-- **Solides (7)** :
+- **Solides (9)** :
   - **CA-1** (onze comptes, ligne de succès) : sur processus réel, un seed sur base neuve
     sort avec le code `0`, exactement une ligne non vide sur la sortie standard, la sortie
     d'erreur vide, et cette ligne n'est ni un message d'échec ni celle du CA-7 ; le sens
@@ -333,42 +339,48 @@ comportement cassé en production réelle.
     compte, base conservée ; une copie non éditée de `.env.example` est refusée (décision #75)
     et acceptée une fois les placeholders remplacés ; règles unitaires dans
     `owasp-password-validator.test.ts`. **Bornes du jeu de caractères** (session `test(users)` du 2026-11-20, après le HEAD `ef7a221`, départ `9bb9a4e`) : `owasp-password-validator.test.ts` refuse U+007F (juste au-dessus de U+007E) et U+001F (juste sous U+0020), en tête, à l'intérieur et en fin d'un mot de passe de 12 caractères, après onze espaces, et seuls sur 12 caractères ; U+007E et U+0020 sont acceptés (`~` et espaces aux unités). Mutants rejoués le 2026-11-20 sur `PRINTABLE_ASCII` de `owasp-password-validator.ts` (`\x20-\x7E` devenu `\x20-\x7F`, puis `\x1F-\x7E`) : **tués tous les deux**, chacun par ses tests de borne (cinq échecs chacun). Niveau du test : validateur seul, le plus petit qui tue les mutants ; ni le service ni le processus réel ne refont ce contrôle.
-- **Partiels (2)** (depuis la décision #77, 2026-11-21 : ce qui était prouvé l'est toujours, ce que la spec ajoute ne l'est pas, et le code ne le tient pas) :
-  - **CA-3** (idempotence) : un second lancement avec d'autres mots de passe valides et un
-    autre `BCRYPT_COST` laisse les onze comptes identiques, hashs compris (coût `04` de la
-    première passe) ; les tests du CA-7 comparent en plus le fichier (sha256) avant et après.
-    Un seul compte déjà présent suffit à empêcher toute insertion (CA-7).
-    **Ce que la décision #77 ajoute, non tenu par le code** : le tout ou rien. Sondé le 2026-11-21
-    (base jetable, sonde non committée, Linux, Node 22, root, `BCRYPT_COST=4`) : arrêt brutal
-    (`SIGKILL` envoyé après le N-ième `INSERT`, par un module préchargé via `NODE_OPTIONS=--require`,
-    N de 1 à 10, 2 essais par N, 20 essais) : la base garde exactement N comptes
-    (`quiz_buzzer_01` à `quiz_buzzer_N`, jamais l'admin), et un relancement affiche la ligne du CA-7
-    en code `0` sans créer les comptes manquants. **Aucun test ne couvre le cas.**
+  - **CA-3** (idempotence, tout ou rien) : un second lancement avec d'autres mots de passe
+    valides et un autre `BCRYPT_COST` laisse les onze comptes identiques, hashs compris (coût
+    `04` de la première passe) ; les tests du CA-7 comparent en plus le fichier (sha256) avant et
+    après. Un seul compte déjà présent suffit à empêcher toute insertion (CA-7). **Tout ou rien
+    (décisions #77 et #78)** : sur processus réel (`src/seed-all-or-none.test.ts`, module
+    préchargé `src/test-support/seed-probe.mjs`), un seed tué par `SIGKILL` juste après le 1er,
+    le 2e, le 5e, le 10e et le 11e `INSERT`, puis juste après le `COMMIT` (six cas ; le marqueur
+    écrit avant l'arrêt prouve que le point est atteint) laisse zéro ou onze comptes, sortie
+    standard vide, et le lancement suivant sort en code `0` et finit avec onze comptes. Le mutant
+    « pas de transaction » est tué par ces cas selon le handoff du `test(seed)` du 2026-11-21 ;
+    **non rejoué ici**. **Limites dites** : la table peut être absente ou présente et vide après un
+    arrêt avant tout compte, la spec ne l'impose pas (décision #79, constat reporté) et aucun test
+    ne l'asserte (le module préchargé ne sait arrêter qu'après un `INSERT` ou le `COMMIT`) ;
+    sondé sous Linux, Node 22, root, disque local, ni Windows ni disque réseau.
   - **CA-7** (table non vide) : sur processus réel, un second lancement sort avec le code
     `0`, une ligne sur la sortie standard, la sortie d'erreur vide, le fichier et les comptes
     inchangés ; même ligne, même issue avec un mot de passe trop court, vide ou absent, un
     `BCRYPT_COST` invalide ou les deux (le CA-7 passe avant les CA-4 et CA-6) ; une table qui
-    ne porte qu'un compte est ignorée aussi, avec ou sans fautes (cas constaté : sous la décision
-    #77 il ne survient plus que pour une base laissée partielle par un seed antérieur, voir plus bas ;
-    la garantie du CA-3 le rend impossible pour un seed corrigé, et l'assertion reste vraie). Sur base en lecture seule
-    qui a ses comptes : même ligne, fichier et dossier intacts (décision #72, tests sautés en
-    root).
-    **Ce que la décision #77 ajoute, non tenu par le code** : la perdante d'une course sort en
-    code `0` avec la ligne du CA-7 dans tous les cas. Sondé le 2026-11-21 (deux seeds lancés
-    ensemble sur une base neuve, mots de passe différents, 20 essais) : jamais de compte mélangé
-    (onze comptes d'un seul lancement à chaque fois), mais la perdante sort en code `1` avec `User
-    seeding failed: UNIQUE constraint failed: T_USER_USR.USR_LOGIN` dans 15 essais, et en code `0`
-    avec la ligne du CA-7 dans 5. Aucun test ne couvre le cas. Le « jamais de compte mélangé »
-    ne vient que de l'ordre d'insertion fixe (`quiz_buzzer_01` d'abord pour les deux instances).
+    ne porte qu'un compte est ignorée aussi, avec ou sans fautes (cas constaté : depuis le tout ou
+    rien, il ne survient plus que pour une base laissée partielle par un seed antérieur à la
+    décision #78 ; l'assertion reste vraie). Sur base en lecture seule qui a ses comptes : même
+    ligne, fichier et dossier intacts (décision #72, tests sautés en root). **Course (décisions
+    #77 et #78)** : deux seeds réels, avec des mots de passe différents, qui se retrouvent après
+    avoir lu la table vide puis dans leur transaction (rendez-vous par fichiers : les quatre
+    marqueurs sont assertés, la course est donc réelle) : les deux sortent en code `0`, sortie
+    d'erreur vide, une ligne chacun ; onze comptes exactement, tous du même lancement (les hashs
+    le disent) ; la ligne de la perdante diffère de celle du gagnant. Seul le sens de la ligne est
+    normatif (décision #79) : il n'est pas asserté mot à mot, comme celui du CA-7 (dette de la
+    décision #66). **Mutants rejoués le 2026-11-21 sur `insertAllIfEmpty`** (code restauré, arbre
+    propre) : transaction différée (`.deferred` au lieu de `.immediate`) et recomptage supprimé
+    (`count !== 0` ignoré) : **tués tous les deux** par le test de la course (un échec chacun,
+    `src/seed-all-or-none.test.ts`, 7 tests au vert sur le code réel). Les deux autres mutants du
+    handoff du `test(seed)` (écriture hors transaction ; `written` ignoré) : non rejoués ici.
+    **Limite dite** : l'attente du verrou au-delà du délai de la base (5 s) n'est pas spécifiée
+    (sondé : code `1`, `database is locked`) ; dette de `DEBTS.md`.
 - **Hors CA** :
   - **Atomicité de l'idempotence (« Points de vigilance »)** : tranchée par la décision #77
-    (2026-11-21) et déplacée dans CA-3 et CA-7 (« Partiels » ci-dessus) ; ce n'est plus un trou
-    de CDC. La spec écrit la garantie (tout ou rien ; la perdante d'une course ne modifie rien,
-    affiche la ligne du CA-7, code `0`, sortie d'erreur vide) et pas le mécanisme. **Le code n'est
-    pas aligné** : il fait un `count()`, onze hachages, puis onze `insert` séparés sans
-    transaction ; la contrainte `USR_LOGIN … UNIQUE` tient lieu de garde pour la course. Reste
-    inscrit dans `DEBTS.md` (`infrastructure/ & composition`, « Seed (US-002) : tout ou rien et
-    perdante d'une course non tenus par le code ») : `fix(seed)`, puis `test(seed)`.
+    (2026-11-21), déplacée dans CA-3 et CA-7 (« Solides » ci-dessus), codée par le `fix(seed)`
+    (décision #78) et prouvée sur processus réels. Plus d'écart ; la spec n'a plus de paragraphe
+    « Écart connu ». Restent dans `DEBTS.md` (`infrastructure/ & composition`) : l'attente du
+    verrou d'écriture, non spécifiée, et les deux issues de la table après un arrêt avant tout
+    compte, non assertées (décision #79).
   - **UUIDv7** (périmètre de la spec) : onze identifiants de version 7 sondés, puis prouvés par
     `seed-users.test.ts` (bloc « identifiants stockés » : onze `USR_ID` relus en base, version 7
     et distincts ; mutation `uuidv7()` remplacé par `randomUUID()` tuée). Plus d'écart inscrit
@@ -460,8 +472,8 @@ comportement cassé en production réelle.
 > code, avec la preuve), **toujours vraie** ou **périmée**. Ce qui reste des dettes A, B,
 > C, D et G est inscrit dans `DEBTS.md` (depuis le `docs(debts)` du 2026-11-20, #168), la
 > ligne y renvoie ; E et H sont soldées, sans reste dans leur ligne (le tout ou rien du seed et
-> la perdante d'une course, relevés « hors CA » d'US-002 et tranchés par la décision #77, restent
-> inscrits dans `DEBTS.md` : le code n'est pas aligné). La dette F l'était
+> la perdante d'une course, relevés « hors CA » d'US-002, tranchés par la décision #77, sont
+> tenus par le code depuis le `fix(seed)` du 2026-11-21 : plus de dette sur ce point). La dette F l'était
 > déjà (réalignée avec US-001) ; une mention d'US-002 y est ajoutée.
 
 **Motif transversal** : le cœur fonctionnel (auth, JWT, CRUD, WebSocket temps réel)
@@ -478,15 +490,15 @@ Les exigences transversales `405` et `role` du JWT, elles, sont corrigées.
 | **E** | **Soldée.** `role` string vs enum dans le JWT REST (CA-3/US-003) : le `fix(authentication)` du 2026-11-10 écrit `toRoleLabel(user.role)` dans le token (`jwt-generator.ts`) ; `jwt-generator.test.ts` asserte `role: "buzzer"` pour un joueur et `role: "admin"` pour un administrateur. Sondé sur hub réel : le token de `/api/v1/token` porte `"admin"` pour `admin` et `"buzzer"` pour `quiz_buzzer_01`. Côté WebSocket, `auth_success` utilise aussi `toRoleLabel` : les deux canaux concordent. La cellule CA-3 d'US-003 reste datée. | ~~🟡~~ soldée | Sans objet. |
 | **F** | **Lecture d'environnement non testée de bout en bout** (CA-2/US-002, CA-4/US-003, CA-13). Tout est renvoyé à `ProcessEnvironment`, non audité. US-001 n'est plus concernée : sa lecture d'environnement est réalignée au §2. US-002 non plus : le `.env` du seed (mots de passe, `BCRYPT_COST`, `SQLITE_DB_PATH`) est prouvé sur processus réel (§2). | 🟢 Vérification | Un dump `process-environment.*` ferme deux US d'un coup. |
 | **G** | **Toujours vraie, inscrite dans `DEBTS.md`.** Logs et headers non assertés. (1) **Logs CA-14 / CA-15 d'US-003** : `token-route.ts` écrit `request.log.info` et `warn` avec le nom d'utilisateur et l'IP ; `token-route.test.ts` monte `Fastify()` sans logger : aucun test ne les capture ; renvoi à `DEBTS.md` : « `POST /api/v1/token` : le `500` expose le détail technique, les logs de CA-14 et CA-15 ne sont pas assertés ». (2) **`Retry-After`, CA-13 / US-003 et CA-34 / US-004** : `token-route.test.ts` et `theme-route.test.ts` n'assertent que le statut `429`. Le header est posé par un hook du middleware de limitation, testé au middleware (`rate-limit-middleware.test.ts`) et, pour la route inconnue, sur le serveur assemblé ; renvoi à `DEBTS.md` : « `429` des tokens non re-testé », « `429` des thèmes non re-testé » et « `Retry-After` constant testé au middleware seul, pas par plugin ». (3) **« Par IP » (CA-13)** : aucun test à deux adresses (la clé est celle de `@fastify/rate-limit` par défaut, l'IP de la requête) ; renvoi à `DEBTS.md` : « `429` des tokens non re-testé ». | 🟢 Vérification | Resserrage de tests. |
-| **H** | **Soldée.** (a) Noms de comptes CA-1/US-002 : prouvés (§2 : l'ensemble des onze logins est comparé sur processus réel). (b) JSON malformé CA-11/US-003 : `token-route.test.ts` asserte `400 INVALID_JSON` pour un JSON tronqué et pour un corps vide. (c) État vide CA-19/US-004 : prouvé à la route (`200` et enveloppe vide, service simulé), au service (`total: 0`, `total_pages: 0`) et au repository (liste vide). Les cellules CA-11 (US-003) et CA-19 (US-004) restent datées. (d) Bornes du jeu de caractères du mot de passe, CA-4/US-002 : U+007F et U+001F refusés, prouvés par `owasp-password-validator.test.ts`, les deux mutants tués (§2). Ce qui reste d'US-002 (tout ou rien et perdante d'une course, décision #77, code non aligné ; `.env` non versionné) n'est pas de cette dette : renvoi à `DEBTS.md`. | ~~🟢~~ soldée | Sans objet. |
+| **H** | **Soldée.** (a) Noms de comptes CA-1/US-002 : prouvés (§2 : l'ensemble des onze logins est comparé sur processus réel). (b) JSON malformé CA-11/US-003 : `token-route.test.ts` asserte `400 INVALID_JSON` pour un JSON tronqué et pour un corps vide. (c) État vide CA-19/US-004 : prouvé à la route (`200` et enveloppe vide, service simulé), au service (`total: 0`, `total_pages: 0`) et au repository (liste vide). Les cellules CA-11 (US-003) et CA-19 (US-004) restent datées. (d) Bornes du jeu de caractères du mot de passe, CA-4/US-002 : U+007F et U+001F refusés, prouvés par `owasp-password-validator.test.ts`, les deux mutants tués (§2). Ce qui reste d'US-002 (`.env` non versionné et non testé ; attente du verrou d'écriture, non spécifiée) n'est pas de cette dette : renvoi à `DEBTS.md`. | ~~🟢~~ soldée | Sans objet. |
 
 ---
 
 ## 4. Ce que ça signifie pour la suite
 
 Le socle hub est **substantiel mais pas « fini »** au sens strict des specs :
-~80/105 CA solides (US-001 réalignée au HEAD `25d2388` puis mise à jour le 2026-11-18,
-US-002 au HEAD `ef7a221` le 2026-11-20, puis CA-3 et CA-7 sur la décision #77 le 2026-11-21, les autres US au relevé daté ; décompte du §1), avec
+~82/105 CA solides (US-001 réalignée au HEAD `25d2388` puis mise à jour le 2026-11-18,
+US-002 au HEAD `ef7a221` le 2026-11-20, puis CA-3 et CA-7 au HEAD `33823bf` le 2026-11-21, les autres US au relevé daté ; décompte du §1), avec
 un angle mort sur les exigences transversales normatives (le `500` de `/token`, les logs et
 les headers non assertés) et sur le plafond des connexions WebSocket. **Aucun de ces trous
 n'empêche d'avancer vers le jeu** — à condition de les connaître pour ne pas s'appuyer
