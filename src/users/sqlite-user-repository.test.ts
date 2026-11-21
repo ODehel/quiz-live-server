@@ -86,16 +86,16 @@ describe("Sqlite User repository - insertAllIfEmpty (all or none, only on an emp
     const storedLogins = (db: Database.Database = database) =>
         (db.prepare("SELECT USR_LOGIN FROM T_USER_USR ORDER BY USR_LOGIN").all() as { USR_LOGIN: string }[]).map(row => row.USR_LOGIN);
 
-    it("should write every user and say so when the table is empty", async () => {
+    it("should write every user and say how many when the table is empty", async () => {
         const written = await repository.insertAllIfEmpty(aBatch("a"));
-        expect(written).toBe(true);
+        expect(written).toBe(3);
         expect(storedLogins()).toEqual(["a-login-0", "a-login-1", "a-login-2"]);
     });
 
-    it("should write nothing and say so when the table already holds an account", async () => {
+    it("should write nothing and say zero when the table already holds an account", async () => {
         await repository.insert(user);
         const written = await repository.insertAllIfEmpty(aBatch("a"));
-        expect(written).toBe(false);
+        expect(written).toBe(0);
         expect(storedLogins()).toEqual(["any-login"]);
     });
 
@@ -124,8 +124,8 @@ describe("Sqlite User repository - insertAllIfEmpty (all or none, only on an emp
         it("should write nothing when another connection filled the table first, and keep the accounts of that connection", async () => {
             const winner = new SqliteUserRepository(first);
             const loser = new SqliteUserRepository(second);
-            expect(await winner.insertAllIfEmpty(aBatch("winner"))).toBe(true);
-            expect(await loser.insertAllIfEmpty(aBatch("loser"))).toBe(false);
+            expect(await winner.insertAllIfEmpty(aBatch("winner"))).toBe(3);
+            expect(await loser.insertAllIfEmpty(aBatch("loser"))).toBe(0);
             expect(storedLogins(second)).toEqual(["winner-login-0", "winner-login-1", "winner-login-2"]);
         });
     });

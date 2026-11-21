@@ -36,7 +36,7 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
-            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(11),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -72,9 +72,10 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
         const result = await userSeed.seed(mockEnvironment);
         expect(result).toEqual({ created: true, message: "Seed terminé — 11 comptes créés." });
     });
-    it("should count in its success line the accounts it handed to the repository", async () => {
+    it("should count in its success line the accounts the repository says it wrote", async () => {
+        vi.mocked(mockRepository.insertAllIfEmpty).mockResolvedValue(3);
         const result = await userSeed.seed(mockEnvironment);
-        expect(result.message).toBe(accountsCreatedMessage(writtenUsers(mockRepository).length));
+        expect(result).toEqual({ created: true, message: "Seed terminé — 3 comptes créés." });
     });
 });
 
@@ -92,7 +93,7 @@ describe("CA-7 - le seed dit qu'aucun compte n'a été créé quand la table n'e
         mockRepository = {
             count: vi.fn().mockResolvedValue(5),
             insert: vi.fn().mockResolvedValue(undefined),
-            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(11),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -108,7 +109,7 @@ describe("CA-7 - le seed dit qu'aucun compte n'a été créé quand la table n'e
     });
     it("should say the same when another run filled the table between the check and the write", async () => {
         vi.mocked(mockRepository.count).mockResolvedValue(0);
-        vi.mocked(mockRepository.insertAllIfEmpty).mockResolvedValue(false);
+        vi.mocked(mockRepository.insertAllIfEmpty).mockResolvedValue(0);
         const seedWithValidPasswords = new SeedUsers(mockRepository, { hash: vi.fn().mockResolvedValue('a-hash'), compare: vi.fn() }, { validate: vi.fn().mockReturnValue(true) });
         const result = await seedWithValidPasswords.seed(mockEnvironment);
         expect(result).toEqual({
@@ -127,7 +128,7 @@ describe("CA-2 - Les mots de passe sont lus depuis les variables d'environnement
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
-            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(11),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -162,7 +163,7 @@ describe("CA-4 - Les mots de passe respectent les règles de validation", () => 
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
-            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(11),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -222,7 +223,7 @@ describe("CA-6 - le seed refuse un BCRYPT_COST invalide et applique le coût au 
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
-            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(11),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };

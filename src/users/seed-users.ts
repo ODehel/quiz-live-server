@@ -6,7 +6,7 @@ import { UserRole } from "./user-role"
 import { SeedUserConfiguration } from "./seed-user-configuration.interface";
 import { readBcryptCost } from "./bcrypt-cost";
 
-// US-002/CA-1 and decision #73: one line, whose sense (the accounts were created) is the only normative part; the figure is the number of accounts written.
+// US-002/CA-1 and decision #73: one line, whose sense (the accounts were created) is the only normative part; the figure is the number of accounts the repository wrote.
 export type SeedResult = { created: true; message: string } | { created: false; message: string };
 
 export function accountsCreatedMessage(count: number): string {
@@ -49,10 +49,10 @@ export class SeedUsers {
         // The hashing above runs outside any lock. The write is a single step on the repository: the eleven accounts, or none,
         // and only if no other run filled the table since the check above (the run that loses behaves like a run on a non-empty table).
         const written = await this.repository.insertAllIfEmpty(defaultUsers);
-        if (!written) {
+        if (written === 0) {
             return { created: false, message: TABLE_NOT_EMPTY_MESSAGE };
         }
-        return { created: true, message: accountsCreatedMessage(defaultUsers.length) };
+        return { created: true, message: accountsCreatedMessage(written) };
     }
 
     private readValidPasswords(configuration: SeedUserConfiguration): Map<string, string> {
