@@ -32,17 +32,17 @@ export class SqliteUserRepository implements UserRepository {
     // One transaction, whose write lock is taken at its start (immediate): the count and the insertions are a single step for the other connections,
     // so an instance that waits for the lock reads the accounts of the one that wrote first instead of failing on a unique constraint at its first insert.
     // A process killed before the commit leaves no account: SQLite rolls the transaction back when the file is next opened.
-    insertAllIfEmpty(users: User[]): Promise<boolean> {
-        const insertAll = this.db.transaction((rows: User[]): boolean => {
+    insertAllIfEmpty(users: User[]): Promise<number> {
+        const insertAll = this.db.transaction((rows: User[]): number => {
             const { count } = this.db.prepare("SELECT COUNT(USR_LOGIN) as count FROM T_USER_USR").get() as { count: number };
             if (count !== 0) {
-                return false;
+                return 0;
             }
             const stmt = this.db.prepare("INSERT INTO T_USER_USR (USR_ID, USR_LOGIN, USR_HASH_PASSWORD, USR_ROLE) VALUES (?, ?, ?, ?)");
             for (const row of rows) {
                 stmt.run(row.id, row.username, row.password, toRoleLabel(row.role));
             }
-            return true;
+            return rows.length;
         });
         return Promise.resolve().then(() => insertAll.immediate(users));
     }

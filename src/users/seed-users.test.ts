@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UserRepository } from "./user-repository.interface";
-import { SeedUsers } from './seed-users';
+import { SeedUsers, accountsCreatedMessage } from './seed-users';
 import { UserRole } from './user-role';
 import { User } from './user.interface';
 import { Hasher } from '../common/hasher.interface';
@@ -36,7 +36,7 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
-            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(11),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -68,10 +68,22 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
         await userSeed.seed(configuration);
         expect(configuration.seedPasswordFor).not.toHaveBeenCalled();
     });
-    it("should report that the accounts were created when the table is empty", async () => {
+    it("should report that the accounts were created when the table is empty, with the success line of the seed", async () => {
         const result = await userSeed.seed(mockEnvironment);
-        expect(result).toEqual({ created: true });
+        expect(result).toEqual({ created: true, message: "Seed terminé — 11 comptes créés." });
     });
+    it("should count in its success line the accounts the repository says it wrote", async () => {
+        vi.mocked(mockRepository.insertAllIfEmpty).mockResolvedValue(3);
+        const result = await userSeed.seed(mockEnvironment);
+        expect(result).toEqual({ created: true, message: "Seed terminé — 3 comptes créés." });
+    });
+});
+
+describe("CA-1 - la ligne de succès compte les comptes qu'on lui donne", () => {
+    it.each([[11, "Seed terminé — 11 comptes créés."], [3, "Seed terminé — 3 comptes créés."], [42, "Seed terminé — 42 comptes créés."]])(
+        "should write the figure %i in the line", (count, expected) => {
+            expect(accountsCreatedMessage(count)).toBe(expected);
+        });
 });
 
 describe("CA-7 - le seed dit qu'aucun compte n'a été créé quand la table n'est pas vide", () => {
@@ -81,7 +93,7 @@ describe("CA-7 - le seed dit qu'aucun compte n'a été créé quand la table n'e
         mockRepository = {
             count: vi.fn().mockResolvedValue(5),
             insert: vi.fn().mockResolvedValue(undefined),
-            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(11),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -97,7 +109,7 @@ describe("CA-7 - le seed dit qu'aucun compte n'a été créé quand la table n'e
     });
     it("should say the same when another run filled the table between the check and the write", async () => {
         vi.mocked(mockRepository.count).mockResolvedValue(0);
-        vi.mocked(mockRepository.insertAllIfEmpty).mockResolvedValue(false);
+        vi.mocked(mockRepository.insertAllIfEmpty).mockResolvedValue(0);
         const seedWithValidPasswords = new SeedUsers(mockRepository, { hash: vi.fn().mockResolvedValue('a-hash'), compare: vi.fn() }, { validate: vi.fn().mockReturnValue(true) });
         const result = await seedWithValidPasswords.seed(mockEnvironment);
         expect(result).toEqual({
@@ -116,7 +128,7 @@ describe("CA-2 - Les mots de passe sont lus depuis les variables d'environnement
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
-            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(11),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -151,7 +163,7 @@ describe("CA-4 - Les mots de passe respectent les règles de validation", () => 
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
-            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(11),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -211,7 +223,7 @@ describe("CA-6 - le seed refuse un BCRYPT_COST invalide et applique le coût au 
         mockRepository = {
             count: vi.fn().mockResolvedValue(0),
             insert: vi.fn().mockResolvedValue(undefined),
-            insertAllIfEmpty: vi.fn().mockResolvedValue(true),
+            insertAllIfEmpty: vi.fn().mockResolvedValue(11),
             retrieveByLogin: vi.fn().mockResolvedValue(undefined),
             retrieveById: vi.fn().mockResolvedValue(undefined)
         };
@@ -378,14 +390,14 @@ describe("Seed with the SQLite repository - tout ou rien et perdante d'une cours
         await expect(seedUsers.seed(mockEnvironment)).rejects.toThrow();
         database.exec("DROP TRIGGER refuse_admin");
         const result = await seedWith(database, hasherTagging("B")).seed(mockEnvironment);
-        expect(result).toEqual({ created: true });
+        expect(result.created).toBe(true);
         expect(storedAccounts(database)).toHaveLength(11);
     });
 
     it("should lose the race without error and without leaving an account when another run fills the table after its check", async () => {
         const winner = seedWith(otherDatabase, hasherTagging("WINNER"));
         const loserHasher = hasherTagging("LOSER", async () => {
-            expect(await winner.seed(mockEnvironment)).toEqual({ created: true });
+            expect((await winner.seed(mockEnvironment)).created).toBe(true);
         });
         const result = await seedWith(database, loserHasher).seed(mockEnvironment);
         expect(result).toEqual({
