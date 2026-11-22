@@ -410,7 +410,7 @@ describe('US-003/CA-17: When an unexpected error occurs', () => {
     });
 });
 
-describe('US-003/CA-14 and US-003/CA-15: The logins are logged', () => {
+describe('US-003/CA-14, US-003/CA-15 and US-003/CA-17: The server log', () => {
     const clientIp = '203.0.113.7';
     let logs: Record<string, unknown>[];
 
@@ -471,5 +471,48 @@ describe('US-003/CA-14 and US-003/CA-15: The logins are logged', () => {
         vi.mocked(mockAuthenticationService.authenticate).mockResolvedValue(undefined);
         await login('User Name', 'wrong-password');
         expect(levelsOfTheLinesCarrying('User Name', clientIp)).not.toContain(30);
+    });
+
+    // The error is found by what it carries (its message and its stack, anywhere in the line), never by the shape of the line (US-022).
+    function errorLinesCarrying(technicalError: Error): Record<string, unknown>[] {
+        const carried = (text: string) => JSON.stringify(text).slice(1, -1);
+        return logs.filter(line => line.level === 50
+            && JSON.stringify(line).includes(carried(technicalError.message))
+            && JSON.stringify(line).includes(carried(technicalError.stack as string)));
+    }
+
+    it('US-003/CA-17: should log the error at ERROR level with its message and its stack when the authentication service fails', async () => {
+        const technicalError = new Error('no such table: T_USER_USR');
+        vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(technicalError);
+        const response = await login('User Name', 'user-password');
+        expect(response.statusCode).toBe(500);
+        expect(errorLinesCarrying(technicalError)).toHaveLength(1);
+    });
+
+    it('US-003/CA-17: should log the error at ERROR level with its message and its stack when the token generation fails', async () => {
+        const technicalError = new Error('secretOrPrivateKey must have a value');
+        mockTokenGenerator.generateToken = () => { throw technicalError; };
+        const response = await login('User Name', 'user-password');
+        expect(response.statusCode).toBe(500);
+        expect(errorLinesCarrying(technicalError)).toHaveLength(1);
+    });
+
+    it('US-003/CA-17: should expose neither the message nor the stack of the error in the response', async () => {
+        const technicalError = new Error('no such table: T_USER_USR');
+        vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(technicalError);
+        const response = await login('User Name', 'user-password');
+        expect(response.body).not.toContain(technicalError.message);
+        expect(response.body).not.toContain('at ');
+        expect(response.body).not.toContain((technicalError.stack as string).split('\n')[1]!.trim());
+    });
+
+    it('US-003/CA-17: should not log any ERROR line when the client is at fault', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            body: JSON.stringify({ username: 'User Name', password: 'user-password' })
+        });
+        expect(response.statusCode).toBe(415);
+        expect(logs.filter(line => line.level === 50)).toEqual([]);
     });
 });
