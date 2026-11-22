@@ -65,7 +65,9 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-17 | Erreur serveur inattendue | `500 INTERNAL_SERVER_ERROR` (aucun détail technique exposé) |
+| CA-17 | Erreur serveur inattendue | `500 INTERNAL_SERVER_ERROR` (aucun détail technique exposé dans la réponse) ; l'erreur technique est journalisée au niveau `ERROR` (voir la note ci-dessous) |
+
+> **Note du 2026-11-22 (décision #83)** — Comme CA-14 et CA-15, ce CA n'exige que le **contenu** et le **niveau** du log de l'erreur, pas sa **forme**. Contenu : la ligne de log porte l'erreur technique (son message et sa pile) ; ces détails ne figurent que dans le log serveur, jamais dans la réponse (`SECURITE-TRANSVERSALE.md`, « Erreurs serveur »). Niveau : `ERROR`, comme pour les routes des thèmes et des questions. La forme de la ligne (champs, `event`, horodatage) relève d'[US-022](US-022-logging.md#format-json-des-entrées-de-log), et l'exemple `UNHANDLED_EXCEPTION` de `SECURITE-TRANSVERSALE.md` reste non normatif. Rien d'autre n'est exigé : ni `username`, ni adresse IP, ni nom d'événement.
 
 > **Note du 2026-11-22 (décision #54)** — CA-18 (« Tests unitaires et d'intégration — Couverture de tests ≥ 90% ») est retiré, comme CA-6 d'US-001 le 2026-11-14 et CA-5 d'US-002 le 2026-11-21 : la couverture relève de la méthode TDD, pas d'un critère d'acceptance (le seuil global de 90 % est appliqué par la CI, décision #67 ; la règle « un CA = au moins un test » est inchangée). Le bandeau « Exigence de couverture » est retiré avec lui. La numérotation des autres CA est conservée (CA-19 et CA-20 sont cités par les décisions, par les tests et par les handoffs) : il n'y a donc pas de CA-18.
 
