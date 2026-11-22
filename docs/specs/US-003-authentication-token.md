@@ -18,8 +18,6 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 
 ## ✅ Critères d'acceptance
 
-> 🧪 **Exigence de couverture** — Voir [Conventions techniques — Couverture des tests](../shared/CONVENTIONS-TECHNIQUES.md#-exigence-de-couverture-des-tests). Chaque CA doit être couvert par au moins un test automatisé. Couverture globale ≥ 90 %.
-
 ### Émission du token — `POST /api/v1/token`
 
 | # | Critère | Résultat attendu |
@@ -68,7 +66,8 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | # | Critère | Résultat attendu |
 |---|---|---|
 | CA-17 | Erreur serveur inattendue | `500 INTERNAL_SERVER_ERROR` (aucun détail technique exposé) |
-| CA-18 | Tests unitaires et d'intégration | Couverture de tests ≥ 90% |
+
+> **Note du 2026-11-22 (décision #54)** — CA-18 (« Tests unitaires et d'intégration — Couverture de tests ≥ 90% ») est retiré, comme CA-6 d'US-001 le 2026-11-14 et CA-5 d'US-002 le 2026-11-21 : la couverture relève de la méthode TDD, pas d'un critère d'acceptance (le seuil global de 90 % est appliqué par la CI, décision #67 ; la règle « un CA = au moins un test » est inchangée). Le bandeau « Exigence de couverture » est retiré avec lui. La numérotation des autres CA est conservée (CA-19 et CA-20 sont cités par les décisions, par les tests et par les handoffs) : il n'y a donc pas de CA-18.
 
 ### Configuration au démarrage
 
@@ -266,7 +265,7 @@ Voir [US-002 — Seed des comptes utilisateurs](US-002-seed-users.md) pour le sc
 | Rate limiting spécifique 100 req/min par IP | Déconnexion (gérée côté client) |
 | Gestion complète des erreurs | Authentification WebSocket (US dédiée) |
 | Middlewares `authenticate` et `authorize` (réutilisables) | CRUD des utilisateurs |
-| Tests unitaires et d'intégration (couverture ≥ 90%) | Interface Angular de connexion |
+| | Interface Angular de connexion |
 
 ---
 
