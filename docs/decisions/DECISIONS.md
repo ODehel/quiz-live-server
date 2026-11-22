@@ -1281,3 +1281,30 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - `DEBTS.md` : les deux lignes sur l'ordre sont soldées côté spec ; une ligne consigne l'écart du code ; la ligne sur le message à deux champs manquants est mise à jour (le type est tranché, le body qui n'est pas un objet reste non fixé).
 - Condition de réouverture : un client qui exigerait `UNKNOWN_FIELDS` d'abord, ou la migration des thèmes et des questions vers un ordre commun.
 - À challenger : (a) l'ordre 4, 5, 6 repose sur l'analogie avec les questions (#9, #10) : les thèmes ont un ordre propre qui n'a pas été relu ; (b) le `429` compte les requêtes refusées plus loin : cela ouvre aux clients malformés un moyen d'épuiser leur propre quota, voulu par « toutes les routes » mais non discuté pour le `415` ; (c) « le code est conforme sur le reste » vient de la lecture de `token-route.ts`, pas d'une sonde rejouée.
+
+
+---
+
+## #85 — Les `400 VALIDATION_ERROR` de `POST /api/v1/token` ont un message normatif et ne nomment qu'un champ, `username` avant `password` ; un corps JSON qui n'est pas un objet y répond aussi
+
+*`docs(specs): settle the message POST /api/v1/token answers when both fields are missing` — US-003 (CA-9, CA-10, tableau « Ordre des contrôles »). Précise #84 sur le texte des réponses ; #9, #10 et #84 ne sont pas modifiées.*
+
+**Contexte.** #84 fixe l'ordre des contrôles et le code `VALIDATION_ERROR`, mais aucun CDC ne fixait le texte des messages ni le champ nommé quand plusieurs sont en échec. Le code répond `Username is required.` / `Password is required.` (libellés écrits par le code, jamais décidés) et ne nomme que `username` quand les deux manquent ; la dette affirmait à tort que les questions nomment tous les champs manquants : `rejectMissingFields` utilise `find` et n'en nomme qu'un. Un champ mal typé et un corps JSON qui n'est pas un objet répondent le corps natif de Fastify (`FST_ERR_VALIDATION`).
+
+**Décision.**
+1. **Sur choix d'Olivier (2026-11-22)** : une réponse `VALIDATION_ERROR` ne nomme qu'un champ ; si `username` et `password` sont tous deux manquants ou vides, c'est `username`, sans mentionner `password` (comme #10).
+2. **Sur choix d'Olivier** : les messages sont normatifs mot à mot : `Username is required.`, `Password is required.`.
+3. **Sur choix d'Olivier** : un corps JSON valide qui n'est pas un objet (`null`, tableau, chaîne, nombre, booléen) répond `400 VALIDATION_ERROR` au corps standard, message `Request body must be a JSON object.`, au rang 4 de #84.
+4. **Sur choix d'Olivier** : un champ présent mais qui n'est pas une chaîne répond `Username must be a string.` ou `Password must be a string.`, `username` avant `password`.
+5. Écrit dans les cellules de CA-9 et CA-10, le tableau « Ordre des contrôles » et une section « Messages de `VALIDATION_ERROR` » d'US-003. **Aucun CA n'est ajouté, retiré ni renuméroté.**
+
+**Alternatives écartées.**
+- **Nommer les deux champs dans un message** : écartée, diverge de #10 et des questions, change le code.
+- **Seul le code normatif, ou seul le champ nommé** : écartées, un test ne pourrait pas asserter le message.
+- **Corps non objet laissé au corps natif de Fastify** : écartée, un seul format de `400` (corps standard à trois champs) pour toute la route.
+
+**Conséquences.**
+- Le code **n'est pas conforme** pour le champ mal typé et le corps non objet (corps natif de Fastify). Les messages de CA-9 et CA-10 et le champ nommé quand les deux manquent le sont déjà, mais aucun test ne les asserte. Un `fix(authentication)` suit (avec celui de #84 : un seul commit, deux agents et smoke test).
+- `DEBTS.md` : la ligne « Le `VALIDATION_ERROR` de CA-9 et CA-10 ne nomme qu'un champ… » est soldée côté spec ; la ligne de l'écart de #84 reprend le champ mal typé et le corps non objet.
+- Condition de réouverture : un client qui voudrait tous les champs fautifs dans une réponse, ou des messages localisés.
+- À challenger : (a) `Request body must be a JSON object.` et les deux `must be a string.` sont mes libellés, validés par Olivier sans variante proposée ; (b) un corps non objet au rang 4 : un `null` n'est pas « un champ mal typé », c'est un choix de regroupement ; (c) l'état du code est lu dans `token-route.ts`, non rejoué ici (Node 26 absent).

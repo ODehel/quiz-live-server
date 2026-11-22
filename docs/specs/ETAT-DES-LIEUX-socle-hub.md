@@ -483,10 +483,11 @@ comportement cassé en production réelle.
     `token-route.test.ts` (`CA-09` et `CA-10`, quatre tests chacun) : champ manquant → `400
     VALIDATION_ERROR` (`Username is required.` / `Password is required.`), champ vide → même
     réponse, `authenticate` jamais appelé. Mutants rejoués et tués : `minLength` retiré (un par
-    champ), `required` retiré. Les libellés sont une invention (la spec n'en prescrit aucun). Les
-    deux champs manquants (seul `Username` est nommé) et les champs de mauvais type ou un corps qui
-    n'est pas un objet (corps natif de Fastify, lu dans `token-route.ts`, `reply.send(request.validationError)`,
-    non rejoué) ne sont fixés par aucun CDC : voir `DEBTS.md`.
+    champ), `required` retiré. Les libellés sont normatifs depuis la décision #85 (2026-11-22), qui fixe aussi que seul `Username`
+    est nommé quand les deux champs manquent (non testé). Le champ de mauvais type et un corps qui
+    n'est pas un objet répondent le corps natif de Fastify (lu dans `token-route.ts`,
+    `reply.send(request.validationError)`, non rejoué), alors que #85 exige `400 VALIDATION_ERROR` :
+    écart consigné dans `DEBTS.md` (`fix(authentication)` à venir).
   - **CA-11** (JSON invalide → `400 INVALID_JSON`) : `token-route.test.ts` (deux `describe` d'un
     test) : un JSON tronqué (`{"username":`) → `400`, `INVALID_JSON`, `Request body must be valid
     JSON.` ; un corps vide avec `Content-Type: application/json` → même réponse. Mutants rejoués
@@ -601,8 +602,8 @@ comportement cassé en production réelle.
     diagrammes alignés). Le code n'y est pas conforme sur deux points : un champ manquant doit
     passer avant un champ inconnu, un champ mal typé avant les deux (aujourd'hui `UNKNOWN_FIELDS`
     d'abord, et corps natif de Fastify pour le type) : écart consigné dans `DEBTS.md`
-    (`fix(authentication)` à venir). Le message à deux champs manquants : trou de CDC consigné
-    (`DEBTS.md`, ligne « Le `VALIDATION_ERROR` de CA-9 et CA-10 ne nomme qu'un champ… »).
+    (`fix(authentication)` à venir). Les messages de `VALIDATION_ERROR` et le champ nommé quand
+    plusieurs sont en échec sont fixés par la décision #85.
   - Le sous-système d'admission WebSocket (`AdmissionPolicy`, `JwtValidator`, résolveur,
     extracteurs) a ses propres fichiers de test dans `authentication/` ; il relève d'US-009 et n'a
     pas été relu par cette session.
