@@ -1,5 +1,5 @@
 import Ajv from "ajv";
-import { FastifyError, FastifyInstance } from "fastify";
+import { errorCodes, FastifyError, FastifyInstance, FastifyReply, FastifyRequest, HookHandlerDoneFunction } from "fastify";
 import { INTERNAL_SERVER_ERROR, INVALID_CREDENTIALS, INVALID_JSON, VALIDATION_ERROR } from "../common/error-codes";
 import { TokenRouteConfiguration } from "./token-route-configuration.interface";
 
@@ -15,6 +15,13 @@ const requiredFields = [
 ];
 
 const invalidJsonBodyCodes = ['FST_ERR_CTP_INVALID_JSON_BODY', 'FST_ERR_CTP_EMPTY_JSON_BODY'];
+
+const rejectMissingContentType = (request: FastifyRequest, _reply: FastifyReply, done: HookHandlerDoneFunction) => {
+    if (!request.headers['content-type']) {
+        return done(new errorCodes.FST_ERR_CTP_INVALID_MEDIA_TYPE());
+    }
+    done();
+};
 
 export default async function tokenRoute(app: FastifyInstance, options: TokenRouteConfiguration) {
     const { authenticationService, tokenGenerator, rateLimitMiddleware } = options;
@@ -58,7 +65,7 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
         return inheritedErrorHandler.call(app, error, request, reply);
     });
 
-    app.post('/api/v1/token', { schema, attachValidation: true }, async (request, reply) => {
+    app.post('/api/v1/token', { schema, attachValidation: true, onRequest: rejectMissingContentType }, async (request, reply) => {
         if (request.validationError) {
             const violations = request.validationError.validation as SchemaViolation[];
             const unknownFields = violations

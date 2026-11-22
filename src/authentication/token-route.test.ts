@@ -114,6 +114,44 @@ describe('US-003/CA-07: With wrong content type', () => {
         expect(response.statusCode).toBe(415)
         expect(response.json()).toEqual({ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 });
     });
+
+    const nativeUnsupportedMediaType = { code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 };
+
+    it('US-003/CA-7 should return the native 415 when the Content-Type header is absent and the body is empty', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token'
+        })
+        expect(response.statusCode).toBe(415)
+        expect(response.json()).toEqual(nativeUnsupportedMediaType);
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
+    });
+
+    it('US-003/CA-7 should return the native 415 when the Content-Type header is absent and the body is not empty', async () => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            body: JSON.stringify({ username: 'User Name', password: 'user-password' })
+        })
+        expect(response.statusCode).toBe(415)
+        expect(response.json()).toEqual(nativeUnsupportedMediaType);
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['empty', undefined],
+        ['not empty', JSON.stringify({ username: 'User Name', password: 'user-password' })]
+    ])('US-003/CA-7 should return the native 415 when the Content-Type header is present but empty and the body is %s', async (_label, body) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': '' },
+            body
+        })
+        expect(response.statusCode).toBe(415)
+        expect(response.json()).toEqual(nativeUnsupportedMediaType);
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
+    });
 });
 
 describe('US-003/CA-08: With wrong credentials', () => {
