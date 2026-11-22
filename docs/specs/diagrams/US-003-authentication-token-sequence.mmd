@@ -10,7 +10,7 @@ sequenceDiagram
         S-->>C: 415 FST_ERR_CTP_INVALID_MEDIA_TYPE
     else Méthode non autorisée
         S-->>C: 405 METHOD_NOT_ALLOWED (Allow: POST)
-    else Rate limit dépassé (> 5 req/min)
+    else Rate limit dépassé (> 100 req/min)
         S-->>C: 429 RATE_LIMIT_EXCEEDED (Retry-After: 60)
     else JSON invalide
         S-->>C: 400 INVALID_JSON
