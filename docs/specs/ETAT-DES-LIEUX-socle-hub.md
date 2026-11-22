@@ -462,8 +462,8 @@ comportement cassé en production réelle.
     `additionalProperties` retiré. **Périmé : « code `UNKNOWN_FIELDS` non asserté »** : il l'est, dans
     le corps complet. Il n'existe pas d'étiquette `US-003/CA-12` : la spec écrit deux fois la même
     règle (CA-6 et CA-12) et les tests portent « (CA-12) » dans le `describe` du CA-6. Le cumul
-    avec un champ manquant (`UNKNOWN_FIELDS` prime dans le code) n'est fixé par aucun CDC : voir
-    `DEBTS.md`.
+    avec un champ manquant est fixé par la décision #84 (`VALIDATION_ERROR` d'abord) ; le code
+    répond encore `UNKNOWN_FIELDS` : écart du code au CDC, consigné dans `DEBTS.md` (`fix(authentication)` à venir).
   - **CA-7** (`Content-Type` autre que JSON → `415`) : `token-route.test.ts` (`describe CA-07`,
     sept tests) : `application/xml` et `text/plain` → `415`, corps natif de Fastify
     `{ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error, message, statusCode: 415 }` (décision #11) ;
@@ -597,11 +597,12 @@ comportement cassé en production réelle.
   - **Recherche du login sensible à la casse** (CDC, flux d'émission, étape 2) : le code lit
     `WHERE USR_LOGIN = ?` sur une colonne `UNIQUE` sans `COLLATE NOCASE` (lecture du code,
     `sqlite-user-repository.ts`) ; aucun test ne le vise : non vérifié par test.
-  - **Ordre des contrôles** : les deux diagrammes d'US-003 ne placent pas les contrôles dans le
-    même ordre et le CDC n'en fixe aucun : trou de CDC consigné (`DEBTS.md`, ligne « Diagrammes
-    d'US-003 : ordre des contrôles non identique… » et ligne sur `UNKNOWN_FIELDS` et un champ
-    manquant). Le message à deux champs manquants : trou de CDC consigné (`DEBTS.md`, ligne « Le
-    `VALIDATION_ERROR` de CA-9 et CA-10 ne nomme qu'un champ… »).
+  - **Ordre des contrôles** : fixé par la décision #84 (tableau « Ordre des contrôles » d'US-003,
+    diagrammes alignés). Le code n'y est pas conforme sur deux points : un champ manquant doit
+    passer avant un champ inconnu, un champ mal typé avant les deux (aujourd'hui `UNKNOWN_FIELDS`
+    d'abord, et corps natif de Fastify pour le type) : écart consigné dans `DEBTS.md`
+    (`fix(authentication)` à venir). Le message à deux champs manquants : trou de CDC consigné
+    (`DEBTS.md`, ligne « Le `VALIDATION_ERROR` de CA-9 et CA-10 ne nomme qu'un champ… »).
   - Le sous-système d'admission WebSocket (`AdmissionPolicy`, `JwtValidator`, résolveur,
     extracteurs) a ses propres fichiers de test dans `authentication/` ; il relève d'US-009 et n'a
     pas été relu par cette session.
