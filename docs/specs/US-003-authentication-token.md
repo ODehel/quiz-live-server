@@ -35,8 +35,8 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | # | Critère | Résultat attendu |
 |---|---|---|
 | CA-8 | Username ou password incorrect | `401 INVALID_CREDENTIALS` — Message générique ne révélant pas lequel est faux |
-| CA-9 | Champ `username` manquant ou vide | `400 VALIDATION_ERROR`, message `Username is required.` (décision #85) |
-| CA-10 | Champ `password` manquant ou vide | `400 VALIDATION_ERROR`, message `Password is required.` (décision #85) |
+| CA-9 | Champ `username` manquant, `null` ou vide | `400 VALIDATION_ERROR`, message `Username is required.` (décisions #85 et #86) |
+| CA-10 | Champ `password` manquant, `null` ou vide | `400 VALIDATION_ERROR`, message `Password is required.` (décisions #85 et #86) |
 | CA-11 | Corps de requête invalide (pas du JSON) | `400 INVALID_JSON` |
 | CA-12 | Champs inconnus dans le body | `400 UNKNOWN_FIELDS` |
 
@@ -52,22 +52,26 @@ Une requête `POST /api/v1/token` est jugée dans cet ordre ; le premier contrô
 | 2 | Méthode autre que `POST` | `405 METHOD_NOT_ALLOWED`, `Allow: POST` | CA-16 |
 | 2 | `Content-Type` autre que `application/json` (absent et vide compris) | `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` | CA-7 |
 | 3 | Corps qui n'est pas du JSON | `400 INVALID_JSON` | CA-11 |
-| 4 | Corps JSON qui n'est pas un objet (`null`, tableau, chaîne, nombre, booléen), ou champ `username` ou `password` présent mais qui n'est pas une chaîne | `400 VALIDATION_ERROR` | CA-9, CA-10 |
-| 5 | Champ `username` ou `password` manquant ou vide | `400 VALIDATION_ERROR` | CA-9, CA-10 |
+| 4 | Corps JSON qui n'est pas un objet (`null`, tableau, chaîne, nombre, booléen), ou champ `username` ou `password` présent, non `null`, mais qui n'est pas une chaîne | `400 VALIDATION_ERROR` | CA-9, CA-10 |
+| 5 | Champ `username` ou `password` manquant, `null` ou vide | `400 VALIDATION_ERROR` | CA-9, CA-10 |
 | 6 | Champ inconnu dans le body | `400 UNKNOWN_FIELDS` | CA-6, CA-12 |
 | 7 | Username inconnu ou mot de passe incorrect | `401 INVALID_CREDENTIALS` | CA-8 |
 
-Les deux contrôles de l'ordre 2 ne se cumulent jamais : le `405` ne vise que les méthodes autres que `POST`, le `415` que les `POST`. ### Messages de `VALIDATION_ERROR`
+Les deux contrôles de l'ordre 2 ne se cumulent jamais : le `405` ne vise que les méthodes autres que `POST`, le `415` que les `POST`.
 
-Le message de chaque `400 VALIDATION_ERROR` de cette route est **normatif, mot à mot** (décision #85). Une réponse ne nomme qu'**un** champ : quand deux champs sont en échec, c'est `username`, avant `password`, et l'autre n'est pas mentionné (le client corrige en plusieurs allers-retours, comme pour les questions, décision #10).
+### Messages de `VALIDATION_ERROR`
+
+Le message de chaque `400 VALIDATION_ERROR` de cette route est **normatif, mot à mot** (décision #85). Une réponse ne nomme qu'**un** champ : c'est celui du premier contrôle en échec de l'ordre des contrôles (rang 4 avant rang 5) ; quand `username` et `password` échouent au **même** rang, c'est `username`, avant `password`, et l'autre n'est pas mentionné (le client corrige en plusieurs allers-retours, comme pour les questions, décision #10). Ainsi `{"password":42}` répond `Password must be a string.` (rang 4) et non `Username is required.` (rang 5).
+
+Une valeur `null` pour `username` ou `password` compte comme **manquante** (rang 5, décision #86, comme le `PUT` d'une question, décision #22) : `{"username":null}` répond `Username is required.`. Le `null` du corps entier reste un corps qui n'est pas un objet (rang 4).
 
 | Ordre | Cas | Message |
 |---|---|---|
 | 4 | Corps JSON qui n'est pas un objet | `Request body must be a JSON object.` |
-| 4 | `username` présent mais qui n'est pas une chaîne | `Username must be a string.` |
-| 4 | `password` présent mais qui n'est pas une chaîne | `Password must be a string.` |
-| 5 | `username` manquant ou vide | `Username is required.` |
-| 5 | `password` manquant ou vide | `Password is required.` |
+| 4 | `username` présent, non `null`, mais qui n'est pas une chaîne | `Username must be a string.` |
+| 4 | `password` présent, non `null`, mais qui n'est pas une chaîne | `Password must be a string.` |
+| 5 | `username` manquant, `null` ou vide | `Username is required.` |
+| 5 | `password` manquant, `null` ou vide | `Password is required.` |
 
 Le corps est le corps standard à trois champs (`status`, `error`, `message`). Entre un champ mal typé et un champ manquant, l'ordre des contrôles prévaut (le type d'abord, décision #84).
 

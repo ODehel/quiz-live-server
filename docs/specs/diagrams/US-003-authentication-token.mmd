@@ -11,9 +11,9 @@ flowchart TD
         CT -->|"Non"| E415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         CT -->|"Oui"| J{"Body JSON\nvalide ?"}
         J -->|"Non"| E400a["400 INVALID_JSON"]
-        J -->|"Oui"| TY{"username / password\nprésents mais\nnon chaînes ?"}
+        J -->|"Oui"| TY{"username / password\nprésents, non null,\nmais non chaînes ?"}
         TY -->|"Oui"| E400c["400 VALIDATION_ERROR"]
-        TY -->|"Non"| FIELDS{"username & password\nprésents et non vides ?"}
+        TY -->|"Non"| FIELDS{"username & password\nprésents, non null\net non vides ?"}
         FIELDS -->|"Non"| E400c
         FIELDS -->|"Oui"| UF{"Champs inconnus\ndans le body ?"}
         UF -->|"Oui"| E400b["400 UNKNOWN_FIELDS"]
