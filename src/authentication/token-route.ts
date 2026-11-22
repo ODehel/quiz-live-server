@@ -56,6 +56,7 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
         const status = (error as { status?: number }).status ?? error.statusCode;
         const isClientError = status !== undefined && status >= 400 && status < 500;
         if (!isClientError) {
+            request.log.error(error);
             return reply.status(500).send({
                 status: 500,
                 error: INTERNAL_SERVER_ERROR,
