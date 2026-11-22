@@ -1269,3 +1269,28 @@ describe('hub token lifetime (JWT_EXPIRATION)', () => {
         expect(expiresIn).toBe(7200)
     }, TEST_TIMEOUT_MS)
 })
+
+// US-003/CA-13 on the real process: without MAX_REQUESTS_PER_MINUTE, the real hub lets 100 requests of a minute through
+// `POST /api/v1/token` from one address and refuses the 101st with the standard 429. The rule and the standard body are proved
+// by token-route.test.ts and rate-limit-middleware.test.ts with a low limit injected; here we prove that index.ts wires the
+// default of 100 (ProcessEnvironment) to the token route. The content of the first 100 answers is not asserted, only the absence of 429.
+describe('hub token rate limit (MAX_REQUESTS_PER_MINUTE)', () => {
+    it('US-003/CA-13 answers the 101st POST /api/v1/token of a minute from the same address with 429 RATE_LIMIT_EXCEEDED and Retry-After 60 when MAX_REQUESTS_PER_MINUTE is absent', async () => {
+        const databasePath = join(workDirectory, 'hub.db')
+        seedAccounts(databasePath)
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath, MAX_REQUESTS_PER_MINUTE: undefined })
+        await waitUntilListening(hub, port)
+        const requestToken = () => fetch('http://127.0.0.1:' + port + '/api/v1/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'admin', password: 'an-admin-password-1' }) })
+
+        const statusCodes: number[] = []
+        for (let i = 0; i < 100; i++) statusCodes.push((await requestToken()).status)
+        const refused = await requestToken()
+
+        expect(statusCodes).toHaveLength(100)
+        expect(statusCodes).not.toContain(429)
+        expect(refused.status).toBe(429)
+        expect(refused.headers.get('retry-after')).toBe('60')
+        expect(await refused.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' })
+    }, TEST_TIMEOUT_MS)
+})
