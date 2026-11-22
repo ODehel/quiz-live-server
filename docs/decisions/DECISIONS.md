@@ -1308,3 +1308,25 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - `DEBTS.md` : la ligne « Le `VALIDATION_ERROR` de CA-9 et CA-10 ne nomme qu'un champ… » est soldée côté spec ; la ligne de l'écart de #84 reprend le champ mal typé et le corps non objet.
 - Condition de réouverture : un client qui voudrait tous les champs fautifs dans une réponse, ou des messages localisés.
 - À challenger : (a) `Request body must be a JSON object.` et les deux `must be a string.` sont mes libellés, validés par Olivier sans variante proposée ; (b) un corps non objet au rang 4 : un `null` n'est pas « un champ mal typé », c'est un choix de regroupement ; (c) l'état du code est lu dans `token-route.ts`, non rejoué ici (Node 26 absent).
+
+
+## #86 — Sur `POST /api/v1/token`, un `username` ou un `password` à `null` compte comme manquant ; `error-codes.md` garde `INVALID_BODY` avec l'exception du token
+
+*`docs(specs): settle null as a field value and align error-codes with the validation order on POST /api/v1/token` — US-003 (CA-9, CA-10, tableau « Ordre des contrôles », section « Messages de `VALIDATION_ERROR` »), `error-codes.md`. Précise #84 et #85 ; elles ne sont pas modifiées.*
+
+**Contexte.** Le CDC ne disait pas si `{"username":null}` est un champ « mal typé » (rang 4) ou « manquant » (rang 5). Le code répond « mal typé » (`Username must be a string.`). La décision #22 traite déjà `null` comme absent au `PUT` d'une question. Par ailleurs `error-codes.md` (ligne 17) donnait `400 INVALID_BODY` pour un corps JSON non objet, alors que #85 impose `400 VALIDATION_ERROR` au token ; `INVALID_BODY` reste écrit par la route des questions et cité par US-008 (CA-14) et US-010 (CA-13). Enfin US-003 disait à la fois « `username` avant `password` » et « le type d'abord » : pour `{"password":42}`, la première donne `Username is required.`, la seconde `Password must be a string.`.
+
+**Décision.**
+1. **Sur choix d'Olivier (2026-11-22)** : une valeur `null` pour `username` ou `password` compte comme **manquante** : rang 5, `400 VALIDATION_ERROR`, `Username is required.` / `Password is required.` (comme #22). Le `null` du corps entier reste un corps non objet (rang 4, #85).
+2. **Sur choix d'Olivier** : `error-codes.md` garde `INVALID_BODY` et note l'exception de `POST /api/v1/token` (`VALIDATION_ERROR`, #85) ; aucun code touché.
+3. **Sur choix d'Olivier (arbitrage du 2026-11-22, « le type d'abord »)** : « `username` avant `password` » ne joue qu'entre deux champs en échec au **même** rang de l'ordre des contrôles ; entre rangs, l'ordre des contrôles prévaut (`{"password":42}` → `Password must be a string.`).
+4. Écrit dans les cellules de CA-9 et CA-10, le tableau « Ordre des contrôles », la section « Messages de `VALIDATION_ERROR` » et les deux diagrammes d'US-003 (PNG regénérés), et dans `error-codes.md`. **Aucun CA n'est ajouté, retiré ni renuméroté.**
+
+**Alternatives écartées.**
+- **`null` mal typé** : écartée, diverge de #22, et `Username is required.` est le message le plus utile à un client qui envoie un champ vide.
+- **Retirer `INVALID_BODY` du catalogue** : écartée pour cette session (touche la route des questions et deux CDC) ; consignée en dette avec sa condition de réouverture.
+
+**Conséquences.**
+- Le code **n'est pas conforme** pour `null` (il répond « mal typé »). Un `fix(authentication)` suit (deux agents et smoke test), avec le test des deux champs manquants (dette existante). `DEBTS.md` : les « trois points de CDC » sont soldés, une ligne d'écart de code et une ligne `INVALID_BODY` les remplacent ; le titre collé d'US-003 est corrigé.
+- Condition de réouverture de 2 : voir la dette `INVALID_BODY`.
+- À challenger : (a) `null` = manquant s'écarte du mot « présent » du rang 4 (« présent, non `null` ») ; (b) `{"username":null,"password":42}` répond `Password must be a string.` (rang 4 avant rang 5) : conséquence de #84, non demandée explicitement ; (c) les PNG sont regénérés avec `mmdc` côté Claude, relus à l'œil ; (d) l'état du code est lu dans `token-route.ts`, non rejoué (Node 26 absent).

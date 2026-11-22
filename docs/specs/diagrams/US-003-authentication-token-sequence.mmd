@@ -14,9 +14,9 @@ sequenceDiagram
         S-->>C: 415 FST_ERR_CTP_INVALID_MEDIA_TYPE
     else JSON invalide
         S-->>C: 400 INVALID_JSON
-    else Champ présent mais non chaîne
+    else Champ présent (non null) mais non chaîne
         S-->>C: 400 VALIDATION_ERROR
-    else Champs manquants ou vides
+    else Champs manquants, null ou vides
         S-->>C: 400 VALIDATION_ERROR
     else Champs inconnus
         S-->>C: 400 UNKNOWN_FIELDS

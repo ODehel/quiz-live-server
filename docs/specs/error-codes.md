@@ -14,7 +14,7 @@ Codes communs à **toutes les US**, appliquées globalement par le serveur :
 |---|---|---|---|
 | `VALIDATION_ERROR` | `400` | _(dynamique selon le cas)_ | Champ manquant, vide, format invalide, validation métier échouée |
 | `INVALID_JSON` | `400` | `"Request body must be valid JSON."` | Corps non parseable |
-| `INVALID_BODY` | `400` | `"Request body must be a JSON object."` | Le corps de la requête est du JSON valide mais n'est pas un objet (ex : tableau, null, primitive) |
+| `INVALID_BODY` | `400` | `"Request body must be a JSON object."` | Le corps de la requête est du JSON valide mais n'est pas un objet (ex : tableau, null, primitive). Exception : `POST /api/v1/token` répond `400 VALIDATION_ERROR`, message `Request body must be a JSON object.` (US-003, décision #85) |
 | `INVALID_UUID` | `400` | `"The provided ID is not a valid UUID."` | ID mal formé dans l'URL ou le body |
 | `UNKNOWN_FIELDS` | `400` | `"Unknown field(s): foo, bar."` | Champs non reconnus dans le body |
 | `ID_MISMATCH` | `400` | `"The ID in the request body does not match the URL parameter."` | ID body ≠ ID URL |
