@@ -1208,7 +1208,7 @@ describe('hub startup: database file permissions', () => {
 
 // US-003/CA-4 on the real process: the token that a real `POST /api/v1/token` returns lives `exp - iat` seconds, 3600 by default and
 // the value of JWT_EXPIRATION otherwise, read from the real environment or, when it has none, from a .env file of the working directory
-// (the real environment prevails, see the JWT_SECRET tests above). The rule on the value is proved by jwt-settings.test.ts and the
+// (the real environment prevails, see the JWT_SECRET tests above). An empty JWT_EXPIRATION, in the real environment or on a .env line, is the default (CA-20). The rule on the value is proved by jwt-settings.test.ts and the
 // refusal of an invalid one by the JWT_EXPIRATION tests above; here we prove that index.ts wires the setting to the token it emits.
 // The payload is read without verifying the signature (CA-2) nor the other claims (CA-3): only `iat` and `exp` matter here.
 describe('hub token lifetime (JWT_EXPIRATION)', () => {
@@ -1267,6 +1267,24 @@ describe('hub token lifetime (JWT_EXPIRATION)', () => {
 
         expect(lifetime).toBe(7200)
         expect(expiresIn).toBe(7200)
+    }, TEST_TIMEOUT_MS)
+
+    // CA-20: "Absente ou vide, la variable vaut 3600". Spec tests (born green, the code already conforms): an empty value is not a written value,
+    // so it must not be refused as an invalid duration (the startup tests above only prove that the hub listens) and must give the default.
+    it('US-003/CA-20 gives the token a lifetime of 3600 seconds when JWT_EXPIRATION is an empty string in the real environment', async () => {
+        const { lifetime, expiresIn } = await tokenLifetime({ JWT_EXPIRATION: '' })
+
+        expect(lifetime).toBe(3600)
+        expect(expiresIn).toBe(3600)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-20 gives the token a lifetime of 3600 seconds when the .env file of the working directory has an empty JWT_EXPIRATION line and the real environment has none', async () => {
+        writeFileSync(join(workDirectory, '.env'), 'JWT_EXPIRATION=\n')
+
+        const { lifetime, expiresIn } = await tokenLifetime({ JWT_EXPIRATION: undefined })
+
+        expect(lifetime).toBe(3600)
+        expect(expiresIn).toBe(3600)
     }, TEST_TIMEOUT_MS)
 })
 
