@@ -1253,3 +1253,31 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - `DEBTS.md` : la ligne « l'erreur du `500` n'est pas journalisée » devient la dette du code, conforme au CDC décidé ; le point (4) de la ligne « quatre points » est retiré, les points (1) à (3) restent non tranchés.
 - Condition de réouverture : US-022 livrée (le log du `500` suivra sa forme sans changer US-003), ou une exigence d'exploitation qui demanderait d'autres champs (`username`, IP, `correlation_id`).
 - À challenger : (a) « message et pile » est ma lecture de « détails techniques » (`SECURITE-TRANSVERSALE.md` cite stack trace, message SQL, chemins internes, sans définir le contenu du log) ; (b) `username` et IP auraient pu aider à relier un `500` à une connexion, non ajoutés (aucun texte ne les demande) ; (c) « erreur inattendue » est, dans le code, toute erreur qui n'est pas un statut 4xx : le CA ne le dit pas autrement.
+
+
+---
+
+## #84 — `POST /api/v1/token` juge une requête dans un ordre fixe : limite de débit, méthode ou `Content-Type`, JSON, type, champ manquant, champ inconnu, identifiants
+
+*`docs(specs): settle the order of the checks on POST /api/v1/token` — US-003 (CA-6, CA-7, CA-9 à CA-13, CA-16), diagrammes de flux et de séquence d'US-003. Solde la dette « Diagrammes d'US-003 : ordre des contrôles non identique… » et la ligne « `UNKNOWN_FIELDS` prime sur un champ manquant… » ; les décisions #1 à #83 ne sont pas modifiées (#9 et #10 restent celles des questions).*
+
+**Contexte.** Une requête peut cumuler plusieurs erreurs, une réponse ne porte qu'un code. Les deux diagrammes d'US-003 divergeaient : le flux plaçait le rate limit en premier puis les champs inconnus avant les champs manquants (comme le code), la séquence plaçait `Content-Type`, `405`, rate limit, puis les champs manquants avant les inconnus (comme #9). Aucun CDC ne fixait l'ordre, et le code laissait un champ mal typé au corps natif de Fastify. `SECURITE-TRANSVERSALE.md` dit déjà que le `429` s'applique « y compris sur une méthode non supportée ».
+
+**Décision.**
+1. **Sur choix d'Olivier (2026-11-22)** : un champ manquant ou vide est signalé avant un champ inconnu (`400 VALIDATION_ERROR` avant `400 UNKNOWN_FIELDS`), comme #9 pour les questions et pour la même raison : une donnée manquante est prioritaire.
+2. **Sur choix d'Olivier** : le `429` passe avant le `405` et le `415`. Toute requête compte dans la limite, y compris celle qui sera refusée plus loin. Le `405` (méthode autre que `POST`) et le `415` (`POST`) ne se cumulent jamais.
+3. **Sur choix d'Olivier** : un champ `username` ou `password` présent mais qui n'est pas une chaîne répond `400 VALIDATION_ERROR`, avant le manquant et l'inconnu, comme #10.
+4. **Sur choix d'Olivier** : l'ordre complet est inscrit dans un tableau « Ordre des contrôles » d'US-003 et dans les deux diagrammes (images régénérées) : 1 limite de débit ; 2 méthode ou `Content-Type` ; 3 JSON ; 4 type ; 5 manquant ou vide ; 6 inconnu ; 7 identifiants. Le JSON précède les champs parce qu'il faut un body lu pour juger ses champs : ordre non discuté, imposé par la lecture.
+5. **Aucun CA n'est ajouté, retiré ni renuméroté.** Le texte du message de `VALIDATION_ERROR` quand les deux champs sont en échec n'est pas tranché ici.
+
+**Alternatives écartées.**
+- **L'inconnu avant le manquant** (état du code et du diagramme de flux) : écartée, divergerait de #9 sans raison métier consignée.
+- **Ne fixer aucun ordre** (constat reporté) : écartée, un client ne saurait pas quelle erreur il obtient en premier et les deux diagrammes continueraient de se contredire.
+- **Le `415` avant le `429`** : écartée, contredirait le CDC (le `429` s'applique à toutes les routes) et le code ; une requête au `Content-Type` invalide ne serait pas comptée.
+- **Laisser le champ mal typé en corps natif, ou le placer après le manquant** : écartées, une seule forme de `400` pour ce cas, et l'ordre complet d'US-005 (#10, type d'abord) vaut aussi ici.
+
+**Conséquences.**
+- Le code **n'est pas conforme** sur deux points : `{ "username": "a", "foo": 1 }` répond `UNKNOWN_FIELDS` (attendu : `VALIDATION_ERROR`), `{ "username": 42, "password": "x" }` répond le corps natif de Fastify (attendu : `400 VALIDATION_ERROR`). Le reste de l'ordre est conforme d'après la lecture du code (non rejoué : cette session ne change aucun comportement). Un `fix(authentication)` suit, avec deux agents et un smoke test.
+- `DEBTS.md` : les deux lignes sur l'ordre sont soldées côté spec ; une ligne consigne l'écart du code ; la ligne sur le message à deux champs manquants est mise à jour (le type est tranché, le body qui n'est pas un objet reste non fixé).
+- Condition de réouverture : un client qui exigerait `UNKNOWN_FIELDS` d'abord, ou la migration des thèmes et des questions vers un ordre commun.
+- À challenger : (a) l'ordre 4, 5, 6 repose sur l'analogie avec les questions (#9, #10) : les thèmes ont un ordre propre qui n'a pas été relu ; (b) le `429` compte les requêtes refusées plus loin : cela ouvre aux clients malformés un moyen d'épuiser leur propre quota, voulu par « toutes les routes » mais non discuté pour le `415` ; (c) « le code est conforme sur le reste » vient de la lecture de `token-route.ts`, pas d'une sonde rejouée.

@@ -40,6 +40,25 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-11 | Corps de requête invalide (pas du JSON) | `400 INVALID_JSON` |
 | CA-12 | Champs inconnus dans le body | `400 UNKNOWN_FIELDS` |
 
+> **Note du 2026-11-22 (décision #84)** — Quand une requête cumule plusieurs erreurs, une réponse ne porte qu'un code : c'est le premier contrôle en échec du tableau « Ordre des contrôles » ci-dessous qui répond. En particulier, un champ manquant ou vide (CA-9, CA-10) est signalé **avant** un champ inconnu (CA-6, CA-12), et un champ présent mais mal typé avant les deux. Aucun CA n'est ajouté, retiré ni renuméroté.
+
+### Ordre des contrôles
+
+Une requête `POST /api/v1/token` est jugée dans cet ordre ; le premier contrôle en échec fixe la réponse, les suivants ne sont pas évalués (décision #84). Les diagrammes de flux et de séquence suivent le même ordre.
+
+| Ordre | Contrôle | Réponse si échec | CA |
+|---|---|---|---|
+| 1 | Limite de 100 requêtes par minute et par adresse IP dépassée (toute requête compte, y compris celle qui sera refusée plus loin) | `429 RATE_LIMIT_EXCEEDED`, `Retry-After: 60` | CA-13 |
+| 2 | Méthode autre que `POST` | `405 METHOD_NOT_ALLOWED`, `Allow: POST` | CA-16 |
+| 2 | `Content-Type` autre que `application/json` (absent et vide compris) | `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` | CA-7 |
+| 3 | Corps qui n'est pas du JSON | `400 INVALID_JSON` | CA-11 |
+| 4 | Champ `username` ou `password` présent mais qui n'est pas une chaîne | `400 VALIDATION_ERROR` | CA-9, CA-10 |
+| 5 | Champ `username` ou `password` manquant ou vide | `400 VALIDATION_ERROR` | CA-9, CA-10 |
+| 6 | Champ inconnu dans le body | `400 UNKNOWN_FIELDS` | CA-6, CA-12 |
+| 7 | Username inconnu ou mot de passe incorrect | `401 INVALID_CREDENTIALS` | CA-8 |
+
+Les deux contrôles de l'ordre 2 ne se cumulent jamais : le `405` ne vise que les méthodes autres que `POST`, le `415` que les `POST`. Le texte du message de `VALIDATION_ERROR` quand les deux champs sont en échec n'est pas fixé ici (dette « message à deux champs manquants »).
+
 ### Rate limiting spécifique
 
 | # | Critère | Résultat attendu |

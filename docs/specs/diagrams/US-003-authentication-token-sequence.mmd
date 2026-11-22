@@ -6,14 +6,16 @@ sequenceDiagram
 
     C->>S: POST /api/v1/token<br/>{ "username": "admin", "password": "***" }
 
-    alt Content-Type invalide
-        S-->>C: 415 FST_ERR_CTP_INVALID_MEDIA_TYPE
-    else Méthode non autorisée
-        S-->>C: 405 METHOD_NOT_ALLOWED (Allow: POST)
-    else Rate limit dépassé (> 100 req/min)
+    alt Rate limit dépassé (> 100 req/min par IP)
         S-->>C: 429 RATE_LIMIT_EXCEEDED (Retry-After: 60)
+    else Méthode autre que POST
+        S-->>C: 405 METHOD_NOT_ALLOWED (Allow: POST)
+    else Content-Type invalide (absent ou vide compris)
+        S-->>C: 415 FST_ERR_CTP_INVALID_MEDIA_TYPE
     else JSON invalide
         S-->>C: 400 INVALID_JSON
+    else Champ présent mais non chaîne
+        S-->>C: 400 VALIDATION_ERROR
     else Champs manquants ou vides
         S-->>C: 400 VALIDATION_ERROR
     else Champs inconnus

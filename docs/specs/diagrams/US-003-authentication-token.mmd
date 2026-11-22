@@ -5,15 +5,19 @@ flowchart TD
         REQ(["Client"]) -->|"POST /api/v1/token"| RL
         RL{"> 100 req/min\npar IP ?"}
         RL -->|"Oui"| E429["429 RATE_LIMIT_EXCEEDED\nRetry-After: 60"]
-        RL -->|"Non"| CT{"Content-Type\n= application/json ?"}
+        RL -->|"Non"| M{"Méthode\n= POST ?"}
+        M -->|"Non"| E405["405 METHOD_NOT_ALLOWED\nAllow: POST"]
+        M -->|"Oui"| CT{"Content-Type\n= application/json ?"}
         CT -->|"Non"| E415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         CT -->|"Oui"| J{"Body JSON\nvalide ?"}
         J -->|"Non"| E400a["400 INVALID_JSON"]
-        J -->|"Oui"| UF{"Champs inconnus\ndans le body ?"}
+        J -->|"Oui"| TY{"username / password\nprésents mais\nnon chaînes ?"}
+        TY -->|"Oui"| E400c["400 VALIDATION_ERROR"]
+        TY -->|"Non"| FIELDS{"username & password\nprésents et non vides ?"}
+        FIELDS -->|"Non"| E400c
+        FIELDS -->|"Oui"| UF{"Champs inconnus\ndans le body ?"}
         UF -->|"Oui"| E400b["400 UNKNOWN_FIELDS"]
-        UF -->|"Non"| FIELDS{"username & password\nprésents et non vides ?"}
-        FIELDS -->|"Non"| E400c["400 VALIDATION_ERROR"]
-        FIELDS -->|"Oui"| DB["SELECT * FROM T_USER_USR\nWHERE username COLLATE NOCASE"]
+        UF -->|"Non"| DB["SELECT * FROM T_USER_USR\nWHERE username COLLATE NOCASE"]
         DB --> UEXIST{"Utilisateur\ntrouvé ?"}
         UEXIST -->|"Non"| FAKE["bcrypt.compare factice\n(anti-timing attack)"]
         FAKE --> LOGFAIL["Log WARN\nusername, IP"]
@@ -28,5 +32,5 @@ flowchart TD
 
     classDef error fill:#f8d7da,stroke:#dc3545,color:#721c24
     classDef success fill:#d4edda,stroke:#28a745,color:#155724
-    class E429,E415,E400a,E400b,E400c,E401 error
+    class E429,E405,E415,E400a,E400b,E400c,E401 error
     class OK success
