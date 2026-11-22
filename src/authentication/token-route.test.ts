@@ -275,8 +275,10 @@ describe('US-003/CA-09 and CA-10 (decision #84, rank 5 before rank 6): With a mi
     it.each([
         ['username is missing', { password: 'user-password', extra: 1 }, 'Username is required.'],
         ['username is empty', { username: '', password: 'user-password', extra: 1 }, 'Username is required.'],
+        ['username is null', { username: null, password: 'user-password', extra: 1 }, 'Username is required.'],
         ['password is missing', { username: 'User Name', extra: 1 }, 'Password is required.'],
-        ['password is empty', { username: 'User Name', password: '', extra: 1 }, 'Password is required.']
+        ['password is empty', { username: 'User Name', password: '', extra: 1 }, 'Password is required.'],
+        ['password is null', { username: 'User Name', password: null, extra: 1 }, 'Password is required.']
     ])('should return the VALIDATION_ERROR of the field, not UNKNOWN_FIELDS, when %s', async (_label, body, message) => {
         const response = await postToken(body);
         expect(response.statusCode).toBe(400);
@@ -288,7 +290,6 @@ describe('US-003/CA-09 and CA-10 (decision #84, rank 5 before rank 6): With a mi
 describe('US-003/CA-09 and CA-10 (decision #85, rank 4): With a field that is not a string', () => {
     it.each([
         ['a number', 42],
-        ['null', null],
         ['a boolean', true],
         ['an array', ['User Name']],
         ['an object', { name: 'User Name' }]
@@ -301,7 +302,6 @@ describe('US-003/CA-09 and CA-10 (decision #85, rank 4): With a field that is no
 
     it.each([
         ['a number', 42],
-        ['null', null],
         ['a boolean', false],
         ['an array', ['user-password']],
         ['an object', { value: 'user-password' }]
@@ -340,6 +340,33 @@ describe('US-003/CA-09 and CA-10 (decision #85, rank 4): With a field that is no
     it('should report the type of a field before an unknown field', async () => {
         const response = await postToken({ username: 'User Name', password: 42, extra: 1 });
         expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Password must be a string.' });
+    });
+});
+
+describe('US-003/CA-09 and CA-10 (decision #86, rank 5): With a field that is null', () => {
+    it.each([
+        ['the username is null', { username: null, password: 'user-password' }, 'Username is required.'],
+        ['the password is null', { username: 'User Name', password: null }, 'Password is required.'],
+        ['both fields are null', { username: null, password: null }, 'Username is required.'],
+        ['the username is null and the password is missing', { username: null }, 'Username is required.'],
+        ['the password is null and the username is empty', { username: '', password: null }, 'Username is required.'],
+        ['the username is missing and the password is null', { password: null }, 'Username is required.']
+    ])('should return 400 VALIDATION_ERROR with the required message of the field when %s', async (_label, body, message) => {
+        const response = await postToken(body);
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message });
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
+    });
+
+    it('should report the type of the password, not the null username, when the password is not a string', async () => {
+        const response = await postToken({ username: null, password: 42 });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Password must be a string.' });
+    });
+
+    it('should report the type of the username, not the null password, when the username is not a string', async () => {
+        const response = await postToken({ username: 42, password: null });
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Username must be a string.' });
     });
 });
 

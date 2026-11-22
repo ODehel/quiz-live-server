@@ -1330,3 +1330,18 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - Le code **n'est pas conforme** pour `null` (il répond « mal typé »). Un `fix(authentication)` suit (deux agents et smoke test), avec le test des deux champs manquants (dette existante). `DEBTS.md` : les « trois points de CDC » sont soldés, une ligne d'écart de code et une ligne `INVALID_BODY` les remplacent ; le titre collé d'US-003 est corrigé.
 - Condition de réouverture de 2 : voir la dette `INVALID_BODY`.
 - À challenger : (a) `null` = manquant s'écarte du mot « présent » du rang 4 (« présent, non `null` ») ; (b) `{"username":null,"password":42}` répond `Password must be a string.` (rang 4 avant rang 5) : conséquence de #84, non demandée explicitement ; (c) les PNG sont regénérés avec `mmdc` côté Claude, relus à l'œil ; (d) l'état du code est lu dans `token-route.ts`, non rejoué (Node 26 absent).
+
+---
+
+## #87 — Le `null` d'un champ de `POST /api/v1/token` passe le schéma Ajv et se lit comme manquant dans le gestionnaire de la route
+
+*`fix(authentication): treat null as a missing username or password on POST /api/v1/token` — `token-route.ts`. Choix d'implémentation, non observable ; le comportement est celui de #86.*
+
+**Contexte.** Le schéma Ajv de la route type `username` et `password` en `string`, donc un `null` y produisait une violation de type (rang 4), alors que #86 en fait un champ manquant (rang 5).
+
+**Décision.** Le schéma type les deux champs `['string', 'null']` : un `null` n'est plus une violation de type, et `minLength` ne vise que les chaînes. Le gestionnaire lit le `null` dans le corps (`isNull`) et le compte comme manquant au rang 5, que le schéma ait par ailleurs une violation (champ inconnu, rang 6, qui passe après) ou aucune. Le contrôle de type (rang 4) reste celui d'Ajv, donc un champ d'un autre type prime sur le `null` de l'autre champ (`{"username":null,"password":42}` → `Password must be a string.`).
+
+**Alternatives écartées.**
+- **Retirer le `null` du corps avant validation** : écartée, elle réécrit l'entrée pour une règle de lecture, et un `null` retiré devient un `required` Ajv, dont l'ordre avec le champ inconnu est déjà celui de #84 mais que le code ne distinguerait plus d'un champ réellement absent.
+
+**Conséquences.** Le `null` est lu à deux endroits du gestionnaire (avec les violations, puis seul quand le schéma ne trouve rien) ; la lecture partage `isNull` et `sendValidationError`. Dette d'écart de code de #86 soldée.
