@@ -1258,4 +1258,14 @@ describe('hub token lifetime (JWT_EXPIRATION)', () => {
         expect(lifetime).toBe(5400)
         expect(expiresIn).toBe(5400)
     }, TEST_TIMEOUT_MS)
+
+    // Two distinct valid values: the one of the .env file must never be mistaken for the one of the real environment.
+    it('US-003/CA-4 gives the token the lifetime of the real environment when the .env file of the working directory writes another valid JWT_EXPIRATION', async () => {
+        writeFileSync(join(workDirectory, '.env'), 'JWT_EXPIRATION=5400\n')
+
+        const { lifetime, expiresIn } = await tokenLifetime({ JWT_EXPIRATION: '7200' })
+
+        expect(lifetime).toBe(7200)
+        expect(expiresIn).toBe(7200)
+    }, TEST_TIMEOUT_MS)
 })
