@@ -32,8 +32,8 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
             type: 'object',
             required: ['username', 'password'],
             properties: {
-                username: { type: 'string', minLength: 1 },
-                password: { type: 'string', minLength: 1 }
+                username: { type: ['string', 'null'], minLength: 1 },
+                password: { type: ['string', 'null'], minLength: 1 }
             },
             additionalProperties: false
         }
@@ -69,13 +69,15 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
     });
 
     app.post('/api/v1/token', { schema, attachValidation: true, onRequest: rejectMissingContentType }, async (request, reply) => {
+        const sendValidationError = (message: string) => reply.status(400).send({
+            status: 400,
+            error: VALIDATION_ERROR,
+            message
+        });
+        const body = request.body as Record<string, unknown>;
+        const isNull = (name: string) => body[name] === null;
         if (request.validationError) {
             const violations = request.validationError.validation as SchemaViolation[];
-            const sendValidationError = (message: string) => reply.status(400).send({
-                status: 400,
-                error: VALIDATION_ERROR,
-                message
-            });
             if (violations.some(v => v.keyword === 'type' && v.instancePath === '')) {
                 return sendValidationError(notAnObjectMessage);
             }
@@ -86,6 +88,7 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
             }
             const missingField = fields.find(({ name }) => violations.some(v =>
                 (v.keyword === 'required' && v.params.missingProperty === name)
+                || isNull(name)
                 || (v.keyword === 'minLength' && v.instancePath === `/${name}`)));
             if (missingField) {
                 return sendValidationError(missingField.requiredMessage);
@@ -101,6 +104,10 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
                 });
             }
             return reply.send(request.validationError);
+        }
+        const nullField = fields.find(({ name }) => isNull(name));
+        if (nullField) {
+            return sendValidationError(nullField.requiredMessage);
         }
         const { username, password } = request.body as { username: string; password: string };
         const user = await authenticationService.authenticate(username, password);
