@@ -264,6 +264,106 @@ describe('US-003/CA-10: Without password', () => {
     });
 });
 
+const postToken = (body: unknown) => app.inject({
+    method: 'POST',
+    url: '/api/v1/token',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+});
+
+describe('US-003/CA-09 and CA-10 (decision #84, rank 5 before rank 6): With a missing or empty field and an unknown field', () => {
+    it.each([
+        ['username is missing', { password: 'user-password', extra: 1 }, 'Username is required.'],
+        ['username is empty', { username: '', password: 'user-password', extra: 1 }, 'Username is required.'],
+        ['password is missing', { username: 'User Name', extra: 1 }, 'Password is required.'],
+        ['password is empty', { username: 'User Name', password: '', extra: 1 }, 'Password is required.']
+    ])('should return the VALIDATION_ERROR of the field, not UNKNOWN_FIELDS, when %s', async (_label, body, message) => {
+        const response = await postToken(body);
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message });
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
+    });
+});
+
+describe('US-003/CA-09 and CA-10 (decision #85, rank 4): With a field that is not a string', () => {
+    it.each([
+        ['a number', 42],
+        ['null', null],
+        ['a boolean', true],
+        ['an array', ['User Name']],
+        ['an object', { name: 'User Name' }]
+    ])('should return 400 VALIDATION_ERROR "Username must be a string." when the username is %s', async (_label, username) => {
+        const response = await postToken({ username, password: 'user-password' });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Username must be a string.' });
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['a number', 42],
+        ['null', null],
+        ['a boolean', false],
+        ['an array', ['user-password']],
+        ['an object', { value: 'user-password' }]
+    ])('should return 400 VALIDATION_ERROR "Password must be a string." when the password is %s', async (_label, password) => {
+        const response = await postToken({ username: 'User Name', password });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Password must be a string.' });
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
+    });
+
+    it('should name the username only when both fields are not strings', async () => {
+        const response = await postToken({ username: 42, password: 42 });
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Username must be a string.' });
+    });
+
+    it('should report the type of the username before the password that is missing', async () => {
+        const response = await postToken({ username: 42 });
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Username must be a string.' });
+    });
+
+    it('should report the type of the password before the username that is missing', async () => {
+        const response = await postToken({ password: 42 });
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Password must be a string.' });
+    });
+
+    it('should report the type of the password before the username that is empty', async () => {
+        const response = await postToken({ username: '', password: 42 });
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Password must be a string.' });
+    });
+
+    it('should report the type of the username before the password that is empty', async () => {
+        const response = await postToken({ username: 42, password: '' });
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Username must be a string.' });
+    });
+
+    it('should report the type of a field before an unknown field', async () => {
+        const response = await postToken({ username: 'User Name', password: 42, extra: 1 });
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Password must be a string.' });
+    });
+});
+
+describe('US-003/CA-09 and CA-10 (decision #85, rank 4): With a JSON body that is not an object', () => {
+    it.each([
+        ['null', 'null'],
+        ['an array', '[]'],
+        ['a non-empty array', '[{"username":"User Name","password":"user-password"}]'],
+        ['a string', '"User Name"'],
+        ['a number', '42'],
+        ['a boolean', 'true']
+    ])('should return 400 VALIDATION_ERROR "Request body must be a JSON object." when the body is %s', async (_label, body) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': 'application/json' },
+            body
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Request body must be a JSON object.' });
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
+    });
+});
+
 describe('US-003/CA-11: With a body that is not valid JSON', () => {
     it('should return 400 INVALID_JSON', async () => {
         const response = await app.inject({
