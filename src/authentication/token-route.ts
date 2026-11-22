@@ -9,10 +9,12 @@ interface SchemaViolation {
     params: { additionalProperty?: string; missingProperty?: string };
 }
 
-const requiredFields = [
-    { name: 'username', message: 'Username is required.' },
-    { name: 'password', message: 'Password is required.' }
+const fields = [
+    { name: 'username', requiredMessage: 'Username is required.', typeMessage: 'Username must be a string.' },
+    { name: 'password', requiredMessage: 'Password is required.', typeMessage: 'Password must be a string.' }
 ];
+
+const notAnObjectMessage = 'Request body must be a JSON object.';
 
 const invalidJsonBodyCodes = ['FST_ERR_CTP_INVALID_JSON_BODY', 'FST_ERR_CTP_EMPTY_JSON_BODY'];
 
@@ -69,6 +71,25 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
     app.post('/api/v1/token', { schema, attachValidation: true, onRequest: rejectMissingContentType }, async (request, reply) => {
         if (request.validationError) {
             const violations = request.validationError.validation as SchemaViolation[];
+            const sendValidationError = (message: string) => reply.status(400).send({
+                status: 400,
+                error: VALIDATION_ERROR,
+                message
+            });
+            if (violations.some(v => v.keyword === 'type' && v.instancePath === '')) {
+                return sendValidationError(notAnObjectMessage);
+            }
+            const mistypedField = fields.find(({ name }) => violations.some(v =>
+                v.keyword === 'type' && v.instancePath === `/${name}`));
+            if (mistypedField) {
+                return sendValidationError(mistypedField.typeMessage);
+            }
+            const missingField = fields.find(({ name }) => violations.some(v =>
+                (v.keyword === 'required' && v.params.missingProperty === name)
+                || (v.keyword === 'minLength' && v.instancePath === `/${name}`)));
+            if (missingField) {
+                return sendValidationError(missingField.requiredMessage);
+            }
             const unknownFields = violations
                 .filter(v => v.keyword === 'additionalProperties')
                 .map(v => v.params.additionalProperty);
@@ -77,16 +98,6 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
                     status: 400,
                     error: 'UNKNOWN_FIELDS',
                     message: `Unknown field(s): ${unknownFields.join(', ')}.`
-                });
-            }
-            const missingField = requiredFields.find(({ name }) => violations.some(v =>
-                (v.keyword === 'required' && v.params.missingProperty === name)
-                || (v.keyword === 'minLength' && v.instancePath === `/${name}`)));
-            if (missingField) {
-                return reply.status(400).send({
-                    status: 400,
-                    error: VALIDATION_ERROR,
-                    message: missingField.message
                 });
             }
             return reply.send(request.validationError);
