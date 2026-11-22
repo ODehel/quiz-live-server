@@ -1228,3 +1228,28 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - `DEBTS.md` : la ligne `POST /api/v1/token` sans `Content-Type` est remplacée par ce constat ; deux lignes consignent que la conformité à #82 n'est pas sondée sur les thèmes et les questions (`POST`, `PUT`, `PATCH` sans `Content-Type`).
 - Condition de réouverture : un client légitime qui enverrait un `POST` sans `Content-Type` et qu'il faudrait accepter, ou un changement de Fastify qui modifierait le traitement natif de l'absence d'en-tête.
 - À challenger : (a) les constats viennent de sondes d'autres sessions sur Fastify nu et sur le plugin des tokens (Linux, Node 22), pas sous Windows ni sur le hub assemblé, et cette session ne les a pas rejouées ; thèmes et questions ne sont pas sondés (`better-sqlite3` ne s'installe pas dans l'environnement de Claude) ; (b) US-004 CA-8 et US-007 CA-18 disent encore « Content-Type incorrect » : ils restent vrais, la règle transversale précise leur lecture, non modifiés ici ; (c) `application/json; charset=utf-8` accepté ou non, et l'ordre `405` contre `415`, restent hors CDC.
+
+
+## #83 — Une erreur inattendue sur `POST /api/v1/token` est journalisée au niveau `ERROR`, avec l'erreur technique (message et pile) dans le log seulement ; le code actuel n'y est pas conforme
+
+*`docs(specs): settle what POST /api/v1/token logs when it answers 500` — US-003 (CA-17), renvoi à `SECURITE-TRANSVERSALE.md` (« Erreurs serveur (500) ») et à US-022 (format des logs). Solde côté spec le point (4) de la dette « `500` de `POST /api/v1/token` : quatre points que les CDC ne fixent pas » ; les décisions #1 à #82 ne sont pas modifiées. Fait suite à #34, qui laissait « Non décidé : le `500` du token ».*
+
+**Contexte.** US-003 CA-17 dit « Erreur serveur inattendue → `500 INTERNAL_SERVER_ERROR` (aucun détail technique exposé) » et ne dit rien du journal. `SECURITE-TRANSVERSALE.md` (« Erreurs serveur ») veut les détails techniques « uniquement dans les logs serveur » ; son exemple `UNHANDLED_EXCEPTION` est non normatif. Le format des logs relève d'US-022 (CA-6 à CA-8), pas d'US-003 (décision #81 pour CA-14 et CA-15). Le code : `setErrorHandler` de `token-route.ts` répond le `500` standard à trois champs (#34) mais ne journalise rien, alors que `theme-route.ts` et `question-route.ts` appellent `reply.log.error(error)`. Le détail technique n'est donc ni exposé, ni tracé.
+
+**Décision.**
+1. **Sur choix d'Olivier (2026-11-22)** : une erreur inattendue sur `POST /api/v1/token` est journalisée au niveau `ERROR`, comme sur les thèmes et les questions.
+2. **Contenu** : la ligne de log porte l'erreur technique (message et pile). Ces détails ne figurent que dans le log serveur, jamais dans la réponse, qui reste le `500` standard à trois champs (#34).
+3. **Niveau** : `ERROR`.
+4. Comme CA-14 et CA-15 (#81), CA-17 n'exige que le contenu et le niveau. La **forme** de la ligne (champs, événement, horodatage) relève d'US-022 ; US-003 ne l'exige pas. Rien d'autre n'est exigé : ni `username`, ni adresse IP, ni nom d'événement.
+5. Écrit dans une note sous le tableau « Sécurité et transversalité » d'US-003, et dans la cellule du CA-17. **Aucun CA n'est ajouté, retiré ni renuméroté.**
+
+**Alternatives écartées.**
+- **Ne rien exiger du journal** (état actuel) : écartée, le `500` serait muet côté serveur, donc inexploitable, alors que `SECURITE-TRANSVERSALE.md` place les détails dans les logs.
+- **Exiger aussi `username`, adresse IP ou un nom d'événement** : écartée, rien dans les CDC ne les demande pour une erreur inattendue (la requête a pu échouer avant toute lecture du body) ; l'événement et la forme sont ceux d'US-022.
+- **Exiger le format de l'exemple `UNHANDLED_EXCEPTION`** : écartée, exemple non normatif, forme d'US-022.
+
+**Conséquences.**
+- Le code **n'est pas conforme** : le `500` de `token-route.ts` ne journalise pas l'erreur. Un `fix(authentication)` suit (test né rouge sur assertion : une ligne de niveau `error` capturée porte l'erreur, la réponse ne contient ni message ni pile). Il passera par deux agents et un smoke test.
+- `DEBTS.md` : la ligne « l'erreur du `500` n'est pas journalisée » devient la dette du code, conforme au CDC décidé ; le point (4) de la ligne « quatre points » est retiré, les points (1) à (3) restent non tranchés.
+- Condition de réouverture : US-022 livrée (le log du `500` suivra sa forme sans changer US-003), ou une exigence d'exploitation qui demanderait d'autres champs (`username`, IP, `correlation_id`).
+- À challenger : (a) « message et pile » est ma lecture de « détails techniques » (`SECURITE-TRANSVERSALE.md` cite stack trace, message SQL, chemins internes, sans définir le contenu du log) ; (b) `username` et IP auraient pu aider à relier un `500` à une connexion, non ajoutés (aucun texte ne les demande) ; (c) « erreur inattendue » est, dans le code, toute erreur qui n'est pas un statut 4xx : le CA ne le dit pas autrement.
