@@ -1366,3 +1366,32 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 
 **Conséquences.** Dette « Login inconnu : pas de comparaison bcrypt factice » soldée (supprimée) ; une dette sur le coût figé et la preuve non mesurée la remplace. Le test existant « Login inexistant » passait `{} as Hasher` : il passe désormais un hasher complet.
 - À challenger : (a) le coût 12 constant est mon choix, validé en porte 1 mais divergent dès que `BCRYPT_COST` change ; (b) l'égalité de temps n'est pas mesurée ; (c) code lu et testé sous Node 22, Node 26 non vérifié en local.
+
+
+## #89 — Un `Content-Type` JSON est lu sans tenir compte de la casse ; `charset=utf-8` est conforme, un paramètre inconnu est ignoré, un autre `charset` répond `415` ; règle transversale
+
+*`docs(specs): specify how POST /api/v1/token treats the charset and the case of Content-Type` — US-003 (CA-7), `SECURITE-TRANSVERSALE.md` (tableau « Content-Type obligatoire »). Solde côté spec la dette « `application/json; charset=utf-8` et la casse du type non spécifiés » de `DEBTS.md` ; les décisions #1 à #88 ne sont pas modifiées (elle précise #82).*
+
+**Contexte.** CA-7 et #82 ne disent rien d'un paramètre `charset`, de la casse du type ni d'un autre paramètre ; #82 laissait « `charset=utf-8` accepté ou non » hors CDC. Sonde du 2026-11-23 (jetable, hors dépôt, rien de committé ; Fastify 5.8.4 nu, `app.inject`, Linux, Node 22) : `application/json`, `application/json; charset=utf-8`, `Application/JSON`, `charset=UTF-8`, `; foo=bar`, `APPLICATION/JSON; CHARSET=UTF-8`, mais aussi `charset=iso-8859-1` et `charset=utf-16` répondent tous `200`. Le hub décode toujours en `utf-8`.
+
+**Décision.** Toutes sur choix d'Olivier (2026-11-23) :
+1. `application/json; charset=utf-8` est conforme : traité comme `application/json`.
+2. La casse du type est ignorée : `Application/JSON` est conforme (un type de média est insensible à la casse, RFC 9110). Par cohérence, `charset=UTF-8` est conforme aussi.
+3. Un `charset` autre qu'`utf-8` (`iso-8859-1`, `utf-16`…) est un type non conforme : `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`, corps natif (#11). Le hub décodant toujours en `utf-8`, accepter un autre `charset` mentirait sur le décodage.
+4. Un paramètre inconnu (`; foo=bar`) est ignoré : seul `charset` est interprété.
+5. La règle est **transversale** : toute route avec corps (`POST`, `PUT`, `PATCH`), comme #82. `GET` et `DELETE` ignorent toujours le `Content-Type`. Écrite dans `SECURITE-TRANSVERSALE.md`, reprise par une phrase au CA-7 d'US-003.
+6. **Aucun CA n'est ajouté, retiré ni renuméroté.** Aucun code ni test ne change dans cette session.
+
+**Alternatives écartées.**
+- **Refuser `charset=utf-8` (valeur exacte seule)** : écartée, casserait des clients courants sans gain.
+- **Casse exacte exigée** : écartée, contraire à la RFC 9110 et à la décision 1.
+- **Accepter tout `charset` en l'ignorant** : écartée, un corps `iso-8859-1` serait décodé en `utf-8` et donnerait des caractères faux.
+- **Refuser tout paramètre autre que `charset=utf-8`** : écartée, rejette un en-tête légitime sans gain de sécurité.
+- **Limiter la règle à `POST /api/v1/token`** : écartée, deux règles pour le même en-tête selon la route.
+- **S'en remettre au comportement natif de Fastify** : écartée pour le `charset`, qu'il accepte quelle que soit la valeur.
+
+**Conséquences.**
+- Écart code/CDC : un `charset` autre qu'`utf-8` répond `200` au lieu de `415`. Dette dans `DEBTS.md` (« Content-Type : un `charset` autre qu'`utf-8` est accepté »), soldée par un `fix(authentication)` puis un `test(authentication)` des cinq cas ; la dette « charset et casse non spécifiés » est remplacée par elle.
+- Les routes des thèmes et des questions ne sont pas sondées : même dette, même fix s'il est posé pour toutes les routes.
+- Condition de réouverture : un client légitime qui enverrait un autre `charset` et qu'il faudrait accepter, ou un changement de Fastify qui modifierait le traitement natif des paramètres.
+- À challenger : (a) la sonde porte sur Fastify nu (version exacte `5.8.4`, la plage du projet est `^5.8.4`), pas sur le hub assemblé ni sous Windows ; (b) le refus d'un autre `charset` est un choix strict que l'on peut juger inutile pour un hub de LAN ; (c) la lecture sans casse de `charset=UTF-8` est ma déduction de la décision 2, non tranchée séparément ; (d) US-004 CA-8 et US-007 CA-18 disent encore « Content-Type incorrect » : vrais, non modifiés.
