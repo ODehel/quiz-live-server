@@ -577,6 +577,9 @@ comportement cassé en production réelle.
     Non testés sur le token : les méthodes autres que `PUT` (d'après `not-found-route.ts`, toute
     méthode non enregistrée sur le chemin reçoit le même `405` ; non rejoué sur le token) et `HEAD`
     (testé sur `/api/v1/themes`, décision #32).
+    **Écart décidé le 2026-11-23 (décision #90)** : un `PUT` ou un `DELETE` avec un corps JSON invalide
+    ou vide répond `400` natif sans `Allow` ; la spec exige `405` + `Allow: POST`. Non codé, non testé
+    (dette `405` du token).
   - **CA-17** (`500 INTERNAL_SERVER_ERROR` sans détail technique, erreur journalisée au niveau
     `ERROR`) : `token-route.test.ts` (`describe CA-17`, quatre tests ; quatre autres dans le
     `describe` du log) : une erreur du service d'authentification, une erreur du générateur, une
