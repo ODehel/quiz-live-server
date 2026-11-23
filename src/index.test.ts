@@ -150,6 +150,30 @@ async function freePort(): Promise<number> {
     }
 }
 
+// The default port of the CA-5 and CA-4 tests below: the probe must see this very process listen on it on every IPv4 interface, as the hub does,
+// and find nothing connectable there. Otherwise (occupied, refused) the test is skipped explicitly, never failed: the port is not ours to free.
+function defaultPortSkipReason(): string | undefined {
+    const script = `
+        const net = require('node:net')
+        const port = ${DEFAULT_PORT}
+        const socket = net.connect({ host: '127.0.0.1', port })
+        socket.once('connect', () => { console.log('occupied'); process.exit(0) })
+        socket.once('error', () => {
+            const server = net.createServer()
+            server.once('error', error => { console.log(error.code); process.exit(0) })
+            server.listen(port, '0.0.0.0', () => { console.log('free'); process.exit(0) })
+        })`
+    const probe = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8', timeout: 10_000 })
+    const result = probe.stdout.trim()
+    if (result === 'free') return undefined
+    if (result === 'occupied') return 'port ' + DEFAULT_PORT + ' is already occupied on this machine'
+    return 'port ' + DEFAULT_PORT + ' cannot be opened here (' + (result || 'no answer') + ')'
+}
+
+const DEFAULT_PORT_SKIP = defaultPortSkipReason()
+if (DEFAULT_PORT_SKIP !== undefined) console.warn('[index.test] SKIPPED the fallback test of the default port: ' + DEFAULT_PORT_SKIP)
+const SKIPPED_DEFAULT_PORT = ' (skipped when port ' + DEFAULT_PORT + ' is occupied or cannot be opened on this machine)'
+
 // The first IPv4 address that is not a loopback one: the rule of US-001 CA-3, computed here from the machine
 // so that the test depends on no fixed address. Undefined when the machine has no such interface.
 const FIRST_NON_LOOPBACK_IPV4 = Object.values(networkInterfaces()).flat()
@@ -348,7 +372,7 @@ describe('hub startup', () => {
     }, TEST_TIMEOUT_MS)
 
     // Not skipped without a network interface: the interfaces seen by the hub are the ones of src/test-support/loopback-only-network.mjs (a loopback IPv4 and a non-loopback IPv6).
-    // PORT absent (3000) is not proved here: the fallback is written once the hub listens, and another test file may hold 3000 (see the CA-5 test of the default port).
+    // PORT absent (3000) is proved by the next test, which a probe skips when 3000 is occupied.
     it('US-001/CA-4 writes the fallback message on the standard output with localhost and the configured port when no non-loopback IPv4 interface is found', async () => {
         const port = await freePort()
         const hub = startHub(String(port), LOOPBACK_ONLY_NETWORK)
@@ -358,6 +382,16 @@ describe('hub startup', () => {
 
         expect(startupLines(hub).filter(line => line.includes('localhost:' + port))).toHaveLength(1)
         expect(startupLines(hub).filter(line => line.includes(':' + DEFAULT_PORT))).toEqual([])
+        expect(hub.errors()).not.toContain('localhost')
+    }, TEST_TIMEOUT_MS)
+
+    it.skipIf(DEFAULT_PORT_SKIP !== undefined)('US-001/CA-4 and CA-5 write the fallback message with localhost and port 3000 on the standard output when PORT is absent and no non-loopback IPv4 interface is found' + SKIPPED_DEFAULT_PORT, async () => {
+        const hub = startHub('', { ...LOOPBACK_ONLY_NETWORK, PORT: undefined })
+
+        await waitUntilListening(hub, DEFAULT_PORT)
+        await waitForStartupAnnouncement(hub, DEFAULT_PORT)
+
+        expect(startupLines(hub).filter(line => line.includes('localhost:' + DEFAULT_PORT))).toHaveLength(1)
         expect(hub.errors()).not.toContain('localhost')
     }, TEST_TIMEOUT_MS)
 
