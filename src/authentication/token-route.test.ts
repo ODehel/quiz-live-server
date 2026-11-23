@@ -176,7 +176,9 @@ describe('US-003/CA-07: With wrong content type', () => {
         'APPLICATION/JSON; CHARSET=UTF-8',
         'application/json; charset="utf-8"',
         'application/json; foo=bar; charset=utf-8',
-        'application/json; charset=utf-8 ; foo=bar'
+        'application/json; charset=utf-8 ; foo=bar',
+        'Application/JSON',
+        'application/json; foo=bar'
     ])('US-003/CA-7 should accept the Content-Type %s', async (contentType) => {
         const response = await app.inject({
             method: 'POST',

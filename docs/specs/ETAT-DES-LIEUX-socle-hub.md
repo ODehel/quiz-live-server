@@ -519,8 +519,9 @@ comportement cassé en production réelle.
     retirée (`onRequest: rejectUnsupportedContentType`, ex-`rejectMissingContentType`), parseur `text/plain` conservé. Codé par
     `fix(authentication)` #193 (`text/plain`) et #195 (absence), 2026-11-21 et 2026-11-22.
     `charset` autre qu'`utf-8` → même `415` (décision #89, `fix(authentication)` du 2026-11-23, dix
-    tests de refus et d'acceptation du `charset`). Les autres variantes de casse et le paramètre
-    inconnu seul : non testés, non vérifiés.
+    tests de refus et d'acceptation du `charset`) ; `Application/JSON` seul et
+    `application/json; foo=bar` seul → `200` (`test(authentication)` du 2026-11-23, décision #89
+    points 2 et 4).
   - **CA-8** (`401 INVALID_CREDENTIALS`) : `token-route.test.ts` (`CA-08`) : `401`, corps
     `{ status: 401, error: 'INVALID_CREDENTIALS', message: 'Invalid credentials.' }`. Le même corps
     répond au login inconnu et au mauvais mot de passe parce que le service rend `undefined` dans les
