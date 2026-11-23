@@ -516,10 +516,11 @@ comportement cassé en production réelle.
     `{ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error, message, statusCode: 415 }` (décision #11) ;
     `Content-Type` absent, avec ou sans corps, et présent mais vide, avec ou sans corps → même
     `415`, `authenticate` jamais appelé (décision #82). Mutants rejoués et tués : garde de l'absence
-    retirée (`onRequest: rejectMissingContentType`), parseur `text/plain` conservé. Codé par
+    retirée (`onRequest: rejectUnsupportedContentType`, ex-`rejectMissingContentType`), parseur `text/plain` conservé. Codé par
     `fix(authentication)` #193 (`text/plain`) et #195 (absence), 2026-11-21 et 2026-11-22.
-    `application/json` avec paramètre (`; charset=utf-8`) et variantes de casse : non testés, non
-    vérifiés.
+    `charset` autre qu'`utf-8` → même `415` (décision #89, `fix(authentication)` du 2026-11-23, dix
+    tests de refus et d'acceptation du `charset`). Les autres variantes de casse et le paramètre
+    inconnu seul : non testés, non vérifiés.
   - **CA-8** (`401 INVALID_CREDENTIALS`) : `token-route.test.ts` (`CA-08`) : `401`, corps
     `{ status: 401, error: 'INVALID_CREDENTIALS', message: 'Invalid credentials.' }`. Le même corps
     répond au login inconnu et au mauvais mot de passe parce que le service rend `undefined` dans les
