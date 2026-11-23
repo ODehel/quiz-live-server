@@ -112,7 +112,7 @@ Les critères suivants s'appliquent à toutes les routes de cette US :
 | CA-50 | Bearer token (voir annexe CA-Bearer) | Token absent/invalide/expiré → `401 UNAUTHORIZED` |
 | CA-51 | Rôle administrateur (voir annexe CA-Forbidden) | Rôle insuffisant → `403 FORBIDDEN` |
 | CA-52 | Rate limiting (voir annexe CA-RateLimit) | Dépassement → `429 RATE_LIMIT_EXCEEDED` avec header `Retry-After: 60` |
-| CA-53 | Méthode HTTP (voir annexe CA-MethodNotAllowed) | `405 METHOD_NOT_ALLOWED` avec header `Allow` adapté |
+| CA-53 | Méthode HTTP (voir annexe CA-MethodNotAllowed ; corps JSON invalide, vide ou valide sans effet : jugé après le `401` et le `403`, jamais jugé pour le `405`, décision #92) | `405 METHOD_NOT_ALLOWED` avec header `Allow` adapté |
 | CA-54 | Erreur serveur (voir annexe CA-InternalError) | `500 INTERNAL_SERVER_ERROR` sans détails techniques |
 | CA-55 | Tests unitaires et d'intégration | Couverture de tests ≥ 90% |
 

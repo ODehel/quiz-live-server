@@ -1443,3 +1443,26 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - Les tests existants du `500` du token (`token-route.test.ts`) assertent déjà le corps à trois champs ; le `Content-Type` n'y est pas asserté : à vérifier à la prochaine session `test(authentication)`, sans trou de spec.
 - Le contenu du log du `500` (CA17-8, `err.message` / `err.stack`) reste une autre dette, hors de cette décision.
 - À challenger en revue : « message constant, jamais issu de l'erreur » est une lecture de « aucun détail technique » (corps exact) ; aucun texte ne la dit tel quel.
+
+## #92 — Une méthode non supportée sur une route protégée répond `401`, `403` ou `405` sans jamais juger le corps, quel que soit ce corps ; règle transversale
+
+*`docs(specs): specify the 405 answer of themes and questions for an invalid body` — US-004 (CA-35), US-005 (CA-53), `SECURITE-TRANSVERSALE.md` (« Méthodes HTTP non supportées », annexe CA-MethodNotAllowed). Étend #90 (point 3 révisé) ; précise #31 ; les décisions #1 à #91 ne sont pas modifiées.*
+
+**Contexte.** #90 a posé « `405` avant la lecture du corps » pour `/api/v1/token` seul, en laissant `themes/` et `questions/` à sonder (#90, point 3, condition de réouverture). Sonde du 2026-11-23 (jetable, hors dépôt, `server.inject` sur `QuizServer` assemblé, Linux, Node 22 ; 336 cas : `PATCH`, `OPTIONS`, `HEAD` sur `themes/`, `themes/:id`, `questions/`, `questions/:id`, quatre appelants : anonyme, token invalide, `buzzer`, `admin` ; sept corps). `PATCH` et `OPTIONS` avec `application/json` et un corps invalide, vide ou `charset=latin1` invalide répondent le `400 Bad Request` natif de Fastify, sans `Allow`, pour les quatre appelants (24 cas chacun) : un anonyme reçoit `400` au lieu de `401`, un `buzzer` en écriture `400` au lieu de `403`, un `admin` `400` au lieu de `405`. Les corps valides, `text/plain`, `application/xml` et sans `Content-Type` répondent `401`, `403` ou `405` conformes. `HEAD` répond conformément dans tous les cas, corps invalide compris.
+
+**Décision.** Toutes sur choix d'Olivier (2026-11-23, trois questions, option recommandée à chacune) :
+1. **Ordre** : pour une méthode non supportée sur une route protégée, `401` (token absent, invalide ou expiré), puis `403` (`buzzer`, méthode d'écriture), puis `405` avec `Allow`. Le corps n'est jamais jugé : JSON invalide, vide, `Content-Type` non conforme, `charset` autre qu'`utf-8` ou corps valide ne produisent ni `400` ni `415` et ne changent aucun de ces trois résultats. Un `400 INVALID_JSON` ou un `415` ne se rend que sur une méthode supportée par la ressource.
+2. **Portée** : transversale, écrite dans `SECURITE-TRANSVERSALE.md` ; elle vaut pour toute route protégée, des US futures comprises. Le point 3 de #90 (« la règle ne vaut que pour le token ») est révisé : #90 pour le token (route publique, sans `401` ni `403`) et #92 pour les routes protégées forment une seule règle.
+3. **Forme** : une note sur CA-35 (US-004) et sur CA-53 (US-005), un paragraphe et quatre exemples dans `SECURITE-TRANSVERSALE.md`. Aucun CA n'est ajouté.
+
+**Alternatives écartées.**
+- **`401`/`403` d'abord, puis `400` pour un corps invalide, `405` ensuite** : écartée, un `admin` apprendrait un `400` sur une route qui ne supporte pas la méthode, sans `Allow` ; même raisonnement que #90.
+- **Ne rien changer, assumer le `400` natif** : écartée, contredit #31 pour l'anonyme et le `buzzer`.
+- **Règle limitée à `themes/` et `questions/`, ou aux seuls CA-35 et CA-53** : écartées, chaque US future devrait re-trancher.
+- **Un nouveau CA par US** : écartée, comme pour #90 ; la note suffit tant que le `fix` n'a pas besoin d'un CA numéroté.
+
+**Conséquences.**
+- **Aucun CA n'est ajouté, retiré ni renuméroté.** Aucun code ni test ne change dans cette session.
+- Écart code/CDC : `PATCH` et `OPTIONS` avec un corps JSON invalide ou vide répondent `400` natif au lieu de `401`, `403` ou `405` sur `themes/` et `questions/` (le `PATCH` des questions n'existe pas encore, US-007, et suivra la règle). Dette dans `DEBTS.md`, soldée par un `fix` puis ses tests, sur le serveur assemblé.
+- `HEAD` est déjà conforme à la sonde ; `HEAD` et `OPTIONS` avec un corps sur `/api/v1/token` restent non décidés (hors périmètre, dette conservée).
+- À challenger : (a) la sonde porte sur Linux, Node 22, `better-sqlite3` non compilé, comme #90 ; (b) `POST`, `PUT` et `DELETE` supportés avec un corps JSON invalide répondent aussi le `400` natif sur `themes/` et `questions/` : CA propres à chaque US, hors de #92 (dette `INVALID_JSON`, non sondée) ; (c) l'URL à segment vide (`PATCH /api/v1/themes/`) reste muette dans le CDC ; (d) « corps jamais jugé » est étendu aux autres méthodes non listées (`TRACE`, `CONNECT`, méthodes inconnues) par le principe, non sondées.

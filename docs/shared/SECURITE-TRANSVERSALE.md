@@ -101,6 +101,8 @@ Content-Type: application/json
 
 Une route **publique** (`/api/v1/token`, US-003 CA-16) n'a ni `401` ni `403` : elle répond `405` directement. Le rate limiting (`429`) s'applique à toutes les routes, y compris sur une méthode non supportée.
 
+**Le corps n'est jamais jugé sur une méthode non supportée** (décision #92, qui étend la décision #90 à toutes les routes protégées) — l'ordre des contrôles d'une méthode non supportée est : authentification (`401`), rôle (`403`), puis `405` avec `Allow` (le `429` s'applique comme dit ci-dessus). Le corps de la requête (JSON invalide, vide, `Content-Type` non conforme ou `charset` autre qu'`utf-8`, ou valide sans effet) n'est jamais jugé : il ne produit ni `400` ni `415`, et ne change ni le `401`, ni le `403`, ni le `405`. Un `400 INVALID_JSON` ou un `415` ne se rend que sur une méthode supportée par la ressource.
+
 **Format de la réponse `405 METHOD_NOT_ALLOWED` :**
 
 ```json
@@ -328,6 +330,25 @@ curl -s -v -w "\n→ HTTP %{http_code}\n" -X OPTIONS "$BASE_URL/api/v1/themes" \
 curl -s -I -w "→ HTTP %{http_code}\n" "$BASE_URL/api/v1/themes" \
   -H "Authorization: Bearer $TOKEN"
 # Attendu : 405 METHOD_NOT_ALLOWED avec header "Allow: GET, POST" (sans HEAD)
+```
+
+```bash
+# CA-MethodNotAllowed — corps JSON invalide : le corps n'est jamais jugé (décision #92)
+curl -s -w "\n→ HTTP %{http_code}\n" -X PATCH "$BASE_URL/api/v1/themes" \
+  -H "Content-Type: application/json" -d '{bad'
+# Attendu : 401 UNAUTHORIZED (sans token, pas de header Allow ; jamais 400)
+
+curl -s -w "\n→ HTTP %{http_code}\n" -X PATCH "$BASE_URL/api/v1/themes" \
+  -H "Authorization: Bearer $TOKEN_BUZZER" -H "Content-Type: application/json" -d '{bad'
+# Attendu : 403 FORBIDDEN (token buzzer, méthode d'écriture ; jamais 400)
+
+curl -s -v -w "\n→ HTTP %{http_code}\n" -X PATCH "$BASE_URL/api/v1/themes" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{bad'
+# Attendu : 405 METHOD_NOT_ALLOWED avec header "Allow: GET, POST" (jamais 400)
+
+curl -s -v -w "\n→ HTTP %{http_code}\n" -X OPTIONS "$BASE_URL/api/v1/questions" \
+  -H "Authorization: Bearer $TOKEN_BUZZER" -H "Content-Type: application/json" -d ''
+# Attendu : 405 METHOD_NOT_ALLOWED avec header "Allow: GET, POST" (corps JSON vide, jamais 400)
 ```
 
 ---
