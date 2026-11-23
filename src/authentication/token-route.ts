@@ -18,8 +18,18 @@ const notAnObjectMessage = 'Request body must be a JSON object.';
 
 const invalidJsonBodyCodes = ['FST_ERR_CTP_INVALID_JSON_BODY', 'FST_ERR_CTP_EMPTY_JSON_BODY'];
 
-const rejectMissingContentType = (request: FastifyRequest, _reply: FastifyReply, done: HookHandlerDoneFunction) => {
-    if (!request.headers['content-type']) {
+const declaredCharset = (contentType: string) => contentType
+    .split(';')
+    .find(parameter => /^\s*charset\s*(=|$)/i.test(parameter))
+    ?.split('=').slice(1).join('=').trim().replace(/^"(.*)"$/, '$1').toLowerCase();
+
+const rejectUnsupportedContentType = (request: FastifyRequest, _reply: FastifyReply, done: HookHandlerDoneFunction) => {
+    const contentType = request.headers['content-type'];
+    if (!contentType) {
+        return done(new errorCodes.FST_ERR_CTP_INVALID_MEDIA_TYPE());
+    }
+    const charset = declaredCharset(contentType);
+    if (charset !== undefined && charset !== 'utf-8') {
         return done(new errorCodes.FST_ERR_CTP_INVALID_MEDIA_TYPE());
     }
     done();
@@ -68,7 +78,7 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
         return inheritedErrorHandler.call(app, error, request, reply);
     });
 
-    app.post('/api/v1/token', { schema, attachValidation: true, onRequest: rejectMissingContentType }, async (request, reply) => {
+    app.post('/api/v1/token', { schema, attachValidation: true, onRequest: rejectUnsupportedContentType }, async (request, reply) => {
         const sendValidationError = (message: string) => reply.status(400).send({
             status: 400,
             error: VALIDATION_ERROR,

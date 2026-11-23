@@ -152,6 +152,40 @@ describe('US-003/CA-07: With wrong content type', () => {
         expect(response.json()).toEqual(nativeUnsupportedMediaType);
         expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
     });
+
+    it.each([
+        'application/json; charset=iso-8859-1',
+        'application/json; charset=utf-16',
+        'Application/JSON; CHARSET=ISO-8859-1'
+    ])('US-003/CA-7 should return the native 415 when the Content-Type is %s', async (contentType) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': contentType },
+            body: JSON.stringify({ username: 'User Name', password: 'user-password' })
+        })
+        expect(response.statusCode).toBe(415)
+        expect(response.json()).toEqual(nativeUnsupportedMediaType);
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        'application/json; charset=utf-8',
+        'application/json;charset=utf-8',
+        'application/json; charset=UTF-8',
+        'APPLICATION/JSON; CHARSET=UTF-8',
+        'application/json; charset="utf-8"',
+        'application/json; foo=bar; charset=utf-8',
+        'application/json; charset=utf-8 ; foo=bar'
+    ])('US-003/CA-7 should accept the Content-Type %s', async (contentType) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/token',
+            headers: { 'Content-Type': contentType },
+            body: JSON.stringify({ username: 'User Name', password: 'user-password' })
+        })
+        expect(response.statusCode).toBe(200)
+    });
 });
 
 describe('US-003/CA-08: With wrong credentials', () => {
