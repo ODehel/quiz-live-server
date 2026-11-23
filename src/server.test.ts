@@ -929,10 +929,154 @@ describe('US-003/CA-16 (decision #90) - A method other than POST on the token ro
 		const response = await server.inject({ method: 'POST', url: '/api/v1/token', headers: { 'content-type': 'text/plain' }, payload: 'x' })
 		expect(response.statusCode).toBe(415)
 	})
+	it('keeps the 400 native of an OPTIONS with an invalid JSON body on the token route (decision #92 does not reach the public route, still undecided, control)', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'OPTIONS', url: '/api/v1/token', headers: { 'content-type': 'application/json' }, payload: '{bad' })
+		expect(response.statusCode).toBe(400)
+	})
 	it('keeps the 400 native of a PUT with an invalid JSON body on an unknown route (themes and questions scope not decided, control)', async () => {
 		await server.start()
 		const response = await server.inject({ method: 'PUT', url: '/api/v1/does-not-exist', headers: { 'content-type': 'application/json' }, payload: '{bad' })
 		expect(response.statusCode).toBe(400)
+	})
+	afterEach(async () => {
+		await server.stop()
+	})
+});
+
+describe('US-005/CA-53 - US-004/CA-35 (decision #92) - An unsupported method on a protected route answers 401, 403 or 405 whatever the body on the assembled server', () => {
+	let server: QuizServer
+	beforeEach(() => {
+		const tokenValidator: TokenValidator = { validateToken: vi.fn((token: string) => token !== 'invalid'), inspectToken: vi.fn() }
+		const tokenDecoder: TokenDecoder = { decode: vi.fn((token: string) => ({ role: token === 'admin' ? UserRole.ADMIN : UserRole.PLAYER })) }
+		const protectedThemeConfiguration: ThemeRouteConfiguration = { ...mockThemeRouteConfiguration, tokenValidator, tokenDecoder, middleware: authenticationMiddleware }
+		const protectedQuestionConfiguration: QuestionRouteConfiguration = { ...mockQuestionRouteConfiguration, tokenValidator, tokenDecoder, middleware: authenticationMiddleware }
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, protectedThemeConfiguration, mockWsRouteConfiguration, protectedQuestionConfiguration)
+	})
+	const themeId = '018e4f5a-0000-0000-0000-000000000000'
+	const resources = [
+		['/api/v1/themes', 'GET, POST'],
+		[`/api/v1/themes/${themeId}`, 'GET, PUT, DELETE'],
+		['/api/v1/questions', 'GET, POST'],
+		[`/api/v1/questions/${themeId}`, 'GET, PUT, DELETE']
+	] as const
+	const bodies = [
+		['an invalid JSON body', 'application/json', '{bad'],
+		['an empty body', 'application/json', ''],
+		['an invalid JSON body declared as latin1', 'application/json; charset=latin1', '{bad']
+	] as const
+	const unauthorizedBody = { status: 401, error: 'UNAUTHORIZED', message: 'Authentication token is missing or invalid.' }
+	const forbiddenBody = { status: 403, error: 'FORBIDDEN', message: 'You do not have permission to perform this action.' }
+	const notAllowedBody = (method: string) => ({ status: 405, error: 'METHOD_NOT_ALLOWED', message: `HTTP method ${method} is not allowed on this resource.` })
+	describe.each(resources)('%s', (url, allow) => {
+		describe.each(bodies)('with %s', (_label, contentType, payload) => {
+			describe.each(['PATCH', 'OPTIONS'] as const)('%s', (method) => {
+				const send = (authorization?: string) => server.inject({ method, url, headers: { 'content-type': contentType, ...(authorization ? { authorization } : {}) }, payload })
+				it('answers 401 UNAUTHORIZED, without an Allow header, when the token is missing', async () => {
+					await server.start()
+					const response = await send()
+					expect(response.statusCode).toBe(401)
+					expect(response.headers['allow']).toBeUndefined()
+					expect(response.json()).toEqual(unauthorizedBody)
+				})
+				it('answers 401 UNAUTHORIZED, without an Allow header, when the token is invalid', async () => {
+					await server.start()
+					const response = await send('Bearer invalid')
+					expect(response.statusCode).toBe(401)
+					expect(response.headers['allow']).toBeUndefined()
+					expect(response.json()).toEqual(unauthorizedBody)
+				})
+				it(method === 'PATCH' ? 'answers 403 FORBIDDEN to a buzzer token, a write method' : 'answers 405 to a buzzer token, a method that is not a write method', async () => {
+					await server.start()
+					const response = await send('Bearer buzzer')
+					if (method === 'PATCH') {
+						expect(response.statusCode).toBe(403)
+						expect(response.headers['allow']).toBeUndefined()
+						expect(response.json()).toEqual(forbiddenBody)
+					} else {
+						expect(response.statusCode).toBe(405)
+						expect(response.headers['allow']).toBe(allow)
+						expect(response.json()).toEqual(notAllowedBody(method))
+					}
+				})
+				it('answers 405 METHOD_NOT_ALLOWED with the Allow header to an admin token', async () => {
+					await server.start()
+					const response = await send('Bearer admin')
+					expect(response.statusCode).toBe(405)
+					expect(response.headers['allow']).toBe(allow)
+					expect(response.json()).toEqual(notAllowedBody(method))
+				})
+			})
+		})
+	})
+	it.each([
+		['POST', `/api/v1/themes/${themeId}`, 'GET, PUT, DELETE'],
+		['PUT', '/api/v1/themes', 'GET, POST'],
+		['DELETE', '/api/v1/questions', 'GET, POST']
+	] as const)('answers 401, 403 then 405 to %s on %s, a supported method of another URL, with an invalid JSON body', async (method, url, allow) => {
+		await server.start()
+		const send = (authorization?: string) => server.inject({ method, url, headers: { 'content-type': 'application/json', ...(authorization ? { authorization } : {}) }, payload: '{bad' })
+		expect((await send()).statusCode).toBe(401)
+		expect((await send('Bearer buzzer')).statusCode).toBe(403)
+		const admin = await send('Bearer admin')
+		expect(admin.statusCode).toBe(405)
+		expect(admin.headers['allow']).toBe(allow)
+	})
+	it.each([
+		['a valid JSON body', 'application/json', '{"name":"x"}'],
+		['a text/plain body', 'text/plain', '{bad'],
+		['an application/xml body', 'application/xml', '<bad'],
+		['an application/json body declared as latin1', 'application/json; charset=latin1', '{"name":"x"}']
+	])('keeps answering 401, 403 then 405 with %s (already compliant)', async (_label, contentType, payload) => {
+		await server.start()
+		const send = (authorization?: string) => server.inject({ method: 'PATCH', url: '/api/v1/themes', headers: { 'content-type': contentType, ...(authorization ? { authorization } : {}) }, payload })
+		expect((await send()).statusCode).toBe(401)
+		expect((await send('Bearer buzzer')).statusCode).toBe(403)
+		expect((await send('Bearer admin')).statusCode).toBe(405)
+	})
+	it('keeps answering 401, 403 then 405 without a Content-Type (already compliant)', async () => {
+		await server.start()
+		const send = (authorization?: string) => server.inject({ method: 'PATCH', url: '/api/v1/themes', headers: authorization ? { authorization } : {}, payload: '{bad' })
+		expect((await send()).statusCode).toBe(401)
+		expect((await send('Bearer buzzer')).statusCode).toBe(403)
+		expect((await send('Bearer admin')).statusCode).toBe(405)
+	})
+	it.each(['/api/v1/themes', '/api/v1/questions'])('keeps answering 405 to HEAD on %s with an invalid JSON body (already compliant)', async (url) => {
+		await server.start()
+		const response = await server.inject({ method: 'HEAD', url, headers: { 'content-type': 'application/json', authorization: 'Bearer admin' }, payload: '{bad' })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('GET, POST')
+	})
+	it('keeps the native 400 of a POST with an invalid JSON body on a supported method of questions (control, INVALID_JSON debt kept)', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'POST', url: '/api/v1/questions', headers: { 'content-type': 'application/json', authorization: 'Bearer admin' }, payload: '{bad' })
+		expect(response.statusCode).toBe(400)
+		expect(response.json()).toMatchObject({ error: 'Bad Request' })
+	})
+	it('keeps the 415 of a POST with a Content-Type other than application/json on a supported method (control)', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'POST', url: '/api/v1/questions', headers: { 'content-type': 'application/xml', authorization: 'Bearer admin' }, payload: '<bad' })
+		expect(response.statusCode).toBe(415)
+	})
+	it('counts a 401 on an unsupported method with an invalid JSON body in the rate limit and answers 429 once the limit is passed', async () => {
+		const limitedConfiguration: QuizServerConfiguration = {
+			...mockQuizServerConfiguration,
+			rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: 2 }) }
+		}
+		const limitedServer = new QuizServer(limitedConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+		await limitedServer.start()
+		try {
+			const send = () => limitedServer.inject({ method: 'PATCH', url: '/api/v1/themes', headers: { 'content-type': 'application/json' }, payload: '{bad' })
+			const first = await send()
+			const second = await send()
+			const third = await send()
+			expect([first.statusCode, second.statusCode]).toEqual([401, 401])
+			expect(third.statusCode).toBe(429)
+			expect(third.headers['retry-after']).toBe('60')
+			expect(third.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' })
+		} finally {
+			await limitedServer.stop()
+		}
 	})
 	afterEach(async () => {
 		await server.stop()

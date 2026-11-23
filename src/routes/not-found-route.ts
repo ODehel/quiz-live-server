@@ -8,6 +8,7 @@ import { UserRole } from "../users/user-role";
 
 const WRITE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 const SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+const ANSWERED_BEFORE_BODY_ON_PROTECTED_URLS = [...SUPPORTED_METHODS, 'OPTIONS'];
 
 interface NotFoundRouteOptions {
     rateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
@@ -21,7 +22,8 @@ export default async function notFoundRoute(app: FastifyInstance, options: NotFo
     await options.rateLimitMiddleware(app);
     app.addHook('onRequest', async (request, reply) => {
         const path = pathOf(request);
-        if (!options.publicUrls.includes(path) || !SUPPORTED_METHODS.includes(request.method)) {
+        const isPublic = options.publicUrls.includes(path);
+        if (!(isPublic ? SUPPORTED_METHODS : ANSWERED_BEFORE_BODY_ON_PROTECTED_URLS).includes(request.method)) {
             return;
         }
         const allowedMethods = allowedMethodsFor(options.routeCatalog, path);
@@ -29,7 +31,12 @@ export default async function notFoundRoute(app: FastifyInstance, options: NotFo
             return;
         }
         await app.rateLimit().call(app, request, reply);
-        sendMethodNotAllowed(request, reply, allowedMethods);
+        const refusal = isPublic ? undefined : refuseAccess(request, options);
+        if (refusal) {
+            sendErrorBody(reply, refusal);
+        } else {
+            sendMethodNotAllowed(request, reply, allowedMethods);
+        }
         return reply;
     });
     app.setNotFoundHandler({ preHandler: app.rateLimit() }, (request, reply) => {
