@@ -852,6 +852,13 @@ describe('US-005/CA-53 - US-004/CA-35 - US-003/CA-16 (decisions #31 to #33) - An
 		expect(response.headers['allow']).toBe('POST')
 		expect(response.json()).toEqual({ status: 405, error: 'METHOD_NOT_ALLOWED', message: 'HTTP method PUT is not allowed on this resource.' })
 	})
+	it.each(['GET', 'DELETE'])('US-003/CA-16 answers 405 METHOD_NOT_ALLOWED with Allow: POST and the standard body to a %s on the token route, without a token', async (method) => {
+		await server.start()
+		const response = await server.inject({ method: method as 'GET' | 'DELETE', url: '/api/v1/token' })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('POST')
+		expect(response.json()).toEqual({ status: 405, error: 'METHOD_NOT_ALLOWED', message: `HTTP method ${method} is not allowed on this resource.` })
+	})
 	afterEach(async () => {
 		await server.stop()
 	})
