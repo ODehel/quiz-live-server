@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken'
 import { connect, createServer } from 'node:net'
 import { networkInterfaces, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 // `npm start` runs `tsx src/index.ts`: these tests start the same entry point in a child process
@@ -12,6 +13,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 // by read-port.test.ts; here we prove that index.ts applies it.
 const TSX_CLI = resolve(__dirname, '../node_modules/tsx/dist/cli.mjs')
 const INDEX = resolve(__dirname, 'index.ts')
+// Preloaded into the hub (`--import`, as a file URL so that a Windows path or a space is no trouble): the machine then has no non-loopback IPv4 interface.
+const LOOPBACK_ONLY_NETWORK = { NODE_OPTIONS: '--import=' + pathToFileURL(resolve(__dirname, 'test-support/loopback-only-network.mjs')).href, LOOPBACK_ONLY_NETWORK: '1' }
 const JWT_SECRET = 'j'.repeat(32)
 const DEFAULT_PORT = 3000
 const WAIT_MS = 20_000
@@ -342,6 +345,20 @@ describe('hub startup', () => {
         const lines = startupLines(hub)
         expect(lines.some(line => announced.test(line))).toBe(true)
         expect(lines.filter(line => line.includes('127.0.0.1') || line.toLowerCase().includes('localhost'))).toEqual([])
+    }, TEST_TIMEOUT_MS)
+
+    // Not skipped without a network interface: the interfaces seen by the hub are the ones of src/test-support/loopback-only-network.mjs (a loopback IPv4 and a non-loopback IPv6).
+    // PORT absent (3000) is not proved here: the fallback is written once the hub listens, and another test file may hold 3000 (see the CA-5 test of the default port).
+    it('US-001/CA-4 writes the fallback message on the standard output with localhost and the configured port when no non-loopback IPv4 interface is found', async () => {
+        const port = await freePort()
+        const hub = startHub(String(port), LOOPBACK_ONLY_NETWORK)
+
+        await waitUntilListening(hub, port)
+        await waitForStartupAnnouncement(hub, port)
+
+        expect(startupLines(hub).filter(line => line.includes('localhost:' + port))).toHaveLength(1)
+        expect(startupLines(hub).filter(line => line.includes(':' + DEFAULT_PORT))).toEqual([])
+        expect(hub.errors()).not.toContain('localhost')
     }, TEST_TIMEOUT_MS)
 
     it.each(['abc', '65536'])('US-001/CA-7 never starts listening when PORT is %j', async (invalidPort) => {
