@@ -1345,3 +1345,24 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - **Retirer le `null` du corps avant validation** : écartée, elle réécrit l'entrée pour une règle de lecture, et un `null` retiré devient un `required` Ajv, dont l'ordre avec le champ inconnu est déjà celui de #84 mais que le code ne distinguerait plus d'un champ réellement absent.
 
 **Conséquences.** Le `null` est lu à deux endroits du gestionnaire (avec les violations, puis seul quand le schéma ne trouve rien) ; la lecture partage `isNull` et `sendValidationError`. Dette d'écart de code de #86 soldée.
+
+---
+
+## #88 — Un login inconnu sur `POST /api/v1/token` déclenche une comparaison bcrypt factice contre un hash bidon de coût 12 constant
+
+*`fix(authentication): keep the response time constant for an unknown username on POST /api/v1/token` — `jwt-authentication-service.ts`. Choix d'implémentation, non observable : la réponse (`401 INVALID_CREDENTIALS`, message générique) ne change pas.*
+
+**Contexte.** Le CDC (US-003, « Temps de réponse constant (timing attack) » ; `SECURITE-TRANSVERSALE.md`, « Timing attacks ») veut une comparaison bcrypt factice quand le login n'existe pas. `authenticate` rendait `undefined` sans appeler `hasher.compare`. Le CDC ne fixe ni le hash bidon ni son coût.
+
+**Décision.**
+1. Pour un login inconnu, `authenticate` appelle `hasher.compare(password, DUMMY_PASSWORD_HASH)`, ignore le résultat (même un `true` ne donne jamais un utilisateur) et rend `undefined`.
+2. `DUMMY_PASSWORD_HASH` est une constante nommée : un vrai hash bcrypt valide de **coût 12** (défaut du seed, `BCRYPT_COST=12`), engendré à partir d'un mot de passe sans lien avec un compte réel. Un hash invalide ferait rendre `false` à `compare` sans payer le coût.
+3. Preuve : un test observe l'appel (mot de passe fourni, hash qui satisfait `^$2[aby]$12$` + 53 caractères), un test vérifie que le résultat reste `undefined`, un test vérifie qu'un login connu ne déclenche qu'une comparaison, contre le hash de l'utilisateur. Aucune mesure de durée.
+
+**Alternatives écartées.**
+- **Lire le coût d'un vrai hash** (par exemple celui d'un compte existant) : écartée, elle couple le hash bidon à une ligne de la base, absente sur une base vide, et la lecture d'un compte réel est une fuite de plus.
+- **Dériver le coût de `BCRYPT_COST`** : écartée pour cette session (touche l'injection de configuration dans le service) ; consignée en dette.
+- **Mesurer la durée** : écartée, flaky et sans valeur de CDC.
+
+**Conséquences.** Dette « Login inconnu : pas de comparaison bcrypt factice » soldée (supprimée) ; une dette sur le coût figé et la preuve non mesurée la remplace. Le test existant « Login inexistant » passait `{} as Hasher` : il passe désormais un hasher complet.
+- À challenger : (a) le coût 12 constant est mon choix, validé en porte 1 mais divergent dès que `BCRYPT_COST` change ; (b) l'égalité de temps n'est pas mesurée ; (c) code lu et testé sous Node 22, Node 26 non vérifié en local.
