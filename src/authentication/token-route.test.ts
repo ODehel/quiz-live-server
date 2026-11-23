@@ -370,6 +370,18 @@ describe('US-003/CA-09 and CA-10 (decision #86, rank 5): With a field that is nu
     });
 });
 
+describe('US-003/CA-09 and CA-10 (decision #85, rank 5): With both the username and the password missing or empty', () => {
+    it.each([
+        ['both fields are missing', {}],
+        ['both fields are empty', { username: '', password: '' }]
+    ])('should return 400 VALIDATION_ERROR naming the username only when %s', async (_label, body) => {
+        const response = await postToken(body);
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Username is required.' });
+        expect(mockAuthenticationService.authenticate).not.toHaveBeenCalled();
+    });
+});
+
 describe('US-003/CA-09 and CA-10 (decision #85, rank 4): With a JSON body that is not an object', () => {
     it.each([
         ['null', 'null'],
