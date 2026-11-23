@@ -583,6 +583,14 @@ describe('US-003/CA-17: When an unexpected error occurs', () => {
         expect(response.statusCode).toBe(500);
         expect(response.json()).toEqual(standardBody);
     });
+
+    it('should answer the 500 with a JSON media type, whatever the charset', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(new Error('no such table: T_USER_USR'));
+        const response = await postValidCredentials();
+        expect(response.statusCode).toBe(500);
+        const mediaType = String(response.headers['content-type']).split(';')[0]?.trim().toLowerCase();
+        expect(mediaType).toBe('application/json');
+    });
 });
 
 describe('US-003/CA-14, US-003/CA-15 and US-003/CA-17: The server log', () => {
