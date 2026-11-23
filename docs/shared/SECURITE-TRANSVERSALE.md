@@ -190,6 +190,10 @@ Corps standard à trois champs, comme toute autre erreur de l'API (décision #34
 |---|---|
 | **Routes avec body** (POST, PUT, PATCH) exigent `Content-Type: application/json` | Autre type → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 | Un `Content-Type` **absent** ou **présent mais vide** est un type non conforme (décision #82) | `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`, que le body soit vide ou non |
+| Le type est lu **sans tenir compte de la casse** : `Application/JSON` est `application/json` (décision #89) | Conforme |
+| `application/json; charset=utf-8` est conforme ; `charset=UTF-8` aussi (nom et valeur sans tenir compte de la casse) (décision #89) | Conforme |
+| Un `charset` **autre qu'`utf-8`** (`iso-8859-1`, `utf-16`…) est un type non conforme, le hub décodant toujours en `utf-8` (décision #89) | `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
+| Un **paramètre inconnu** (`; foo=bar`) est ignoré (décision #89) | Conforme |
 | Les routes **sans body** (GET, DELETE) ignorent le `Content-Type` | Quelle que soit sa valeur, aucune validation n'est effectuée |
 | Le serveur ne doit pas interpréter d'autres formats (XML, form-encoded, etc.) sur les routes qui attendent JSON | Rejeter avec `415` |
 
