@@ -4,8 +4,8 @@
 > réel au HEAD `ef7a221` (2026-11-20) : le **§0**, la partie **US-002** (§1, ligne US-002 ;
 > §2, section US-002), la ligne **Total** du §1, les **dettes A à E, G et H** (§3 ; la
 > dette F l'était déjà, avec une mention d'US-002 de plus) et le **§4**. La partie **US-001**
-> (§1 ligne US-001, §2 section US-001) reste celle du réalignement du HEAD `25d2388`,
-> tenue à jour jusqu'au 2026-11-18.
+> (§1 ligne US-001, §2 section US-001) est celle du réalignement du HEAD `319d443`
+> (2026-11-23, voir plus bas).
 > **Réalignement du 2026-11-21 (`docs(specs)`, HEAD `33823bf`)** : dans la partie US-002, CA-3 et
 > CA-7 repassent de partiels à solides. La décision #77 avait fait passer les deux CA en partiels
 > (la spec écrivait le tout ou rien et la perdante d'une course, le code ne les tenait pas) ; le
@@ -21,6 +21,12 @@
 > non asserté en production ; CA-2 : câblage du secret non prouvé par un test d'US-003) ; Total :
 > 105 CA, ~89 solides. Les mutants cités dans la section ont été rejoués par cette session puis
 > annulés ; aucun code ni test n'a changé.
+> **Réalignement du 2026-11-23 (`docs(specs)`, HEAD `319d443`)** : la partie **US-001** (§1, ligne
+> US-001 ; §2, section US-001) est réalignée sur le réel avec la méthode du fichier, avec la ligne
+> **Total**, le §0 et le §4. US-001 : 9 CA (CA-6 est retiré, décision #54, numérotation conservée),
+> **9 solides** : CA-4 (repli `localhost:<PORT>`) passe de partiel à solide, prouvé sur processus
+> réel depuis le `test(startup)` du 2026-11-23 (#211) ; Total : 105 CA, ~90 solides. Les six mutants
+> cités dans la section ont été rejoués par cette session puis annulés ; aucun code ni test n'a changé.
 > Les parties **US-004 et US-009** (leurs lignes du §1 et leurs sections du §2)
 > **restent celles du relevé daté (HEAD `5407e38`) et ne sont pas réalignées par cette
 > session** : plusieurs de leurs cellules sont connues périmées (US-004 CA-19, CA-30 et CA-35 :
@@ -43,9 +49,10 @@
 
 ## 0. Portée et faits de départ
 
-- **HEAD hub audité** : `ef7a221` — `test(seed): prove BCRYPT_COST written in a .env file is read and checked on the real process (#166)` (`main`, 2026-11-20). Il vaut pour le §0, la partie US-002, les dettes A à E, G et H et le §4. **La partie US-003 et les cellules d'US-003 des dettes C à H sont au HEAD `ed6bd31`** — `docs(specs): correct the rate limit in the US-003 diagrams (#202)` (`main`, 2026-11-22). Les autres parties gardent leur date : US-001 au HEAD `25d2388` (2026-11-18, tenue à jour jusqu'au même jour), US-004 et US-009 au HEAD `5407e38`.
+- **HEAD hub audité** : `ef7a221` — `test(seed): prove BCRYPT_COST written in a .env file is read and checked on the real process (#166)` (`main`, 2026-11-20). Il vaut pour le §0, la partie US-002, les dettes A à E, G et H et le §4. **La partie US-003 et les cellules d'US-003 des dettes C à H sont au HEAD `ed6bd31`** — `docs(specs): correct the rate limit in the US-003 diagrams (#202)` (`main`, 2026-11-22). **La partie US-001 est au HEAD `319d443`** — `test(startup): prove the localhost fallback of the startup message on the real hub (#211)` (`main`, 2026-11-23). Les autres parties gardent leur date : US-004 et US-009 au HEAD `5407e38`.
 - **Tests au vert** : à `ef7a221`, sous Node 26.13.1 et sous root, `npx vitest run` donne 40 fichiers, **1201 verts et 22 sautés** (les tests de permissions : 12 de `seed.test.ts` et 10 de `index.test.ts`, sautés en root et sous Windows) ; `npx tsc --noEmit` et `npm run lint` sans erreur (code 0) ; seuils de couverture respectés (94,68 % d'instructions, 97,52 % de branches). Le run de la CI sur ce HEAD (`ubuntu-latest`, hors root, run 44785880839) donne **1223 verts, aucun sauté**. Le relevé daté (184 tests, 24 fichiers) et le réalignement US-001 du 2026-11-18 (1026 tests, 39 fichiers) sont périmés.
   **À `ed6bd31`** (réalignement d'US-003, 2026-11-22), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : `npx vitest run` donne 42 fichiers, **1278 verts et 22 sautés** ; `npx tsc --noEmit` et `npm run lint` sortent en code 0 ; le run de la CI sur ce HEAD (run 45032891184, `push`) est au vert (`verify` : success) ; seuils de couverture : non exécutés par cette session.
+  **À `319d443`** (réalignement d'US-001, 2026-11-23), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : `npx vitest run` donne 42 fichiers, **1320 verts et 22 sautés** ; `npx tsc --noEmit` et `npx eslint src` sortent en code 0 ; le run de la CI sur ce HEAD (run 45141148244, `push`) est au vert ; seuils de couverture : non exécutés par cette session.
 - **US auditées par ce fichier** : US-001, US-002, US-003, US-004, US-009 (les seules « prétendument faites » au relevé daté). Les US livrées depuis ne sont pas auditées ici.
 - **US-005 à US-008** : le relevé daté les disait « absentes du code ET du git log » (~148 CA jamais implémentés). **C'est faux aujourd'hui pour US-005 seule.**
   - **US-005 existe** : `POST`, `GET /`, `GET /:id`, `PUT` et `DELETE` de `/api/v1/questions` (`questions/question-route.ts`), son service et son repository ; au moins 48 des 55 CA de la spec ont un test dont le titre cite `US-005/CA-n` (comptage par déclaration ; il ne voit pas un second CA cité sans préfixe d'US, comme dans `CA-20 and CA-41`). **Elle n'est pas auditée par ce fichier** : aucune confrontation CA par CA, aucun jugement sur la solidité de ses assertions.
@@ -63,16 +70,18 @@
 
 | US | CA total | Solides | Partiels / non vérifiés | Trous réels | Faux verts |
 |----|:---:|:---:|:---:|:---:|:---:|
-| US-001 — server startup | 9  | 8   | CA-4                                 | —                          | —      |
+| US-001 — server startup | 9  | 9   | —                                   | —                          | —      |
 | US-002 — seed users     | 8  | 8   | —                                   | —                          | —      |
 | US-003 — auth token     | 19 | 17  | CA-1, 2                             | —                          | —      |
 | US-004 — themes CRUD    | 40 | ~31 | CA-12 / 12a / 19 / 34               | **CA-35 (405)**            | **CA-30** |
 | US-009 — websocket      | 29 | ~25 | CA-12, 22, 26                       | —                          | —      |
-| **Total** | **105** | **~89** | **~10** | **1** | **1** |
+| **Total** | **105** | **~90** | **~9** | **1** | **1** |
 
 Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18), puis mise à jour après le
 `test(startup)` des permissions et de `EACCES`, puis après le `test(startup)` de `JWT_SECRET`
-et du `.env`, puis après celui de la création des tables du fichier de zéro octet (2026-11-18).
+et du `.env`, puis après celui de la création des tables du fichier de zéro octet (2026-11-18),
+puis réalignée au HEAD `319d443` (2026-11-23) : CA-4 solide depuis le `test(startup)` du repli sur
+le hub réel (#211).
 Ligne US-002 réalignée sur le réel au HEAD `ef7a221` (2026-11-20) : la spec comptait neuf CA (le
 relevé daté en comptait cinq), dont CA-5, CA de couverture alors compté solide au sens du seuil
 global ; CA-5 est retiré de la spec le 2026-11-21 (décision #54, #183) : **huit CA** depuis,
@@ -85,7 +94,7 @@ câblage de `JWT_SECRET` au générateur n'est prouvé par aucun test d'US-003) 
 deux trous du relevé daté (CA-16, CA-17) sont corrigés dans le code et prouvés. **Les lignes
 US-004 et US-009 sont celles du relevé daté (HEAD `5407e38`), non réalignées.** La ligne
 **Total** est recalculée à partir des lignes telles qu'elles sont écrites (105 CA ; solides
-8 + 8 + 17 + ~31 + ~25 ; partiels 1 + 0 + 2 + 4 + 3 ; trou réel 1 ; faux vert 1) : elle compte
+9 + 8 + 17 + ~31 + ~25 ; partiels 0 + 0 + 2 + 4 + 3 ; trou réel 1 ; faux vert 1) : elle compte
 donc encore un trou réel (US-004 CA-35) et un faux vert (US-004 CA-30), alors que ce trou et ce
 faux vert sont corrigés dans le code (dettes C et A, §3).
 
@@ -123,8 +132,13 @@ comportement cassé en production réelle.
 > seul (testé au niveau `QuizServer`, choix assumé). Limites dites de CA-9 inchangées :
 > permissions sautées en root et sous Windows, Windows sondé à la main (décision #70) mais
 > sans test automatique.
+>
+> **Mise à jour après le `test(startup)` du repli de CA-4 sur le hub réel (2026-11-23, HEAD `319d443`,
+> #211)** : un test de plus dans `index.test.ts`, qui ne se saute pas (1320 verts et 22 sautés, 42
+> fichiers, sous Node 22.23.5 et sous root ; la CI du HEAD est au vert). CA-4 passe en solide : plus
+> aucun CA partiel dans US-001. Aucun code de production n'a changé.
 
-- **Solides (8)** :
+- **Solides (9)** :
   - **CA-1** (démarre, écoute sur `0.0.0.0`, prérequis `JWT_SECRET`) : démarrage,
     écoute sur toutes les interfaces IPv4 (connexion par `127.0.0.1` et par la première
     IPv4 non-loopback), processus vivant et sortie d'erreur sans échec, prouvés sur
@@ -213,12 +227,21 @@ comportement cassé en production réelle.
     guillemets simples et les accents graves ne le sont que sur le seed (`seed.test.ts`),
     autour de blancs seuls, et sur aucun des deux autour d'une valeur qui n'est pas faite
     de blancs (dette `DEBTS.md`).
-- **Partiels (1)** :
-  - **CA-4** (repli `localhost:<PORT>`) : `server.test.ts` (`describe('CA-4`) prouve le
-    repli sans interface, avec seulement loopback et IPv6, et avec le port configuré
-    (pas toujours 3000). **Pas testé sur processus réel** : choix assumé
-    (2026-11-18). La sortie standard du repli n'est donc prouvée que par un
-    `console.log` espionné.
+  - **CA-4** (repli `localhost:<PORT>`, sortie standard) : `server.test.ts` (`describe('CA-4`)
+    prouve le repli au niveau `QuizServer` (sans interface, avec seulement loopback et IPv6,
+    avec le port configuré, pas toujours 3000). `index.test.ts` le prouve sur processus réel
+    depuis le `test(startup)` du 2026-11-23 : un module préchargé (`NODE_OPTIONS=--import`,
+    `src/test-support/loopback-only-network.mjs`, inerte sans `LOOPBACK_ONLY_NETWORK=1`) fait
+    voir au hub une machine sans IPv4 non-loopback (une IPv4 loopback et une IPv6 non-loopback),
+    sur n'importe quelle machine ; le repli `localhost:<PORT>` est écrit une seule fois sur la
+    sortie standard, aucune ligne ne porte 3000, la sortie d'erreur ne contient pas `localhost`.
+    Le test ne se saute pas. **Mutants rejoués par cette session** sur `quiz-server.ts`, tous
+    tués : port figé à `3000`, port retiré, repli sur `console.error`, filtre IPv4 retiré (l'IPv6
+    serait choisie), filtre `internal` retiré (`127.0.0.1` choisi), repli sur `127.0.0.1` ; tous
+    restaurés. **Limite dite** : le repli avec `PORT` absente (exemple du CDC, non normatif,
+    `http://localhost:3000`) n'est pas prouvé sur processus réel : il s'écrit une fois que le hub
+    écoute et un autre fichier de test peut tenir 3000 ; le défaut 3000 est prouvé par le test du
+    CA-5 et la composition du message avec le port configuré par celui-ci (dette `DEBTS.md`).
 - **Notes d'architecture** :
   - `index.ts` est à **0 % de couverture** v8 (comme `os-network.ts` et
     `system-clock.ts`) parce que le processus enfant n'est pas instrumenté, pas parce
@@ -240,11 +263,11 @@ comportement cassé en production réelle.
   - Le `.env` est lu par `import 'dotenv/config'`, première ligne d'`index.ts`.
   - Le test d'écoute du CA-1 de `server.test.ts` passe par `GET /health`, route que
     le CDC d'US-001 ne cite plus (dette `DEBTS.md` : US-020 doit la déplacer).
-  - **Test fragile constaté** : `US-001/CA-5 listens on the port written in PORT`
-    asserte que la console contient le port dès que le port accepte des connexions,
-    avant que l'annonce soit forcément écrite ; il a échoué une fois sur trois suites
-    complètes lors de ce relevé (vert aux deux autres). Non corrigé : hors périmètre
-    d'une session `docs(specs)`.
+  - **Test fragile constaté, périmé** : au relevé du 2026-11-18, `US-001/CA-5 listens on the
+    port written in PORT` assertait que la console contenait le port dès que le port acceptait
+    des connexions, avant que l'annonce soit forcément écrite (échec une fois sur trois suites
+    complètes). Au HEAD `319d443`, ce test attend l'annonce (`waitForStartupAnnouncement`) avant
+    d'asserter ; une suite complète au vert (2026-11-23), non rejouée en série.
 
 ### US-002 — Seed des utilisateurs (8 CA : CA-1 à CA-4 et CA-6 à CA-9)
 
@@ -703,7 +726,7 @@ tokens, elles, sont corrigées et prouvées.
 ## 4. Ce que ça signifie pour la suite
 
 Le socle hub est **substantiel mais pas « fini »** au sens strict des specs :
-~89/105 CA solides (US-001 réalignée au HEAD `25d2388` puis mise à jour le 2026-11-18,
+~90/105 CA solides (US-001 réalignée au HEAD `319d443` le 2026-11-23,
 US-002 au HEAD `ef7a221` le 2026-11-20, puis CA-3 et CA-7 au HEAD `33823bf` le 2026-11-21,
 US-003 au HEAD `ed6bd31` le 2026-11-22, US-004 et US-009 au relevé daté ; décompte du §1), avec
 un angle mort sur le plafond des connexions WebSocket, sur le `Retry-After` des thèmes, sur deux
