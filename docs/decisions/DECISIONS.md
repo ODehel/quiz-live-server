@@ -1417,3 +1417,29 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - Écart code/CDC : `PUT` et `DELETE` avec un corps JSON invalide ou vide répondent `400` natif au lieu de `405`. Dette dans `DEBTS.md`, soldée par un `fix(authentication)` puis ses tests.
 - Condition de réouverture de la portée : une sonde de `themes/` et `questions/` avec une méthode non supportée et un corps invalide.
 - À challenger : (a) la sonde porte sur Linux et Node 22, `better-sqlite3` non compilé ; (b) `PATCH` n'a pas été sondé, il est couvert par le principe « toute méthode autre que `POST` » ; (c) le `HEAD` et l'`OPTIONS` ne sont pas sondés avec un corps.
+
+
+---
+
+## #91 — Le `500` de `POST /api/v1/token` suit la décision #34 : corps exact à trois champs, message constant, `Content-Type` JSON
+
+*`docs(specs): specify the body, headers and technical details of the 500 answer of POST /api/v1/token` — US-003 (CA-17), renvoi à `SECURITE-TRANSVERSALE.md` (« Erreurs serveur (500) »), `error-codes.md` et à la décision #34, qui laissait « Non décidé : le `500` du token ».*
+
+**Contexte.** La décision #34 fixe le corps du `500` des thèmes et des questions, et laisse le token « non décidé ». CA-17 d'US-003 dit « aucun détail technique exposé » sans le définir ; seule l'annexe `SECURITE-TRANSVERSALE.md` le fait (pas de pile, pas de message SQL, pas de chemin interne). Aucun CDC ne fixe le `Content-Type` ni les en-têtes du `500`. Le smoke test du `500` du token (17 PASS, 0 FAIL) reposait sur des marqueurs heuristiques de l'agent de smoke test pour ces trois points, faute de CDC.
+
+**Décision.** Sur choix d'Olivier (2026-11-23, trois questions, option recommandée à chacune) :
+1. **Corps** : la décision #34 vaut pour `POST /api/v1/token`. Un `500` répond `{ "status": 500, "error": "INTERNAL_SERVER_ERROR", "message": "An unexpected error occurred. Please try again later." }`, comme les autres routes ; `correlation_id` arrive avec US-022 (#34).
+2. **« Aucun détail technique exposé »** : CA-17 renvoie à `SECURITE-TRANSVERSALE.md` (pas de pile, pas de message SQL, pas de chemin interne) et le corps est **exactement** les trois champs ci-dessus, le `message` étant constant et jamais issu de l'erreur. Un corps différent, quel qu'en soit l'écart, est un écart au CDC : l'égalité du corps est assertable sans heuristique.
+3. **En-têtes** : le `Content-Type` est de type `application/json` ; son paramètre `charset` n'est pas imposé. Aucun autre en-tête n'est exigé.
+
+**Alternatives écartées.**
+- **Corps propre au token** : écartée, exception à `error-codes.md` sans besoin observable.
+- **Attendre US-022** : écartée, le corps à trois champs est déjà conforme tant qu'US-022 n'est pas livrée (#34).
+- **Renvoi à l'annexe seul / liste élargie dans CA-17** : écartées, la première laisse des marqueurs heuristiques, la seconde est plus stricte que l'annexe et oblige à aligner les autres US.
+- **`application/json; charset=utf-8` exact** : écartée, dépend du comportement actuel de Fastify.
+
+**Conséquences.**
+- **Aucun CA n'est ajouté, retiré ni renuméroté.** Une note est ajoutée à CA-17 d'US-003 ; aucun code ni test ne change dans cette session.
+- Les tests existants du `500` du token (`token-route.test.ts`) assertent déjà le corps à trois champs ; le `Content-Type` n'y est pas asserté : à vérifier à la prochaine session `test(authentication)`, sans trou de spec.
+- Le contenu du log du `500` (CA17-8, `err.message` / `err.stack`) reste une autre dette, hors de cette décision.
+- À challenger en revue : « message constant, jamais issu de l'erreur » est une lecture de « aucun détail technique » (corps exact) ; aucun texte ne la dit tel quel.
