@@ -863,3 +863,78 @@ describe('US-005/CA-53 - US-004/CA-35 - US-003/CA-16 (decisions #31 to #33) - An
 		await server.stop()
 	})
 });
+
+describe('US-003/CA-16 (decision #90) - A method other than POST on the token route answers 405 whatever the body on the assembled server', () => {
+	let server: QuizServer
+	const standardBody = (method: string) => ({ status: 405, error: 'METHOD_NOT_ALLOWED', message: `HTTP method ${method} is not allowed on this resource.` })
+	const bodies = [
+		['an invalid JSON body', '{bad'],
+		['an empty body', ''],
+		['a valid JSON body', '{"username":"u","password":"p"}']
+	]
+	const methods = ['PUT', 'DELETE', 'PATCH'] as const
+	beforeEach(() => {
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+	})
+	describe.each(methods)('%s', (method) => {
+		it.each(bodies)('answers 405 METHOD_NOT_ALLOWED with Allow: POST and the standard body with application/json and %s', async (_label, payload) => {
+			await server.start()
+			const response = await server.inject({ method, url: '/api/v1/token', headers: { 'content-type': 'application/json' }, payload })
+			expect(response.statusCode).toBe(405)
+			expect(response.headers['allow']).toBe('POST')
+			expect(response.json()).toEqual(standardBody(method))
+		})
+		it.each([['text/plain'], ['application/xml'], ['application/json; charset=latin1']])('answers 405, never 415, with the Content-Type %s', async (contentType) => {
+			await server.start()
+			const response = await server.inject({ method, url: '/api/v1/token', headers: { 'content-type': contentType }, payload: '{bad' })
+			expect(response.statusCode).toBe(405)
+			expect(response.headers['allow']).toBe('POST')
+			expect(response.json()).toEqual(standardBody(method))
+		})
+		it('answers 405 with an invalid JSON body and a query string', async () => {
+			await server.start()
+			const response = await server.inject({ method, url: '/api/v1/token?x=1', headers: { 'content-type': 'application/json' }, payload: '{bad' })
+			expect(response.statusCode).toBe(405)
+			expect(response.headers['allow']).toBe('POST')
+		})
+	})
+	it('counts a 405 with an invalid JSON body in the rate limit and answers 429 once the limit is passed', async () => {
+		const limitedConfiguration: QuizServerConfiguration = {
+			...mockQuizServerConfiguration,
+			rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: 2 }) }
+		}
+		const limitedServer = new QuizServer(limitedConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+		await limitedServer.start()
+		try {
+			const send = () => limitedServer.inject({ method: 'PUT', url: '/api/v1/token', headers: { 'content-type': 'application/json' }, payload: '{bad' })
+			const first = await send()
+			const second = await send()
+			const third = await send()
+			expect([first.statusCode, second.statusCode]).toEqual([405, 405])
+			expect(third.statusCode).toBe(429)
+			expect(third.headers['retry-after']).toBe('60')
+			expect(third.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' })
+		} finally {
+			await limitedServer.stop()
+		}
+	})
+	it('keeps the 400 INVALID_JSON of a POST with an invalid JSON body (control)', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'POST', url: '/api/v1/token', headers: { 'content-type': 'application/json' }, payload: '{bad' })
+		expect(response.statusCode).toBe(400)
+		expect(response.json()).toEqual({ status: 400, error: 'INVALID_JSON', message: 'Request body must be valid JSON.' })
+	})
+	it('keeps the 415 of a POST with a Content-Type other than application/json (control)', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'POST', url: '/api/v1/token', headers: { 'content-type': 'text/plain' }, payload: 'x' })
+		expect(response.statusCode).toBe(415)
+	})
+	it('keeps the 400 native of a PUT with an invalid JSON body on an unknown route (themes and questions scope not decided, control)', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'PUT', url: '/api/v1/does-not-exist', headers: { 'content-type': 'application/json' }, payload: '{bad' })
+		expect(response.statusCode).toBe(400)
+	})
+	afterEach(async () => {
+		await server.stop()
+	})
+});

@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest } from "fastify";
+import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { FORBIDDEN, METHOD_NOT_ALLOWED, NOT_FOUND, UNAUTHORIZED } from "../common/error-codes";
 import { ErrorBody, sendErrorBody } from "../common/send-error-body";
 import { RouteCatalog } from "./route-catalog";
@@ -19,9 +19,22 @@ interface NotFoundRouteOptions {
 
 export default async function notFoundRoute(app: FastifyInstance, options: NotFoundRouteOptions) {
     await options.rateLimitMiddleware(app);
+    app.addHook('onRequest', async (request, reply) => {
+        const path = pathOf(request);
+        if (!options.publicUrls.includes(path) || !SUPPORTED_METHODS.includes(request.method)) {
+            return;
+        }
+        const allowedMethods = allowedMethodsFor(options.routeCatalog, path);
+        if (allowedMethods.length === 0 || allowedMethods.includes(request.method)) {
+            return;
+        }
+        await app.rateLimit().call(app, request, reply);
+        sendMethodNotAllowed(request, reply, allowedMethods);
+        return reply;
+    });
     app.setNotFoundHandler({ preHandler: app.rateLimit() }, (request, reply) => {
-        const [path = ''] = request.url.split('?');
-        const allowedMethods = SUPPORTED_METHODS.filter(method => options.routeCatalog.methodsFor(path).includes(method));
+        const path = pathOf(request);
+        const allowedMethods = allowedMethodsFor(options.routeCatalog, path);
         if (allowedMethods.length === 0) {
             sendErrorBody(reply, { status: 404, error: NOT_FOUND, message: 'The requested resource was not found.' });
             return;
@@ -31,9 +44,22 @@ export default async function notFoundRoute(app: FastifyInstance, options: NotFo
             sendErrorBody(reply, refusal);
             return;
         }
-        reply.header('Allow', allowedMethods.join(', '));
-        sendErrorBody(reply, { status: 405, error: METHOD_NOT_ALLOWED, message: `HTTP method ${request.method} is not allowed on this resource.` });
+        sendMethodNotAllowed(request, reply, allowedMethods);
     });
+}
+
+function pathOf(request: FastifyRequest): string {
+    const [path = ''] = request.url.split('?');
+    return path;
+}
+
+function allowedMethodsFor(routeCatalog: RouteCatalog, path: string): string[] {
+    return SUPPORTED_METHODS.filter(method => routeCatalog.methodsFor(path).includes(method));
+}
+
+function sendMethodNotAllowed(request: FastifyRequest, reply: FastifyReply, allowedMethods: string[]) {
+    reply.header('Allow', allowedMethods.join(', '));
+    sendErrorBody(reply, { status: 405, error: METHOD_NOT_ALLOWED, message: `HTTP method ${request.method} is not allowed on this resource.` });
 }
 
 function refuseAccess(request: FastifyRequest, options: NotFoundRouteOptions): ErrorBody | undefined {
