@@ -1395,3 +1395,25 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - Les routes des thèmes et des questions ne sont pas sondées : même dette, même fix s'il est posé pour toutes les routes.
 - Condition de réouverture : un client légitime qui enverrait un autre `charset` et qu'il faudrait accepter, ou un changement de Fastify qui modifierait le traitement natif des paramètres.
 - À challenger : (a) la sonde porte sur Fastify nu (version exacte `5.8.4`, la plage du projet est `^5.8.4`), pas sur le hub assemblé ni sous Windows ; (b) le refus d'un autre `charset` est un choix strict que l'on peut juger inutile pour un hub de LAN ; (c) la lecture sans casse de `charset=UTF-8` est ma déduction de la décision 2, non tranchée séparément ; (d) US-004 CA-8 et US-007 CA-18 disent encore « Content-Type incorrect » : vrais, non modifiés.
+
+## #90 — Une méthode autre que `POST` sur `/api/v1/token` répond `405` avant la lecture du corps, quel que soit ce corps
+
+*`docs(specs): specify the answer of a method other than POST on /api/v1/token when the JSON body is invalid or empty` — US-003 (CA-16, « Ordre des contrôles »). Précise #84 ; les décisions #1 à #89 ne sont pas modifiées.*
+
+**Contexte.** CA-16 dit `405` pour une méthode non supportée, et l'ordre des contrôles de #84 met le `405` au rang 2, avant le `400 INVALID_JSON` du rang 3 ; mais son intitulé parle d'« une requête `POST /api/v1/token` ». Sonde du 2026-11-23 (jetable, hors dépôt, `server.inject` sur `QuizServer` assemblé) : `PUT` ou `DELETE` avec `application/json` et un corps invalide (`{bad`) ou vide répondent `400` natif de Fastify (`FST_ERR_CTP_INVALID_JSON_BODY`, `FST_ERR_CTP_EMPTY_JSON_BODY`), sans `Allow` ; `GET` et `PUT` avec un corps valide répondent `405`, `Allow: POST`. Trois lectures des CDC étaient en conflit : l'ordre des contrôles (`405` d'abord), `SECURITE-TRANSVERSALE.md` (`405` direct), la dette D (`INVALID_JSON` propre au `POST`).
+
+**Décision.** Toutes sur choix d'Olivier (2026-11-23) :
+1. Toute méthode autre que `POST` sur `/api/v1/token` répond `405 METHOD_NOT_ALLOWED`, `Allow: POST`, quel que soit son corps : JSON invalide, vide ou valide. Le corps n'est jamais jugé pour ces méthodes.
+2. L'ordre de #84 est confirmé tel quel : le `405` et le `415` ne se cumulent jamais ; le `405` prime donc aussi sur un `Content-Type` non conforme d'une méthode autre que `POST`.
+3. La règle ne vaut que pour le token. `themes/` et `questions/` ne sont pas tranchés : leur `405` est jugé après l'authentification (#31), cas différent à sonder avant de trancher.
+4. **Aucun CA n'est ajouté, retiré ni renuméroté.** Aucun code ni test ne change dans cette session.
+
+**Alternatives écartées.**
+- **`400` d'abord** : écartée, contredit l'ordre des contrôles et fait répondre un `400` natif sans `Allow` à une route qui ne supporte pas la méthode.
+- **Distinguer `GET` (corps jamais lu) des autres méthodes** : écartée, plus de cas sans bénéfice pour le client.
+- **Règle transversale à toutes les routes** : écartée, le cas des routes protégées (`401` avant `405`, #31) n'est pas sondé.
+
+**Conséquences.**
+- Écart code/CDC : `PUT` et `DELETE` avec un corps JSON invalide ou vide répondent `400` natif au lieu de `405`. Dette dans `DEBTS.md`, soldée par un `fix(authentication)` puis ses tests.
+- Condition de réouverture de la portée : une sonde de `themes/` et `questions/` avec une méthode non supportée et un corps invalide.
+- À challenger : (a) la sonde porte sur Linux et Node 22, `better-sqlite3` non compilé ; (b) `PATCH` n'a pas été sondé, il est couvert par le principe « toute méthode autre que `POST` » ; (c) le `HEAD` et l'`OPTIONS` ne sont pas sondés avec un corps.

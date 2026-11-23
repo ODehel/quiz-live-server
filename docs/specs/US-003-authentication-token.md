@@ -57,7 +57,7 @@ Une requête `POST /api/v1/token` est jugée dans cet ordre ; le premier contrô
 | 6 | Champ inconnu dans le body | `400 UNKNOWN_FIELDS` | CA-6, CA-12 |
 | 7 | Username inconnu ou mot de passe incorrect | `401 INVALID_CREDENTIALS` | CA-8 |
 
-Les deux contrôles de l'ordre 2 ne se cumulent jamais : le `405` ne vise que les méthodes autres que `POST`, le `415` que les `POST`.
+Les deux contrôles de l'ordre 2 ne se cumulent jamais : le `405` ne vise que les méthodes autres que `POST`, le `415` que les `POST`. Le corps d'une méthode autre que `POST` n'est jamais lu : un `PUT` ou un `DELETE` au corps JSON invalide ou vide répond `405`, pas `400 INVALID_JSON` (décision #90).
 
 ### Messages de `VALIDATION_ERROR`
 
@@ -94,7 +94,7 @@ Le corps est le corps standard à trois champs (`status`, `error`, `message`). E
 
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-16 | Méthode HTTP non supportée sur `/api/v1/token` | `405 METHOD_NOT_ALLOWED` avec header `Allow: POST` |
+| CA-16 | Méthode HTTP non supportée sur `/api/v1/token` (corps invalide, vide ou valide sans effet : le corps n'est jamais jugé, décision #90) | `405 METHOD_NOT_ALLOWED` avec header `Allow: POST` |
 
 ### Sécurité et transversalité
 
