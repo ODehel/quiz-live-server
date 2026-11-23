@@ -1,6 +1,7 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import Database from 'better-sqlite3'
+import jwt from 'jsonwebtoken'
 import { connect, createServer } from 'node:net'
 import { networkInterfaces, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -1285,6 +1286,42 @@ describe('hub token lifetime (JWT_EXPIRATION)', () => {
 
         expect(lifetime).toBe(3600)
         expect(expiresIn).toBe(3600)
+    }, TEST_TIMEOUT_MS)
+})
+
+// US-003/CA-1 and CA-2 on the real process: a real `POST /api/v1/token` answers the type of the token ("Bearer") and a token that is
+// signed with HS256 and with the JWT_SECRET of the environment of the hub, which no other secret verifies. The secret differs from the
+// default of startHub, so that a generator wired to another secret (the default one included) cannot pass. The claims (CA-3) and the
+// lifetime (CA-4) are proved elsewhere; the rule of the signature by jwt-generator.test.ts, which does not see how index.ts wires the secret.
+describe('hub token (token_type and JWT_SECRET)', () => {
+    const ADMIN = { username: 'admin', password: 'an-admin-password-1' }
+    const TOKEN_SECRET = 'a-secret-that-signs-the-tokens-0123456789'
+
+    async function realTokenResponse(): Promise<{ token: string, token_type: string }> {
+        const databasePath = join(workDirectory, 'hub.db')
+        seedAccounts(databasePath)
+        const port = await freePort()
+        const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath, JWT_SECRET: TOKEN_SECRET })
+        await waitUntilListening(hub, port)
+
+        const response = await fetch('http://127.0.0.1:' + port + '/api/v1/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ADMIN) })
+
+        expect(response.status).toBe(200)
+        return await response.json() as { token: string, token_type: string }
+    }
+
+    it('US-003/CA-1 answers token_type "Bearer" to a POST /api/v1/token with the admin account of the seed', async () => {
+        const body = await realTokenResponse()
+
+        expect(body.token_type).toBe('Bearer')
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-2 signs the token with HS256 and the JWT_SECRET of the environment of the hub: it verifies with that secret only', async () => {
+        const { token } = await realTokenResponse()
+
+        expect(jwt.decode(token, { complete: true })?.header.alg).toBe('HS256')
+        expect(() => jwt.verify(token, TOKEN_SECRET, { algorithms: ['HS256'] })).not.toThrow()
+        expect(() => jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] })).toThrow('invalid signature')
     }, TEST_TIMEOUT_MS)
 })
 
