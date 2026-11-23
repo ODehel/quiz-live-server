@@ -106,14 +106,11 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
             const unknownFields = violations
                 .filter(v => v.keyword === 'additionalProperties')
                 .map(v => v.params.additionalProperty);
-            if (unknownFields.length > 0) {
-                return reply.status(400).send({
-                    status: 400,
-                    error: 'UNKNOWN_FIELDS',
-                    message: `Unknown field(s): ${unknownFields.join(', ')}.`
-                });
-            }
-            return reply.send(request.validationError);
+            return reply.status(400).send({
+                status: 400,
+                error: 'UNKNOWN_FIELDS',
+                message: `Unknown field(s): ${unknownFields.join(', ')}.`
+            });
         }
         const nullField = fields.find(({ name }) => isNull(name));
         if (nullField) {
