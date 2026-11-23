@@ -27,6 +27,15 @@
 > **9 solides** : CA-4 (repli `localhost:<PORT>`) passe de partiel à solide, prouvé sur processus
 > réel depuis le `test(startup)` du 2026-11-23 (#211) ; Total : 105 CA, ~90 solides. Les six mutants
 > cités dans la section ont été rejoués par cette session puis annulés ; aucun code ni test n'a changé.
+> **Réalignement du 2026-11-23 (`docs(specs)`, HEAD `833c78b`)** : périmètre réduit à **une limite
+> dite de la section US-001 du §2 (CA-4)** : le repli avec `PORT` absente est désormais prouvé sur
+> processus réel par le `test(startup)` du 2026-11-23 (#213) ; la limite est réécrite (saut nommé
+> quand 3000 est tenu, course entre la sonde et le lancement), avec le bloc « Mise à jour » de
+> la section, la note de la ligne US-001 du §1 et le §0. **Non réalignés** : toutes les autres
+> limites dites (dont celle de `dotenv` et des guillemets, toujours vraie), les autres US, les
+> dettes du §3 et le §4 (le décompte des CA ne change pas). Sept des huit mutants cités par #213
+> ont été rejoués par cette session sur le test seul puis annulés, tous tués ; aucun code ni test
+> n'a changé.
 > Les parties **US-004 et US-009** (leurs lignes du §1 et leurs sections du §2)
 > **restent celles du relevé daté (HEAD `5407e38`) et ne sont pas réalignées par cette
 > session** : plusieurs de leurs cellules sont connues périmées (US-004 CA-19, CA-30 et CA-35 :
@@ -49,10 +58,11 @@
 
 ## 0. Portée et faits de départ
 
-- **HEAD hub audité** : `ef7a221` — `test(seed): prove BCRYPT_COST written in a .env file is read and checked on the real process (#166)` (`main`, 2026-11-20). Il vaut pour le §0, la partie US-002, les dettes A à E, G et H et le §4. **La partie US-003 et les cellules d'US-003 des dettes C à H sont au HEAD `ed6bd31`** — `docs(specs): correct the rate limit in the US-003 diagrams (#202)` (`main`, 2026-11-22). **La partie US-001 est au HEAD `319d443`** — `test(startup): prove the localhost fallback of the startup message on the real hub (#211)` (`main`, 2026-11-23). Les autres parties gardent leur date : US-004 et US-009 au HEAD `5407e38`.
+- **HEAD hub audité** : `ef7a221` — `test(seed): prove BCRYPT_COST written in a .env file is read and checked on the real process (#166)` (`main`, 2026-11-20). Il vaut pour le §0, la partie US-002, les dettes A à E, G et H et le §4. **La partie US-003 et les cellules d'US-003 des dettes C à H sont au HEAD `ed6bd31`** — `docs(specs): correct the rate limit in the US-003 diagrams (#202)` (`main`, 2026-11-22). **La partie US-001 est au HEAD `319d443`** — `test(startup): prove the localhost fallback of the startup message on the real hub (#211)` (`main`, 2026-11-23) ; **seule sa limite dite du repli avec `PORT` absente (CA-4) est au HEAD `833c78b`** — `test(startup): prove the localhost fallback announces port 3000 when PORT is absent on the real process (#213)` (`main`, 2026-11-23). Les autres parties gardent leur date : US-004 et US-009 au HEAD `5407e38`.
 - **Tests au vert** : à `ef7a221`, sous Node 26.13.1 et sous root, `npx vitest run` donne 40 fichiers, **1201 verts et 22 sautés** (les tests de permissions : 12 de `seed.test.ts` et 10 de `index.test.ts`, sautés en root et sous Windows) ; `npx tsc --noEmit` et `npm run lint` sans erreur (code 0) ; seuils de couverture respectés (94,68 % d'instructions, 97,52 % de branches). Le run de la CI sur ce HEAD (`ubuntu-latest`, hors root, run 44785880839) donne **1223 verts, aucun sauté**. Le relevé daté (184 tests, 24 fichiers) et le réalignement US-001 du 2026-11-18 (1026 tests, 39 fichiers) sont périmés.
   **À `ed6bd31`** (réalignement d'US-003, 2026-11-22), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : `npx vitest run` donne 42 fichiers, **1278 verts et 22 sautés** ; `npx tsc --noEmit` et `npm run lint` sortent en code 0 ; le run de la CI sur ce HEAD (run 45032891184, `push`) est au vert (`verify` : success) ; seuils de couverture : non exécutés par cette session.
   **À `319d443`** (réalignement d'US-001, 2026-11-23), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : `npx vitest run` donne 42 fichiers, **1320 verts et 22 sautés** ; `npx tsc --noEmit` et `npx eslint src` sortent en code 0 ; le run de la CI sur ce HEAD (run 45141148244, `push`) est au vert ; seuils de couverture : non exécutés par cette session.
+  **À `833c78b`** (réalignement de la limite du repli avec `PORT` absente, 2026-11-23), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : `npm ci` échoue ici à la compilation de better-sqlite3, installé par `npm ci --ignore-scripts` ; `npx vitest run` donne 42 fichiers, **1321 verts et 22 sautés** (3000 libre ici : le test de #213 s'est exécuté) ; `npx tsc --noEmit` et `npx eslint src` sortent en code 0 ; le run de la CI sur ce HEAD (run 45147313264, `push`) est au vert ; seuils de couverture : non exécutés par cette session.
 - **US auditées par ce fichier** : US-001, US-002, US-003, US-004, US-009 (les seules « prétendument faites » au relevé daté). Les US livrées depuis ne sont pas auditées ici.
 - **US-005 à US-008** : le relevé daté les disait « absentes du code ET du git log » (~148 CA jamais implémentés). **C'est faux aujourd'hui pour US-005 seule.**
   - **US-005 existe** : `POST`, `GET /`, `GET /:id`, `PUT` et `DELETE` de `/api/v1/questions` (`questions/question-route.ts`), son service et son repository ; au moins 48 des 55 CA de la spec ont un test dont le titre cite `US-005/CA-n` (comptage par déclaration ; il ne voit pas un second CA cité sans préfixe d'US, comme dans `CA-20 and CA-41`). **Elle n'est pas auditée par ce fichier** : aucune confrontation CA par CA, aucun jugement sur la solidité de ses assertions.
@@ -81,7 +91,8 @@ Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18), puis mise 
 `test(startup)` des permissions et de `EACCES`, puis après le `test(startup)` de `JWT_SECRET`
 et du `.env`, puis après celui de la création des tables du fichier de zéro octet (2026-11-18),
 puis réalignée au HEAD `319d443` (2026-11-23) : CA-4 solide depuis le `test(startup)` du repli sur
-le hub réel (#211).
+le hub réel (#211), puis au HEAD `833c78b` (2026-11-23) : la limite du repli avec `PORT` absente
+est levée par le `test(startup)` #213 (décompte inchangé : 9 CA, 9 solides).
 Ligne US-002 réalignée sur le réel au HEAD `ef7a221` (2026-11-20) : la spec comptait neuf CA (le
 relevé daté en comptait cinq), dont CA-5, CA de couverture alors compté solide au sens du seuil
 global ; CA-5 est retiré de la spec le 2026-11-21 (décision #54, #183) : **huit CA** depuis,
@@ -137,6 +148,12 @@ comportement cassé en production réelle.
 > #211)** : un test de plus dans `index.test.ts`, qui ne se saute pas (1320 verts et 22 sautés, 42
 > fichiers, sous Node 22.23.5 et sous root ; la CI du HEAD est au vert). CA-4 passe en solide : plus
 > aucun CA partiel dans US-001. Aucun code de production n'a changé.
+>
+> **Mise à jour après le `test(startup)` du repli de CA-4 avec `PORT` absente (2026-11-23, HEAD
+> `833c78b`, #213)** : un test de plus dans `index.test.ts` (1321 verts et 22 sautés, 42 fichiers,
+> sous Node 22.23.5 et sous root). La limite dite de CA-4 (repli avec `PORT` absente non prouvé
+> sur processus réel) est levée ; restent le saut nommé quand 3000 est tenu et la course entre la
+> sonde et le lancement. Le décompte des CA ne change pas (9 solides).
 
 - **Solides (9)** :
   - **CA-1** (démarre, écoute sur `0.0.0.0`, prérequis `JWT_SECRET`) : démarrage,
@@ -239,9 +256,16 @@ comportement cassé en production réelle.
     tués : port figé à `3000`, port retiré, repli sur `console.error`, filtre IPv4 retiré (l'IPv6
     serait choisie), filtre `internal` retiré (`127.0.0.1` choisi), repli sur `127.0.0.1` ; tous
     restaurés. **Limite dite** : le repli avec `PORT` absente (exemple du CDC, non normatif,
-    `http://localhost:3000`) n'est pas prouvé sur processus réel : il s'écrit une fois que le hub
-    écoute et un autre fichier de test peut tenir 3000 ; le défaut 3000 est prouvé par le test du
-    CA-5 et la composition du message avec le port configuré par celui-ci (dette `DEBTS.md`).
+    `http://localhost:3000`) est prouvé sur processus réel depuis le `test(startup)` du 2026-11-23
+    (#213, CA-4 combiné à CA-5, `index.test.ts`) : même module préchargé, `PORT` retirée de
+    l'environnement, le hub écoute sur 3000 et écrit une seule fois `localhost:3000` sur la
+    sortie standard, rien de `localhost` sur la sortie d'erreur. Ce qui reste vrai : le test
+    **se saute avec un nom explicite** quand une sonde préalable (`defaultPortSkipReason`) trouve
+    3000 tenu ou impossible à ouvrir sur la machine, il ne s'exécute alors pas ; et une **course**
+    reste possible entre la sonde et le lancement du hub (un autre processus qui prendrait 3000
+    entre les deux ferait échouer le test, le code n'a pas de garde contre cela). Le mutant « port
+    du repli figé à `3000` » survit à ce test seul (équivalent pour `PORT` absente) ; il est tué
+    par le test du CA-4 à port libre autre que 3000 (dette `DEBTS.md`).
 - **Notes d'architecture** :
   - `index.ts` est à **0 % de couverture** v8 (comme `os-network.ts` et
     `system-clock.ts`) parce que le processus enfant n'est pas instrumenté, pas parce
