@@ -6,7 +6,7 @@ import { OwaspPasswordValidator } from './users/owasp-password-validator';
 import { ProcessEnvironment } from './common/process-environment';
 import Database from 'better-sqlite3';
 
-// Everything runs inside the promise, in the order of US-002: SQLITE_DB_PATH (ProcessEnvironment), then the opening of the database
+// Everything runs inside the promise, in the order of US-002: SQLITE_DB_PATH (ProcessEnvironment; MAX_REQUESTS_PER_MINUTE is never read here, US-002/CA-10), then the opening of the database
 // and its first statement (the table created by the repository constructor), then the table, the passwords and BCRYPT_COST (SeedUsers).
 // A single failure, whichever the step, leaves through the one catch below.
 async function seed(): Promise<void> {

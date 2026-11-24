@@ -34,6 +34,7 @@ import { SqliteQuestionRepository } from './questions/sqlite-question-repository
 import Database from 'better-sqlite3';
 import { JwtSettings, readJwtSettings } from './authentication/jwt-settings';
 import { readPort } from './common/read-port';
+import { readMaxRequestsPerMinute } from './common/read-max-requests-per-minute';
 
 function exitWithStartupFailure(error: unknown): never {
     console.error("Server starting failed: " + (error instanceof Error ? error.message : String(error)));
@@ -46,6 +47,7 @@ function exitWithStartupFailure(error: unknown): never {
 function createServer(): QuizServer {
     const jwtSettings: JwtSettings = readJwtSettings(process.env);
     const port: number = readPort(process.env);
+    const maxRequestsPerMinute: number = readMaxRequestsPerMinute(process.env);
     const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
     const database = new Database(processEnvironment.sqliteDbPath);
     const userRepository = new SqliteUserRepository(database);
@@ -57,14 +59,14 @@ function createServer(): QuizServer {
         clock: clock,
         network: new OsNetwork(),
         port: port,
-        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
+        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute }) }
     };
 
     const hasher = new BcryptHasher();
     const tokenRouteConfiguration: TokenRouteConfiguration = {
         authenticationService: new JwtAuthenticationService(userRepository, hasher),
         tokenGenerator: new JwtGenerator(jwtSettings.secret, jwtSettings.expiration),
-        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
+        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute }) }
     };
     const themeRouteConfiguration: ThemeRouteConfiguration = {
         themeService: new DefaultThemeService(clock, new Uuidv7Generator(), themeRepository),
@@ -72,7 +74,7 @@ function createServer(): QuizServer {
         tokenValidator: new JwtValidator(jwtSettings.secret),
         tokenDecoder: new JwtDecoder(),
         middleware: authenticationMiddleware,
-        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
+        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute }) }
     };
     const wsRouteConfiguration: WsRouteConfiguration = {
         tokenValidator: new JwtValidator(jwtSettings.secret),
@@ -90,7 +92,7 @@ function createServer(): QuizServer {
         tokenValidator: new JwtValidator(jwtSettings.secret),
         questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), questionRepository, new ThemeRepositoryExistenceChecker(themeRepository), new UuidFormatValidator()),
         middleware: authenticationMiddleware,
-        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: processEnvironment.maxRequestsPerMinute }) }
+        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute }) }
     };
     return new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration, questionRouteConfiguration);
 }

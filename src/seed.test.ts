@@ -1086,3 +1086,132 @@ describe('seed: read-only database', () => {
         }, TEST_TIMEOUT_MS)
     })
 })
+
+// US-002/CA-10 and decision #95 on the real process: the seed ignores MAX_REQUESTS_PER_MINUTE, whatever its value. It must succeed or fail exactly as
+// if the variable did not exist, so every run is compared with the run of the same scenario without the variable (same exit code, same outputs,
+// same files and accounts), never with a message written here: a refusal of another cause keeps its own text, which the reference run provides.
+// Each run starts from an empty working directory, so that the reference and the run under test see the same state. The refusal of the hub
+// (US-003/CA-21, decision #94) is proved by index.test.ts and process-environment.test.ts: it is not the seed's.
+describe('seed: MAX_REQUESTS_PER_MINUTE is ignored', () => {
+    const VARIABLE = 'MAX_REQUESTS_PER_MINUTE'
+    type Run = { status: number | null; stdout: string; stderr: string; files: string[]; accounts: number | undefined }
+
+    function emptyWorkDirectory(): void {
+        readdirSync(workDirectory).forEach(name => rmSync(join(workDirectory, name), { recursive: true, force: true }))
+    }
+
+    // The number of accounts of quiz.db, or undefined when there is no usable database there (refused before its creation, or not a SQLite file).
+    function accountsOf(databasePath: string): number | undefined {
+        try {
+            return countAccounts(databasePath)
+        } catch {
+            return undefined
+        }
+    }
+
+    interface Scenario {
+        label: string
+        prepare: () => string | undefined
+        overrides: Record<string, string | undefined>
+        // A first seed run before the scenario, so that the table already holds accounts (CA-7).
+        populated?: boolean
+    }
+
+    function run(scenario: Scenario, extra: Record<string, string | undefined>, envFile?: string): Run {
+        emptyWorkDirectory()
+        if (scenario.populated) seed(join(workDirectory, 'quiz.db'))
+        const databasePath = scenario.prepare()
+        if (envFile !== undefined) writeFileSync(join(workDirectory, '.env'), envFile)
+        const result = seed(databasePath, { ...scenario.overrides, ...extra })
+        return { ...result, files: readdirSync(workDirectory).sort(), accounts: accountsOf(join(workDirectory, 'quiz.db')) }
+    }
+
+    const quizDatabase = () => join(workDirectory, 'quiz.db')
+    const SUCCESS: Scenario = { label: 'a seed that succeeds (CA-1)', prepare: quizDatabase, overrides: {} }
+    const BLANK_PATH: Scenario = { label: 'a SQLITE_DB_PATH made of blanks (CA-8)', prepare: () => ' ', overrides: {} }
+    const OTHER_CAUSES: Scenario[] = [
+        { label: 'a table that already holds accounts (CA-7)', prepare: quizDatabase, overrides: {}, populated: true },
+        BLANK_PATH,
+        { label: 'a password that is too short (CA-4)', prepare: quizDatabase, overrides: { SEED_PASSWORD_ADMIN: 'short' } },
+        { label: 'a BCRYPT_COST that is invalid (CA-6)', prepare: quizDatabase, overrides: { BCRYPT_COST: 'abc' } },
+        { label: 'a database that is a text file (CA-9)', prepare: () => { const file = quizDatabase(); writeFileSync(file, TEXT); return file }, overrides: {} }
+    ]
+    const VALUES: Array<[string, string]> = [
+        ['abc', 'abc'], ['an empty string', ''], ['a space', ' '], ['blanks of several kinds', '  \t'], ['0', '0'], ['2147483648, one over the maximum', '2147483648'],
+        ['1.5', '1.5'], ['-1', '-1'], ['5, a valid value', '5'], ['100, the default of the hub', '100']
+    ]
+
+    it('US-002/CA-10 the reference run of a successful seed, without the variable, creates the eleven accounts', () => {
+        const reference = run(SUCCESS, {})
+
+        expectCreatedSeed(reference)
+        expect(reference.accounts).toBe(11)
+    }, TEST_TIMEOUT_MS)
+
+    it.each(VALUES)('US-002/CA-10 a seed that succeeds does the same with MAX_REQUESTS_PER_MINUTE %s: same outputs, exit code 0, eleven accounts', (_name, value) => {
+        const reference = run(SUCCESS, {})
+
+        const withValue = run(SUCCESS, { [VARIABLE]: value })
+
+        expect(withValue).toEqual(reference)
+        expect(withValue.accounts).toBe(11)
+        expect(withValue.stderr).not.toContain(VARIABLE)
+    }, TEST_TIMEOUT_MS)
+
+    describe.each(OTHER_CAUSES)('with $label', (scenario) => {
+        it.each([['abc', 'abc'], ['an empty string', ''], ['2147483648, one over the maximum', '2147483648'], ['5, a valid value', '5']])('US-002/CA-10 gives the same outcome with MAX_REQUESTS_PER_MINUTE %s as without it, and never names the variable', (_name, value) => {
+            const reference = run(scenario, {})
+
+            const withValue = run(scenario, { [VARIABLE]: value })
+
+            expect(withValue).toEqual(reference)
+            expect(withValue.stdout + withValue.stderr).not.toContain(VARIABLE)
+        }, TEST_TIMEOUT_MS)
+    })
+
+    it.each(OTHER_CAUSES)('US-002/CA-10 the reference run of $label has an outcome of its own, not a success of the first run', (scenario) => {
+        const reference = run(scenario, {})
+        const success = run(SUCCESS, {})
+
+        expect(reference.stdout + '|' + reference.stderr + '|' + reference.status).not.toBe(success.stdout + '|' + success.stderr + '|' + success.status)
+    }, TEST_TIMEOUT_MS)
+
+    // The value written in a .env file reaches the process through `dotenv`, as for the hub. The real environment does not carry the variable here.
+    it.each([
+        ['abc', 'abc'], ['an empty string', ''], ['blanks between quotes', '"   "'], ['0', '0'], ['2147483648, one over the maximum', '2147483648'], ['5, a valid value', '5']
+    ])('US-002/CA-10 a seed that succeeds does the same with a MAX_REQUESTS_PER_MINUTE of %s written in a .env file', (_name, line) => {
+        const reference = run(SUCCESS, {})
+
+        const withValue = run(SUCCESS, {}, `${VARIABLE}=${line}\n`)
+
+        expect(withValue.status).toBe(reference.status)
+        expect(withValue.stdout).toBe(reference.stdout)
+        expect(withValue.stderr).toBe(reference.stderr)
+        expect(withValue.files).toEqual([...reference.files, '.env'].sort())
+        expect(withValue.accounts).toBe(11)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-002/CA-10 a refusal of another cause keeps its message with MAX_REQUESTS_PER_MINUTE=abc written in a .env file', () => {
+        const reference = run(BLANK_PATH, {})
+
+        const withValue = run(BLANK_PATH, {}, `${VARIABLE}=abc\n`)
+
+        expect(reference.status).toBe(1)
+        expect(reference.stderr).toContain(REFUSAL)
+        expect(withValue.status).toBe(reference.status)
+        expect(withValue.stdout).toBe(reference.stdout)
+        expect(withValue.stderr).toBe(reference.stderr)
+        expect(withValue.files).toEqual(['.env'])
+    }, TEST_TIMEOUT_MS)
+
+    it('US-002/CA-10 the real environment prevails over the .env file, and neither changes the outcome', () => {
+        const reference = run(SUCCESS, {})
+
+        const withValue = run(SUCCESS, { [VARIABLE]: 'abc' }, `${VARIABLE}=5\n`)
+
+        expect(withValue.status).toBe(reference.status)
+        expect(withValue.stdout).toBe(reference.stdout)
+        expect(withValue.stderr).toBe(reference.stderr)
+        expect(withValue.accounts).toBe(11)
+    }, TEST_TIMEOUT_MS)
+})
