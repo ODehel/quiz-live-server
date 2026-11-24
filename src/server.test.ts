@@ -939,6 +939,44 @@ describe('US-003/CA-16 (decisions #90 and #93) - A method other than POST on the
 	})
 });
 
+describe('US-003/CA-16 (decision #93) - HEAD on the token route answers 405 whatever the body on the assembled server', () => {
+	let server: QuizServer
+	beforeEach(() => {
+		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+	})
+	it.each([
+		['an invalid JSON body', '{bad'],
+		['an empty body', ''],
+		['a valid JSON body', '{"username":"u","password":"p"}']
+	])('answers 405 with Allow: POST, never the native 400, with application/json and %s', async (_label, payload) => {
+		await server.start()
+		const response = await server.inject({ method: 'HEAD', url: '/api/v1/token', headers: { 'content-type': 'application/json' }, payload })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('POST')
+	})
+	it('answers 405 with Allow: POST without a body and without a Content-Type', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'HEAD', url: '/api/v1/token' })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('POST')
+	})
+	it.each([['text/plain'], ['application/xml'], ['application/json; charset=latin1']])('answers 405, never 415, with an invalid JSON body and the Content-Type %s', async (contentType) => {
+		await server.start()
+		const response = await server.inject({ method: 'HEAD', url: '/api/v1/token', headers: { 'content-type': contentType }, payload: '{bad' })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('POST')
+	})
+	it('answers 405 with an invalid JSON body and a query string', async () => {
+		await server.start()
+		const response = await server.inject({ method: 'HEAD', url: '/api/v1/token?x=1', headers: { 'content-type': 'application/json' }, payload: '{bad' })
+		expect(response.statusCode).toBe(405)
+		expect(response.headers['allow']).toBe('POST')
+	})
+	afterEach(async () => {
+		await server.stop()
+	})
+});
+
 describe('US-005/CA-53 - US-004/CA-35 (decision #92) - An unsupported method on a protected route answers 401, 403 or 405 whatever the body on the assembled server', () => {
 	let server: QuizServer
 	beforeEach(() => {
