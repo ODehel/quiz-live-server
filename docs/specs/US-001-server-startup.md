@@ -20,7 +20,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-1 | Le serveur démarre sans erreur avec `npm start`, l'environnement requis étant renseigné | Le serveur démarre et reste en écoute sans erreur, sur toutes les interfaces IPv4 (`0.0.0.0`) et non sur le seul loopback (décision #51). Prérequis : `JWT_SECRET` (32 caractères minimum, sans défaut) doit être renseignée ; absente, vide ou trop courte, `npm start` refuse de démarrer ([US-003](US-003-authentication-token.md), CA-19), et ce contrôle passe avant ceux de `PORT` (CA-7) et de la base (CA-9, CA-10). Les autres variables du hub ont un défaut : voir le tableau des variables des [Conventions techniques](../shared/CONVENTIONS-TECHNIQUES.md) |
+| CA-1 | Le serveur démarre sans erreur avec `npm start`, l'environnement requis étant renseigné | Le serveur démarre et reste en écoute sans erreur, sur toutes les interfaces IPv4 (`0.0.0.0`) et non sur le seul loopback (décision #51). Prérequis : `JWT_SECRET` (32 caractères minimum, sans défaut) doit être renseignée ; absente, vide ou trop courte, `npm start` refuse de démarrer ([US-003](US-003-authentication-token.md), CA-19), et ce contrôle passe avant ceux de `PORT` (CA-7), de `MAX_REQUESTS_PER_MINUTE` ([US-003](US-003-authentication-token.md), CA-21) et de la base (CA-9, CA-10). Les autres variables du hub ont un défaut : voir le tableau des variables des [Conventions techniques](../shared/CONVENTIONS-TECHNIQUES.md) |
 | CA-2 | La console affiche l'heure de lancement au format `HH:mm:ss` | L'heure est l'heure locale de la machine, pas l'UTC (décision #47). Sortie standard (décision #50). Normatif : le format `HH:mm:ss`. Ex, non normatif : `🚀 Server started at 14:32:07` (décision #53) |
 | CA-3 | La console affiche la première adresse IPv4 locale non-loopback trouvée et le port d'écoute | Sortie standard (décision #50). Normatifs : l'adresse IPv4 et le port. Ex, non normatif : `📡 Listening on http://192.168.1.42:3000` (décision #53) |
 | CA-4 | Si aucune interface réseau IPv4 non-loopback n'est trouvée, un message de fallback est affiché | Le message de repli affiche `localhost:<PORT>`, le `PORT` configuré (CA-5) et pas toujours `3000`. Sortie standard (décision #50). Normatif : `localhost` et le port. Ex, non normatif, avec `PORT` absente : `⚠️ No network interface found, listening on http://localhost:3000` (décision #53) |
@@ -63,7 +63,7 @@ Ex : `Server starting failed: PORT must be an integer between 1 and 65535.`
 
 **Zéros en tête.** Ils sont acceptés : `08080` vaut 8080 et le serveur écoute sur le port 8080 ; `00`, qui vaut 0, est refusé (décision #46).
 
-**Ordre des contrôles.** Quand `PORT` et les variables `JWT_*` ([US-003](US-003-authentication-token.md), CA-19 et CA-20) sont invalides ensemble, une seule erreur est rapportée : celle des variables `JWT_*` d'abord, et le refus vaut dans les deux cas, avec le code de sortie `1` (décision #49). Le contrôle de `SQLITE_DB_PATH` (CA-10) et l'ouverture de la base de données (CA-9) passent après ces deux contrôles (décisions #55 et #57).
+**Ordre des contrôles.** Quand `PORT` et les variables `JWT_*` ([US-003](US-003-authentication-token.md), CA-19 et CA-20) sont invalides ensemble, une seule erreur est rapportée : celle des variables `JWT_*` d'abord, et le refus vaut dans les deux cas, avec le code de sortie `1` (décision #49). Le contrôle de `MAX_REQUESTS_PER_MINUTE` (US-003, CA-21) passe après celui de `PORT` (décision #94), puis viennent le contrôle de `SQLITE_DB_PATH` (CA-10) et l'ouverture de la base de données (CA-9) (décisions #55, #57 et #94).
 
 ### CA-9 — Base non ouvrable ou non SQLite
 
@@ -73,7 +73,7 @@ Ex, non normatif : `Server starting failed: Cannot open database because the dir
 
 **Moment de l'erreur.** L'erreur d'un fichier qui n'est pas une base SQLite peut survenir après l'ouverture du fichier, à la première instruction adressée à la base : elle compte, et le refus vaut, tant qu'elle précède la mise en écoute (décision #56).
 
-**Ordre des contrôles.** Quand `JWT_*`, `PORT` et la base posent problème ensemble, une seule erreur est rapportée : celle des variables `JWT_*` d'abord, puis celle de `PORT`, puis celle de la base, c'est-à-dire d'abord le contrôle de `SQLITE_DB_PATH` (CA-10), puis l'ouverture (décisions #49, #55, #56 et #57).
+**Ordre des contrôles.** Quand `JWT_*`, `PORT`, `MAX_REQUESTS_PER_MINUTE` et la base posent problème ensemble, une seule erreur est rapportée : celle des variables `JWT_*` d'abord, puis celle de `PORT`, puis celle de `MAX_REQUESTS_PER_MINUTE` ([US-003](US-003-authentication-token.md), CA-21), puis celle de la base, c'est-à-dire d'abord le contrôle de `SQLITE_DB_PATH` (CA-10), puis l'ouverture (décisions #49, #55, #56, #57 et #94).
 
 **Cas qui ne sont pas des erreurs :**
 
@@ -123,7 +123,7 @@ Tout autre caractère n'est pas un blanc, même s'il est invisible : l'espace de
 
 **Origine de la valeur** (décision #71, constat reporté). La règle porte sur la valeur telle que le processus la reçoit, qu'elle vienne de l'environnement réel ou d'un `.env`. Le `.env` est lu par la bibliothèque `dotenv` (17.4.0 au 2026-11-19) et c'est la valeur qu'elle produit qui est contrôlée : le CDC n'ajoute aucune règle d'écriture du `.env`. Constaté le 2026-11-19 (sonde hors dépôt, sur le processus réel du hub) : (a) **valeur non quotée** : la bibliothèque retire les blancs qui la bordent, donc une valeur non quotée faite de blancs seuls (espaces, tabulations, U+3000) est lue vide et refusée comme la chaîne vide ; les blancs intérieurs sont conservés (`my data.db` désigne le fichier `my data.db`) ; un ` #` non quoté commence un commentaire et coupe la valeur (`real.db # note` est lu `real.db`) ; (b) **valeur entre guillemets** (`"`, `'` ou `` ` ``) : la bibliothèque garde tout ce qui est entre les guillemets, blancs de bordure compris, puis la règle de lecture ci-dessus s'applique (`"   "` est refusée comme blancs seuls ; `"  padded.db  "` désigne `padded.db` ; `" :memory: "` désigne `:memory:`) ; (c) `:memory:` non quotée est acceptée, comme dans l'environnement réel ; (d) U+200B seul, non quoté, n'est pas un blanc et est accepté. Ces constats dépendent de la bibliothèque et de sa version : le CDC ne les prescrit pas, et une mise à jour de `dotenv` qui les changerait serait un changement de comportement à constater de nouveau.
 
-**Ordre des contrôles.** Ce contrôle prend place dans l'étape « base de données », après ceux des variables `JWT_*` et de `PORT` et avant l'ouverture de la base (CA-9) : quand `JWT_*`, `PORT` et `SQLITE_DB_PATH` posent problème ensemble, une seule erreur est rapportée, dans cet ordre, avec le code de sortie `1` (décisions #49, #55, #57, #60 et #61).
+**Ordre des contrôles.** Ce contrôle prend place dans l'étape « base de données », après ceux des variables `JWT_*`, de `PORT` et de `MAX_REQUESTS_PER_MINUTE` ([US-003](US-003-authentication-token.md), CA-21) et avant l'ouverture de la base (CA-9) : quand `JWT_*`, `PORT`, `MAX_REQUESTS_PER_MINUTE` et `SQLITE_DB_PATH` posent problème ensemble, une seule erreur est rapportée, dans cet ordre, avec le code de sortie `1` (décisions #49, #55, #57, #60, #61 et #94).
 
 **Seed.** Le seed (`npm run seed`) lit la même variable et applique la même règle, chaîne vide, blancs seuls et blancs de bordure compris, avant l'ouverture de la base ([US-002](US-002-seed-users.md), CA-8, décisions #59, #60 et #61).
 
@@ -177,7 +177,7 @@ Le hub n'a pas de script `dev` : `npm start` est son seul script de lancement (d
 | Démarrage du serveur HTTP | Communication WebSocket (US dédiée) |
 | Affichage heure + IP au démarrage | Logique métier de quiz |
 | Configuration du port via variable d'environnement (et fichier `.env`) | Interface Angular |
-| Refus de démarrer : `PORT` invalide (CA-7), écoute impossible (CA-8), base de données non ouvrable ou fichier qui n'est pas une base SQLite (CA-9), `SQLITE_DB_PATH` définie mais vide ou faite uniquement de blancs (CA-10) | Intégration avec les buzzers |
+| Refus de démarrer : `PORT` invalide (CA-7), `MAX_REQUESTS_PER_MINUTE` invalide (US-003 CA-21), écoute impossible (CA-8), base de données non ouvrable ou fichier qui n'est pas une base SQLite (CA-9), `SQLITE_DB_PATH` définie mais vide ou faite uniquement de blancs (CA-10) | Intégration avec les buzzers |
 | Base en mémoire (`SQLITE_DB_PATH=:memory:`) : le hub démarre, rien n'est persisté (CA-10) | Déploiement / CI-CD |
 
 ---

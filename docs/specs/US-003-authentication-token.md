@@ -79,7 +79,7 @@ Le corps est le corps standard à trois champs (`status`, `error`, `message`). E
 
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-13 | Le endpoint `/token` est limité à 100 requêtes par minute **par adresse IP** | Dépassement → `429 RATE_LIMIT_EXCEEDED` avec header `Retry-After: 60` |
+| CA-13 | Le endpoint `/token` est limité à 100 requêtes par minute **par adresse IP** | Dépassement → `429 RATE_LIMIT_EXCEEDED` avec header `Retry-After: 60`. Le plafond est la variable `MAX_REQUESTS_PER_MINUTE`, `100` quand elle est absente ; définie mais invalide, le hub refuse de démarrer (CA-21) |
 
 ### Logging
 
@@ -114,6 +114,40 @@ Le corps est le corps standard à trois champs (`status`, `error`, `message`). E
 |---|---|---|
 | CA-19 | `JWT_SECRET` est absent, vide ou de moins de 32 caractères | `npm start` refuse de démarrer : le serveur n'écoute sur aucun port, le processus se termine avec le code de sortie `1`, et la console affiche un message qui nomme `JWT_SECRET` et la règle (32 caractères minimum) sans reprendre la valeur. Ex : `Server starting failed: JWT_SECRET is required and must contain at least 32 characters.` |
 | CA-20 | `JWT_EXPIRATION` est renseignée mais n'est pas un entier strictement positif écrit en chiffres seulement (`abc`, `3600s`, `1.5`, `1e3`, `0`, `-5`, ` 3600`) | Même refus de démarrer qu'au CA-19, avec un message qui nomme `JWT_EXPIRATION` et la règle (entier strictement positif, en secondes). Absente ou vide, la variable vaut `3600` (CA-4). Aucune borne haute n'est imposée : toute durée entière strictement positive est acceptée (décision #42) |
+| CA-21 | `MAX_REQUESTS_PER_MINUTE` est définie mais n'est pas un entier de 1 à 2147483647 écrit en chiffres ASCII seulement, sans signe, sans espace ni tabulation, sans préfixe ni séparateur (règle complète et valeurs refusées : [CA-21 en détail](#ca-21--max_requests_per_minute-invalide)) | `npm start` refuse de démarrer : le serveur n'écoute sur aucun port, le processus se termine avec le code de sortie `1`, et la console affiche, sur la sortie d'erreur, un message qui nomme `MAX_REQUESTS_PER_MINUTE` et la règle sans reprendre la valeur. Absente, la variable vaut `100` (CA-13). Exemple de message, chaîne vide, zéros en tête et ordre des contrôles : [CA-21 en détail](#ca-21--max_requests_per_minute-invalide) |
+
+### CA-21 — `MAX_REQUESTS_PER_MINUTE` invalide
+
+> **Note du 2026-11-24 (décision #94)** — CA-21 est ajouté. Le numéro libre suivant est 21 : CA-18 est retiré (voir la note du 2026-11-22 plus haut) et la numérotation des autres CA n'est pas modifiée.
+
+**Règle.** `MAX_REQUESTS_PER_MINUTE` est définie mais n'est pas un entier de 1 à 2147483647 (le maximum d'un entier signé de 32 bits) écrit en chiffres seulement, c'est-à-dire en chiffres ASCII de `0` à `9`, sans signe, sans espace ni tabulation, sans préfixe ni séparateur. Absente, la variable vaut `100` (CA-13).
+
+**Valeurs refusées** (exemples) :
+
+- la chaîne vide
+- `abc`
+- `8080abc`
+- `1.5`
+- `1e3`
+- `0`
+- `-1`
+- `+5`
+- ` 5` (espace en tête)
+- `5 ` (espace en fin)
+- une valeur faite uniquement de blancs (espaces, tabulation)
+- `2147483648`
+
+**Refus.** `npm start` refuse de démarrer : le serveur n'écoute sur aucun port, le processus se termine avec le code de sortie `1`, et la console affiche un message qui nomme `MAX_REQUESTS_PER_MINUTE` et la règle (entier de 1 à 2147483647 écrit en chiffres seulement) sans reprendre la valeur. Le message sort sur la sortie d'erreur (décision #50), avec le préfixe que le hub affiche pour tout échec de démarrage.
+
+Ex, non normatif : `Server starting failed: MAX_REQUESTS_PER_MINUTE must be an integer between 1 and 2147483647, written with digits only.` (décision #94).
+
+**Chaîne vide et blancs seuls.** Comme `PORT` ([US-001](US-001-server-startup.md) CA-7) et à la différence de `JWT_EXPIRATION` (CA-20) et de `BCRYPT_COST` ([US-002](US-002-seed-users.md) CA-6), une chaîne vide est refusée et ne vaut pas absente. Une valeur faite uniquement de blancs est refusée par la règle de forme, comme tout blanc de bordure : aucun blanc n'est ignoré, à la différence de `SQLITE_DB_PATH` (US-001 CA-10). Le `MAX_REQUESTS_PER_MINUTE=` vide d'un fichier `.env` est refusé comme toute chaîne vide (décision #52).
+
+**Zéros en tête.** Ils sont acceptés : `0100` vaut 100 ; `00`, qui vaut 0, est refusé (comme `PORT`, décision #46).
+
+**Ordre des contrôles.** Quand plusieurs variables du hub sont invalides ensemble, une seule erreur est rapportée, dans cet ordre : les variables `JWT_*` (CA-19, CA-20), puis `PORT` ([US-001](US-001-server-startup.md), CA-7), puis `MAX_REQUESTS_PER_MINUTE`, puis la base de données (`SQLITE_DB_PATH`, CA-10, puis l'ouverture, CA-9). Le refus vaut dans tous les cas, avec le code de sortie `1` (décision #94).
+
+**Portée.** Cette règle est celle du hub (`npm start`). Le seed n'utilise pas cette variable ; ce qu'il fait d'une valeur invalide n'est pas décidé (décision #94).
 
 > **Note :** Les critères relatifs au seed des comptes utilisateurs (`npm run seed`) ont été extraits vers la **[US-002 — Seed des comptes utilisateurs](US-002-seed-users.md)**.
 
@@ -174,7 +208,7 @@ Voir [US-002 — Seed des comptes utilisateurs](US-002-seed-users.md) pour la li
 | `JWT_SECRET` | Secret de signature JWT (min 32 caractères) | ✅ Oui | — |
 | `JWT_EXPIRATION` | Durée de validité du token en secondes | Non | `3600` |
 
-Tableau d'ensemble de toutes les variables du hub : [Conventions techniques — Variables d'environnement](../shared/CONVENTIONS-TECHNIQUES.md#-variables-denvironnement) (décision #39). `JWT_SECRET` est obligatoire et n'a pas de défaut. Le hub contrôle les deux variables au démarrage, avant d'écouter sur le port, et refuse de démarrer quand elles ne respectent pas leur règle (CA-19, CA-20, décision #40) : jamais au premier token.
+Tableau d'ensemble de toutes les variables du hub : [Conventions techniques — Variables d'environnement](../shared/CONVENTIONS-TECHNIQUES.md#-variables-denvironnement) (décision #39). `JWT_SECRET` est obligatoire et n'a pas de défaut. Le hub contrôle les deux variables au démarrage, avant d'écouter sur le port, et refuse de démarrer quand elles ne respectent pas leur règle (CA-19, CA-20, décision #40) : jamais au premier token. Il fait de même pour `MAX_REQUESTS_PER_MINUTE`, qui fixe le plafond du CA-13 et n'est pas dans ce tableau (CA-21, décision #94).
 
 ### Versioning API
 
@@ -301,7 +335,7 @@ Voir [US-002 — Seed des comptes utilisateurs](US-002-seed-users.md) pour le sc
 | Table `T_USER_USR` et schéma | Endpoint de création de comptes utilisateurs |
 | Hachage bcrypt des mots de passe | Seed des comptes (→ **US-002**) |
 | Logs de connexion, succès et échecs (contenu et niveau ; format → **US-022**) | Changement de mot de passe (US dédiée) |
-| Rate limiting spécifique 100 req/min par IP | Déconnexion (gérée côté client) |
+| Rate limiting spécifique 100 req/min par IP (plafond `MAX_REQUESTS_PER_MINUTE`, valeur invalide refusée au démarrage, CA-21) | Déconnexion (gérée côté client) |
 | Gestion complète des erreurs | Authentification WebSocket (US dédiée) |
 | Middlewares `authenticate` et `authorize` (réutilisables) | CRUD des utilisateurs |
 | | Interface Angular de connexion |
