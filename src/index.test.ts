@@ -868,6 +868,101 @@ describe('hub startup: JWT_EXPIRATION', () => {
     }, TEST_TIMEOUT_MS)
 })
 
+// US-003/CA-21 and decision #94 on the real process. The rule is proved by read-max-requests-per-minute.test.ts and the order inside
+// ProcessEnvironment by process-environment.test.ts; here we prove that index.ts applies both. A value in a .env file is not covered (debt).
+// Every refusal leaves the working directory empty: no database file was created, so the check came before the opening of the database.
+const MAX_REQUESTS_PER_MINUTE_REFUSAL = 'Server starting failed: MAX_REQUESTS_PER_MINUTE must be an integer between 1 and 2147483647, written with digits only.'
+
+describe('hub startup: MAX_REQUESTS_PER_MINUTE', () => {
+    it.each(['', 'abc', '8080abc', '1.5', '1e3', '0', '-1', '+5', ' 5', '5 ', '  \t', '2147483648'])('US-003/CA-21 refuses to start when MAX_REQUESTS_PER_MINUTE is %j: exit code 1, the message on the error output, nothing listens, no database created', async (invalid) => {
+        const port = await freePort()
+        const hub = startHub(String(port), { MAX_REQUESTS_PER_MINUTE: invalid })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toContain(MAX_REQUESTS_PER_MINUTE_REFUSAL)
+        expect(hub.errors().match(/Server starting failed:/g)).toHaveLength(1)
+        expect(hub.errors()).not.toMatch(STACK_TRACE)
+        expect(hub.standardOutput()).not.toContain('MAX_REQUESTS_PER_MINUTE')
+        expect(hub.console()).not.toContain('Server started')
+        expect(hub.console()).not.toContain('Listening on')
+        expect(await canConnect(port)).toBe(false)
+        expect(readdirSync(workDirectory)).toEqual([])
+    }, TEST_TIMEOUT_MS)
+
+    it.each(['abc', '8080abc', '1.5', '1e3', '-1', '+5', '2147483648'])('US-003/CA-21 does not repeat the invalid MAX_REQUESTS_PER_MINUTE %j in the console', async (invalid) => {
+        const hub = startHub(String(await freePort()), { MAX_REQUESTS_PER_MINUTE: invalid })
+
+        await exitOf(hub)
+
+        expect(hub.console()).not.toContain(invalid)
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['absent', undefined],
+        ['the lowest ceiling, 1', '1'],
+        ['written with leading zeros', '0100'],
+        ['the highest ceiling, 2147483647', '2147483647']
+    ] as const)('US-003/CA-21 starts and listens when MAX_REQUESTS_PER_MINUTE is %s', async (_name, valid) => {
+        const port = await freePort()
+        const hub = startHub(String(port), { MAX_REQUESTS_PER_MINUTE: valid })
+
+        await waitUntilListening(hub, port)
+
+        expect(hub.errors()).not.toContain('MAX_REQUESTS_PER_MINUTE')
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['JWT_SECRET', { JWT_SECRET: 'short' }],
+        ['JWT_EXPIRATION', { JWT_EXPIRATION: 'abc' }]
+    ] as const)('US-003/CA-21 reports only the %s error, with exit code 1, when MAX_REQUESTS_PER_MINUTE is invalid too', async (variable, overrides) => {
+        const hub = startHub(String(await freePort()), { ...overrides, MAX_REQUESTS_PER_MINUTE: 'abc' })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toContain(variable)
+        expect(hub.errors()).not.toContain('MAX_REQUESTS_PER_MINUTE')
+        expect(hub.errors().match(/Server starting failed:/g)).toHaveLength(1)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-21 reports only the PORT error, with exit code 1, when MAX_REQUESTS_PER_MINUTE is invalid too', async () => {
+        const hub = startHub('abc', { MAX_REQUESTS_PER_MINUTE: 'abc' })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toMatch(/^Server starting failed: PORT /m)
+        expect(hub.errors()).not.toContain('MAX_REQUESTS_PER_MINUTE')
+        expect(hub.errors().match(/Server starting failed:/g)).toHaveLength(1)
+    }, TEST_TIMEOUT_MS)
+
+    it.each([
+        ['empty', ''],
+        ['a directory that does not exist', join('no-such-directory', 'hub.db')]
+    ] as const)('US-003/CA-21 reports only the MAX_REQUESTS_PER_MINUTE error, with exit code 1, when SQLITE_DB_PATH is %s too', async (_name, databasePath) => {
+        const hub = startHub(String(await freePort()), { MAX_REQUESTS_PER_MINUTE: 'abc', SQLITE_DB_PATH: databasePath })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toContain(MAX_REQUESTS_PER_MINUTE_REFUSAL)
+        expect(hub.errors()).not.toContain('SQLITE_DB_PATH')
+        expect(hub.errors().match(/Server starting failed:/g)).toHaveLength(1)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-001/CA-10 still reports SQLITE_DB_PATH when MAX_REQUESTS_PER_MINUTE is valid', async () => {
+        const hub = startHub(String(await freePort()), { MAX_REQUESTS_PER_MINUTE: '5', SQLITE_DB_PATH: '' })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toContain(SQLITE_DB_PATH_REFUSAL)
+        expect(hub.errors()).not.toContain('MAX_REQUESTS_PER_MINUTE')
+    }, TEST_TIMEOUT_MS)
+})
+
 // US-001/CA-1, US-003/CA-19 and decision #76 on the real process: `.env.example` copied to `.env` without any edit is refused by the hub,
 // because JWT_SECRET has no value. The wording after the prefix is not normative (US-003 CA-19 gives an example): the tests fix the prefix,
 // the name of the variable, the exit code, the empty standard output and that nothing listens. env-example.test.ts proves the content of the

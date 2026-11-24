@@ -40,7 +40,7 @@ function exitWithStartupFailure(error: unknown): never {
     process.exit(1);
 }
 
-// Every check and every use of the database happens here, in the order of US-001 (JWT_*, PORT, SQLITE_DB_PATH, then the database),
+// Every check and every use of the database happens here, in the order of US-003/CA-21 (JWT_*, PORT, MAX_REQUESTS_PER_MINUTE, SQLITE_DB_PATH, then the database),
 // so that a single failure, whichever the step, leaves through exitWithStartupFailure. The first statement addressed to the database
 // is the creation of a table in a repository constructor: an error of a file that is not a SQLite database comes from there.
 function createServer(): QuizServer {
