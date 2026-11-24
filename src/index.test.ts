@@ -1376,27 +1376,39 @@ describe('hub token (token_type and JWT_SECRET)', () => {
     }, TEST_TIMEOUT_MS)
 })
 
-// US-003/CA-13 on the real process: without MAX_REQUESTS_PER_MINUTE, the real hub lets 100 requests of a minute through
-// `POST /api/v1/token` from one address and refuses the 101st with the standard 429. The rule and the standard body are proved
-// by token-route.test.ts and rate-limit-middleware.test.ts with a low limit injected; here we prove that index.ts wires the
-// default of 100 (ProcessEnvironment) to the token route. The content of the first 100 answers is not asserted, only the absence of 429.
+// US-003/CA-13 on the real process: the real hub lets the limit of requests of a minute through `POST /api/v1/token` from one
+// address and refuses the next one with the standard 429. The rule and the standard body are proved by token-route.test.ts and
+// rate-limit-middleware.test.ts with a low limit injected; here we prove that index.ts wires the limit of the environment of
+// the hub (ProcessEnvironment) to the token route: 100 by default, the value of MAX_REQUESTS_PER_MINUTE when it is written in
+// the environment of the process. The content of the answers under the limit is not asserted, only the absence of 429.
+// Out of scope: an invalid value (empty, 0, not a number: the CDC is silent), a value written in a .env file, trustProxy.
 describe('hub token rate limit (MAX_REQUESTS_PER_MINUTE)', () => {
-    it('US-003/CA-13 answers the 101st POST /api/v1/token of a minute from the same address with 429 RATE_LIMIT_EXCEEDED and Retry-After 60 when MAX_REQUESTS_PER_MINUTE is absent', async () => {
+    async function startTokenHub(overrides: Record<string, string | undefined>): Promise<() => Promise<Response>> {
         const databasePath = join(workDirectory, 'hub.db')
         seedAccounts(databasePath)
         const port = await freePort()
-        const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath, MAX_REQUESTS_PER_MINUTE: undefined })
+        const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath, ...overrides })
         await waitUntilListening(hub, port)
-        const requestToken = () => fetch('http://127.0.0.1:' + port + '/api/v1/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'admin', password: 'an-admin-password-1' }) })
+        return () => fetch('http://127.0.0.1:' + port + '/api/v1/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'admin', password: 'an-admin-password-1' }) })
+    }
 
+    async function expectRefusedAfter(limit: number, requestToken: () => Promise<Response>): Promise<void> {
         const statusCodes: number[] = []
-        for (let i = 0; i < 100; i++) statusCodes.push((await requestToken()).status)
+        for (let i = 0; i < limit; i++) statusCodes.push((await requestToken()).status)
         const refused = await requestToken()
 
-        expect(statusCodes).toHaveLength(100)
+        expect(statusCodes).toHaveLength(limit)
         expect(statusCodes).not.toContain(429)
         expect(refused.status).toBe(429)
         expect(refused.headers.get('retry-after')).toBe('60')
         expect(await refused.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' })
+    }
+
+    it('US-003/CA-13 answers the 101st POST /api/v1/token of a minute from the same address with 429 RATE_LIMIT_EXCEEDED and Retry-After 60 when MAX_REQUESTS_PER_MINUTE is absent', async () => {
+        await expectRefusedAfter(100, await startTokenHub({ MAX_REQUESTS_PER_MINUTE: undefined }))
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-13 answers the 4th POST /api/v1/token of a minute from the same address with 429 RATE_LIMIT_EXCEEDED and Retry-After 60 when MAX_REQUESTS_PER_MINUTE is 3 in the real environment', async () => {
+        await expectRefusedAfter(3, await startTokenHub({ MAX_REQUESTS_PER_MINUTE: '3' }))
     }, TEST_TIMEOUT_MS)
 })
