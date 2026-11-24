@@ -147,7 +147,7 @@ Ex, non normatif : `Server starting failed: MAX_REQUESTS_PER_MINUTE must be an i
 
 **Ordre des contrôles.** Quand plusieurs variables du hub sont invalides ensemble, une seule erreur est rapportée, dans cet ordre : les variables `JWT_*` (CA-19, CA-20), puis `PORT` ([US-001](US-001-server-startup.md), CA-7), puis `MAX_REQUESTS_PER_MINUTE`, puis la base de données (`SQLITE_DB_PATH`, CA-10, puis l'ouverture, CA-9). Le refus vaut dans tous les cas, avec le code de sortie `1` (décision #94).
 
-**Portée.** Cette règle est celle du hub (`npm start`). Le seed n'utilise pas cette variable ; ce qu'il fait d'une valeur invalide n'est pas décidé (décision #94).
+**Portée.** Cette règle est celle du hub (`npm start`). Le seed n'utilise pas cette variable et l'ignore, comme il ignore `JWT_SECRET` et `JWT_EXPIRATION` (CA-19) : quelle que soit sa valeur (absente, valide, vide, blancs seuls, invalide), elle n'a aucun effet sur lui, qui réussit ou échoue comme si elle n'existait pas ([US-002](US-002-seed-users.md) CA-10, décisions #94 et #95).
 
 > **Note :** Les critères relatifs au seed des comptes utilisateurs (`npm run seed`) ont été extraits vers la **[US-002 — Seed des comptes utilisateurs](US-002-seed-users.md)**.
 
