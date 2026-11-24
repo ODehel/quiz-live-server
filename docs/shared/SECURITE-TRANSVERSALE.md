@@ -103,6 +103,10 @@ Une route **publique** (`/api/v1/token`, US-003 CA-16) n'a ni `401` ni `403` : e
 
 **Le corps n'est jamais jugé sur une méthode non supportée** (décision #92, qui étend la décision #90 à toutes les routes protégées) — l'ordre des contrôles d'une méthode non supportée est : authentification (`401`), rôle (`403`), puis `405` avec `Allow` (le `429` s'applique comme dit ci-dessus). Le corps de la requête (JSON invalide, vide, `Content-Type` non conforme ou `charset` autre qu'`utf-8`, ou valide sans effet) n'est jamais jugé : il ne produit ni `400` ni `415`, et ne change ni le `401`, ni le `403`, ni le `405`. Un `400 INVALID_JSON` ou un `415` ne se rend que sur une méthode supportée par la ressource.
 
+**`HEAD` et `OPTIONS` sur `/api/v1/token`** (décision #93) — la route publique suit la même règle que toute méthode autre que `POST` (US-003 CA-16, décision #90) : `HEAD` et `OPTIONS`, avec ou sans corps (JSON invalide, vide ou valide), répondent `405 METHOD_NOT_ALLOWED` avec `Allow: POST`, jamais le `400` natif de Fastify.
+
+**URL à segment vide** (décision #93) — sur une ressource à identifiant (`/api/v1/themes/`, `/api/v1/questions/`, et toute route `/:id` future), un segment vide est un `:id` vide, traité comme un `:id` mal formé : méthode supportée par la route `/:id` → `400 INVALID_UUID` ; méthode non supportée → `401`, `403` ou `405` avec le header `Allow` de la route `/:id`, dans l'ordre de la décision #92. Ce n'est pas la collection : `/api/v1/themes/` et `/api/v1/themes` sont deux URL différentes.
+
 **Format de la réponse `405 METHOD_NOT_ALLOWED` :**
 
 ```json

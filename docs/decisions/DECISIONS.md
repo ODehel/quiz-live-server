@@ -1466,3 +1466,27 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - Écart code/CDC : `PATCH` et `OPTIONS` avec un corps JSON invalide ou vide répondent `400` natif au lieu de `401`, `403` ou `405` sur `themes/` et `questions/` (le `PATCH` des questions n'existe pas encore, US-007, et suivra la règle). Dette dans `DEBTS.md`, soldée par un `fix` puis ses tests, sur le serveur assemblé.
 - `HEAD` est déjà conforme à la sonde ; `HEAD` et `OPTIONS` avec un corps sur `/api/v1/token` restent non décidés (hors périmètre, dette conservée).
 - À challenger : (a) la sonde porte sur Linux, Node 22, `better-sqlite3` non compilé, comme #90 ; (b) `POST`, `PUT` et `DELETE` supportés avec un corps JSON invalide répondent aussi le `400` natif sur `themes/` et `questions/` : CA propres à chaque US, hors de #92 (dette `INVALID_JSON`, non sondée) ; (c) l'URL à segment vide (`PATCH /api/v1/themes/`) reste muette dans le CDC ; (d) « corps jamais jugé » est étendu aux autres méthodes non listées (`TRACE`, `CONNECT`, méthodes inconnues) par le principe, non sondées.
+
+---
+
+## #93 — `HEAD` et `OPTIONS` sur `/api/v1/token` répondent `405` sans juger le corps ; un segment vide est un `:id` vide jugé comme un `:id` mal formé
+
+*`docs(specs): specify the HEAD and OPTIONS answers of the token route and the empty-segment URL` — US-003 (CA-16), US-004 (CA-35), US-005 (CA-53), `SECURITE-TRANSVERSALE.md` (annexe CA-MethodNotAllowed). Précise #90 et #92 ; les décisions #1 à #92 ne sont pas modifiées.*
+
+**Contexte.** #90 pose « toute méthode autre que `POST` » sur `/api/v1/token` : `405`, `Allow: POST`, corps jamais jugé ; #32 pose que `HEAD` n'est jamais supporté. #90 notait pourtant que `HEAD` et `OPTIONS` n'étaient pas sondés avec un corps. En réel (lecture de `routes/not-found-route.ts`) : le hook `onRequest` ne traite que `GET`, `POST`, `PUT`, `PATCH`, `DELETE` sur une URL publique, donc `OPTIONS` + `{bad` répond le `400` natif (constat du handoff du 2026-11-23, test témoin). Pour l'URL à segment vide, les CDC sont muets ; le catalogue de routes transforme déjà `:id` en `[^/]*`, et une sonde jetable sur Fastify seul (hors dépôt) montre que `GET /api/v1/themes/` correspond à la route `themes/:id` avec `id = ""`.
+
+**Décision.** Toutes sur choix d'Olivier (2026-11-23, trois questions, option recommandée à chacune) :
+1. **Token** : lecture littérale de #90. `HEAD` et `OPTIONS` sur `/api/v1/token`, avec ou sans corps (JSON invalide, vide ou valide), répondent `405 METHOD_NOT_ALLOWED`, `Allow: POST`. Pas de décision propre à `OPTIONS` : l'écart du réel est un écart code/CDC, pas un trou de CDC.
+2. **Segment vide** : sur une ressource à identifiant, un segment vide est un `:id` vide, jugé comme un `:id` mal formé (#30). Méthode supportée par la route `/:id` : `400 INVALID_UUID`. Méthode non supportée : `401`, `403` ou `405` avec le `Allow` de la route `/:id`, dans l'ordre de #92. Ce n'est pas la collection.
+3. **Forme** : comme #92. Une note sur CA-16 (US-003), CA-35 (US-004) et CA-53 (US-005), deux paragraphes dans `SECURITE-TRANSVERSALE.md`. Aucun CA n'est ajouté, retiré ni renuméroté.
+
+**Alternatives écartées.**
+- **Décision propre à `OPTIONS` (ex. `204`)** : écartée, contredit #32 et #90 sans bénéfice.
+- **Segment vide = la collection** : écartée, demande un changement de routage et contredit le réel.
+- **Segment vide = route inconnue (`404`)** : écartée, demande un changement de routage et une règle de plus à tester.
+- **Nouveaux CA dédiés** : écartée, comme pour #90 et #92.
+
+**Conséquences.**
+- **Aucun CA n'est ajouté, retiré ni renuméroté.** Aucun code ni test ne change dans cette session.
+- Écart code/CDC : `OPTIONS` + corps invalide sur le token répond le `400` natif. Dette dans `DEBTS.md`, soldée par un `fix(errors)` puis ses tests ; le test témoin de `server.test.ts` (qui épingle le `400` natif) devra être inversé.
+- À challenger : (a) `HEAD` du token avec un corps non sondé sur le hub réel (Fastify ne lit pas le corps d'un `HEAD`, supposé) ; (b) `GET`, `PUT`, `DELETE` à segment vide non sondés sur le hub réel, seulement sur Fastify seul ; (c) `/api/v1/themes//` (deux segments vides) reste muet ; (d) `docs/shared/SECURITE-TRANSVERSALE.md` est une copie partagée : les autres dépôts devront la recevoir (à vérifier) ; (e) la sonde porte sur Linux et Node 22.
