@@ -9,12 +9,10 @@ const seedPasswordVariables = [
 describe("environment variables test", () => {
     beforeEach(() => {
         process.env.SQLITE_DB_PATH = "./simple_path";
-        process.env.MAX_REQUESTS_PER_MINUTE = "5";
     });
     it("should provide environment values", () => {
         const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
         expect(processEnvironment.sqliteDbPath).toBe("./simple_path");
-        expect(processEnvironment.maxRequestsPerMinute).toBe(5);
     });
     it("US-001/CA-10 and US-002/CA-8 should refuse SQLITE_DB_PATH defined but empty, instead of treating it as absent", () => {
         process.env.SQLITE_DB_PATH = "";
@@ -32,29 +30,20 @@ describe("environment variables test", () => {
         delete process.env.SQLITE_DB_PATH;
         expect(new ProcessEnvironment().sqliteDbPath).toBe("quiz.db");
     });
-    it("US-003/CA-13 should provide 100 when MAX_REQUESTS_PER_MINUTE is not set", () => {
-        delete process.env.MAX_REQUESTS_PER_MINUTE;
-        expect(new ProcessEnvironment().maxRequestsPerMinute).toBe(100);
-    });
-    it("US-003/CA-21 should provide a MAX_REQUESTS_PER_MINUTE written with leading zeros", () => {
-        process.env.MAX_REQUESTS_PER_MINUTE = "0100";
-        expect(new ProcessEnvironment().maxRequestsPerMinute).toBe(100);
-    });
-    it.each(["", "abc", "8080abc", "1.5", "1e3", "0", "-1", "+5", " 5", "5 ", "  \t", "2147483648"])("US-003/CA-21 should refuse MAX_REQUESTS_PER_MINUTE %j", (invalid) => {
-        process.env.MAX_REQUESTS_PER_MINUTE = invalid;
-        expect(() => new ProcessEnvironment()).toThrow("MAX_REQUESTS_PER_MINUTE must be an integer between 1 and 2147483647, written with digits only.");
-    });
-    it("US-003/CA-21 should not repeat the invalid MAX_REQUESTS_PER_MINUTE in the message", () => {
-        process.env.MAX_REQUESTS_PER_MINUTE = "secret-value";
-        expect(() => new ProcessEnvironment()).toThrow(/^(?!.*secret-value).*MAX_REQUESTS_PER_MINUTE.*$/);
-    });
-    it("US-003/CA-21 and US-001/CA-10 should report MAX_REQUESTS_PER_MINUTE before SQLITE_DB_PATH when both are invalid", () => {
-        process.env.MAX_REQUESTS_PER_MINUTE = "abc";
-        process.env.SQLITE_DB_PATH = "";
-        expect(() => new ProcessEnvironment()).toThrow(/^MAX_REQUESTS_PER_MINUTE /);
-    });
-    it("US-001/CA-10 should still report SQLITE_DB_PATH when MAX_REQUESTS_PER_MINUTE is valid", () => {
+    it("should not hold MAX_REQUESTS_PER_MINUTE, which only the hub start reads", () => {
         process.env.MAX_REQUESTS_PER_MINUTE = "5";
+        expect(new ProcessEnvironment()).not.toHaveProperty("maxRequestsPerMinute");
+    });
+    it.each(["", "abc", "8080abc", "1.5", "1e3", "0", "-1", "+5", " 5", "5 ", "  \t", "2147483648", "5"])("US-002/CA-10 should not refuse the seed whatever MAX_REQUESTS_PER_MINUTE is: %j", (value) => {
+        process.env.MAX_REQUESTS_PER_MINUTE = value;
+        expect(() => new ProcessEnvironment()).not.toThrow();
+    });
+    it("US-002/CA-10 should provide the same path whatever MAX_REQUESTS_PER_MINUTE is", () => {
+        process.env.MAX_REQUESTS_PER_MINUTE = "abc";
+        expect(new ProcessEnvironment().sqliteDbPath).toBe("./simple_path");
+    });
+    it("US-001/CA-10 should report SQLITE_DB_PATH when it is empty, whatever MAX_REQUESTS_PER_MINUTE is", () => {
+        process.env.MAX_REQUESTS_PER_MINUTE = "abc";
         process.env.SQLITE_DB_PATH = "";
         expect(() => new ProcessEnvironment()).toThrow(/^SQLITE_DB_PATH /);
     });

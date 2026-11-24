@@ -868,8 +868,8 @@ describe('hub startup: JWT_EXPIRATION', () => {
     }, TEST_TIMEOUT_MS)
 })
 
-// US-003/CA-21 and decision #94 on the real process. The rule is proved by read-max-requests-per-minute.test.ts and the order inside
-// ProcessEnvironment by process-environment.test.ts; here we prove that index.ts applies both. A value in a .env file is not covered (debt).
+// US-003/CA-21 and decision #94 on the real process. The rule is proved by read-max-requests-per-minute.test.ts; here we prove that index.ts applies it, and in the
+// order of the decision (JWT_*, PORT, MAX_REQUESTS_PER_MINUTE, then the database). A value in a .env file is not covered (debt).
 // Every refusal leaves the working directory empty: no database file was created, so the check came before the opening of the database.
 const MAX_REQUESTS_PER_MINUTE_REFUSAL = 'Server starting failed: MAX_REQUESTS_PER_MINUTE must be an integer between 1 and 2147483647, written with digits only.'
 
