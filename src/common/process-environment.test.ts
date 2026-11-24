@@ -32,6 +32,32 @@ describe("environment variables test", () => {
         delete process.env.SQLITE_DB_PATH;
         expect(new ProcessEnvironment().sqliteDbPath).toBe("quiz.db");
     });
+    it("US-003/CA-13 should provide 100 when MAX_REQUESTS_PER_MINUTE is not set", () => {
+        delete process.env.MAX_REQUESTS_PER_MINUTE;
+        expect(new ProcessEnvironment().maxRequestsPerMinute).toBe(100);
+    });
+    it("US-003/CA-21 should provide a MAX_REQUESTS_PER_MINUTE written with leading zeros", () => {
+        process.env.MAX_REQUESTS_PER_MINUTE = "0100";
+        expect(new ProcessEnvironment().maxRequestsPerMinute).toBe(100);
+    });
+    it.each(["", "abc", "8080abc", "1.5", "1e3", "0", "-1", "+5", " 5", "5 ", "  \t", "2147483648"])("US-003/CA-21 should refuse MAX_REQUESTS_PER_MINUTE %j", (invalid) => {
+        process.env.MAX_REQUESTS_PER_MINUTE = invalid;
+        expect(() => new ProcessEnvironment()).toThrow("MAX_REQUESTS_PER_MINUTE must be an integer between 1 and 2147483647, written with digits only.");
+    });
+    it("US-003/CA-21 should not repeat the invalid MAX_REQUESTS_PER_MINUTE in the message", () => {
+        process.env.MAX_REQUESTS_PER_MINUTE = "secret-value";
+        expect(() => new ProcessEnvironment()).toThrow(/^(?!.*secret-value).*MAX_REQUESTS_PER_MINUTE.*$/);
+    });
+    it("US-003/CA-21 and US-001/CA-10 should report MAX_REQUESTS_PER_MINUTE before SQLITE_DB_PATH when both are invalid", () => {
+        process.env.MAX_REQUESTS_PER_MINUTE = "abc";
+        process.env.SQLITE_DB_PATH = "";
+        expect(() => new ProcessEnvironment()).toThrow(/^MAX_REQUESTS_PER_MINUTE /);
+    });
+    it("US-001/CA-10 should still report SQLITE_DB_PATH when MAX_REQUESTS_PER_MINUTE is valid", () => {
+        process.env.MAX_REQUESTS_PER_MINUTE = "5";
+        process.env.SQLITE_DB_PATH = "";
+        expect(() => new ProcessEnvironment()).toThrow(/^SQLITE_DB_PATH /);
+    });
     it("should not hold the JWT settings, which only the hub start reads", () => {
         const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
         expect(processEnvironment).not.toHaveProperty("jwtSecretKey");
