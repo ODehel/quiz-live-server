@@ -864,7 +864,7 @@ describe('US-005/CA-53 - US-004/CA-35 - US-003/CA-16 (decisions #31 to #33) - An
 	})
 });
 
-describe('US-003/CA-16 (decision #90) - A method other than POST on the token route answers 405 whatever the body on the assembled server', () => {
+describe('US-003/CA-16 (decisions #90 and #93) - A method other than POST on the token route answers 405 whatever the body on the assembled server', () => {
 	let server: QuizServer
 	const standardBody = (method: string) => ({ status: 405, error: 'METHOD_NOT_ALLOWED', message: `HTTP method ${method} is not allowed on this resource.` })
 	const bodies = [
@@ -872,7 +872,7 @@ describe('US-003/CA-16 (decision #90) - A method other than POST on the token ro
 		['an empty body', ''],
 		['a valid JSON body', '{"username":"u","password":"p"}']
 	]
-	const methods = ['PUT', 'DELETE', 'PATCH'] as const
+	const methods = ['PUT', 'DELETE', 'PATCH', 'OPTIONS'] as const
 	beforeEach(() => {
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
 	})
@@ -898,7 +898,7 @@ describe('US-003/CA-16 (decision #90) - A method other than POST on the token ro
 			expect(response.headers['allow']).toBe('POST')
 		})
 	})
-	it('counts a 405 with an invalid JSON body in the rate limit and answers 429 once the limit is passed', async () => {
+	it.each(['PUT', 'OPTIONS'] as const)('counts a 405 of a %s with an invalid JSON body in the rate limit and answers 429 once the limit is passed', async (method) => {
 		const limitedConfiguration: QuizServerConfiguration = {
 			...mockQuizServerConfiguration,
 			rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: 2 }) }
@@ -906,7 +906,7 @@ describe('US-003/CA-16 (decision #90) - A method other than POST on the token ro
 		const limitedServer = new QuizServer(limitedConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
 		await limitedServer.start()
 		try {
-			const send = () => limitedServer.inject({ method: 'PUT', url: '/api/v1/token', headers: { 'content-type': 'application/json' }, payload: '{bad' })
+			const send = () => limitedServer.inject({ method, url: '/api/v1/token', headers: { 'content-type': 'application/json' }, payload: '{bad' })
 			const first = await send()
 			const second = await send()
 			const third = await send()
@@ -928,11 +928,6 @@ describe('US-003/CA-16 (decision #90) - A method other than POST on the token ro
 		await server.start()
 		const response = await server.inject({ method: 'POST', url: '/api/v1/token', headers: { 'content-type': 'text/plain' }, payload: 'x' })
 		expect(response.statusCode).toBe(415)
-	})
-	it('keeps the 400 native of an OPTIONS with an invalid JSON body on the token route (decision #92 does not reach the public route, still undecided, control)', async () => {
-		await server.start()
-		const response = await server.inject({ method: 'OPTIONS', url: '/api/v1/token', headers: { 'content-type': 'application/json' }, payload: '{bad' })
-		expect(response.statusCode).toBe(400)
 	})
 	it('keeps the 400 native of a PUT with an invalid JSON body on an unknown route (themes and questions scope not decided, control)', async () => {
 		await server.start()

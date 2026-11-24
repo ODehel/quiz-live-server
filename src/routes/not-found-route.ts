@@ -8,7 +8,7 @@ import { UserRole } from "../users/user-role";
 
 const WRITE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 const SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
-const ANSWERED_BEFORE_BODY_ON_PROTECTED_URLS = [...SUPPORTED_METHODS, 'OPTIONS'];
+const ANSWERED_BEFORE_BODY = [...SUPPORTED_METHODS, 'OPTIONS'];
 
 interface NotFoundRouteOptions {
     rateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
@@ -23,7 +23,7 @@ export default async function notFoundRoute(app: FastifyInstance, options: NotFo
     app.addHook('onRequest', async (request, reply) => {
         const path = pathOf(request);
         const isPublic = options.publicUrls.includes(path);
-        if (!(isPublic ? SUPPORTED_METHODS : ANSWERED_BEFORE_BODY_ON_PROTECTED_URLS).includes(request.method)) {
+        if (!ANSWERED_BEFORE_BODY.includes(request.method)) {
             return;
         }
         const allowedMethods = allowedMethodsFor(options.routeCatalog, path);
