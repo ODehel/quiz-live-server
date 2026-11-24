@@ -1490,3 +1490,45 @@ Sondes du 2026-11-21, hors dépôt (`/tmp/probe_lock`, rien de committé), Linux
 - **Aucun CA n'est ajouté, retiré ni renuméroté.** Aucun code ni test ne change dans cette session.
 - Écart code/CDC : `OPTIONS` + corps invalide sur le token répond le `400` natif. Dette dans `DEBTS.md`, soldée par un `fix(errors)` puis ses tests ; le test témoin de `server.test.ts` (qui épingle le `400` natif) devra être inversé.
 - À challenger : (a) `HEAD` du token avec un corps non sondé sur le hub réel (Fastify ne lit pas le corps d'un `HEAD`, supposé) ; (b) `GET`, `PUT`, `DELETE` à segment vide non sondés sur le hub réel, seulement sur Fastify seul ; (c) `/api/v1/themes//` (deux segments vides) reste muet ; (d) `docs/shared/SECURITE-TRANSVERSALE.md` est une copie partagée : les autres dépôts devront la recevoir (à vérifier) ; (e) la sonde porte sur Linux et Node 22.
+
+## #94 — Une `MAX_REQUESTS_PER_MINUTE` définie qui n'est pas un entier de 1 à 2147483647 empêche le hub de démarrer, la chaîne vide comprise ; ordre des refus : `JWT_*`, `PORT`, `MAX_REQUESTS_PER_MINUTE`, base de données
+
+*`docs(specs): specify the answer to an invalid MAX_REQUESTS_PER_MINUTE` — US-003 (CA-13, nouveau CA-21), US-001 (CA-1, CA-7, CA-9, CA-10, périmètre), tableau des variables de `CONVENTIONS-TECHNIQUES.md`, `SECURITE-TRANSVERSALE.md` (rate limiting). Fait suite à la décision #39, qui ne portait que sur le nom, et à la décision #45 (`PORT`) dont elle reprend la forme ; l'ordre des contrôles des décisions #49, #55, #56, #57, #60 et #61 gagne une étape. Les décisions #1 à #93 ne sont pas modifiées.*
+
+**Contexte.** Le CDC dit le nom (#39), le défaut `100` et ce qui se passe au-delà du plafond (US-003 CA-13, `SECURITE-TRANSVERSALE.md`), mais rien d'une valeur invalide. Le code lit `parseInt(process.env.MAX_REQUESTS_PER_MINUTE ?? "100")` (`common/process-environment.ts`) et passe le résultat à `@fastify/rate-limit` sans contrôle. Sondé le 2026-11-24 (sonde jetable non committée, hors dépôt) : Fastify seul, `@fastify/rate-limit` 10.3.0, Node 22.23.5 (le dépôt exige Node 26), `max` = `parseInt(<valeur>)` comme le code, huit `GET` d'une même adresse dans la minute, via `inject`. Constat, sans décision :
+
+| Valeur | `max` reçu | Réponses des huit requêtes |
+|---|---|---|
+| chaîne vide, `abc` | `NaN` | huit `200` : plus aucune limite, sans erreur ni message |
+| `8080abc` | `8080` | huit `200` (lue comme 8080) |
+| `1.5` | `1` | `200` puis sept `429` (lue comme 1) |
+| `0` | `0` | huit `429` : toute requête refusée, la première comprise |
+| `-1` | `-1` | huit `200` : plus aucune limite |
+| `+5`, ` 5` | `5` | cinq `200` puis `429` (lues comme 5) |
+| `2147483648` | `2147483648` | huit `200` (acceptée comme plafond énorme) |
+
+Une valeur mal écrite fait donc, selon sa forme, soit disparaître la limite sans le dire (vide, non numérique, négatif), soit refuser toutes les requêtes (`0`), soit être lue autrement que ce qui est écrit (`8080abc`, `1.5`, `+5`). Le plugin ne borne pas `max` à 2147483647 : cette borne est un choix, pas une contrainte du plugin. Précédents : `PORT` (US-001 CA-7, #45 et #46), `JWT_EXPIRATION` (US-003 CA-20) et `BCRYPT_COST` (US-002 CA-6).
+
+**Décision.** Toutes sur choix d'Olivier (2026-11-24) :
+1. **Valeur invalide** : toute valeur qui n'est pas un entier compris entre 1 et 2147483647 (maximum d'un entier signé de 32 bits).
+2. **Réaction** : le hub refuse de démarrer, comme pour `PORT` (#45) et `JWT_*` (US-003 CA-19 et CA-20) : le serveur n'écoute sur aucun port, le processus se termine avec le code de sortie `1`, la console affiche un message qui nomme `MAX_REQUESTS_PER_MINUTE` et sa règle et ne reprend jamais la valeur (US-001 CA-7).
+3. **Forme** : chiffres ASCII seulement, sans signe, sans espace ni tabulation, sans préfixe ni séparateur, comme `PORT`, `JWT_EXPIRATION` et `BCRYPT_COST`. Les zéros en tête sont acceptés (`0100` vaut 100). Refusés : `+5`, les espaces ou tabulations, `1.5`, `1e3`, `8080abc`, `0`, les négatifs, `2147483648`.
+4. **Vide** : définie mais vide (`MAX_REQUESTS_PER_MINUTE=`), la valeur est refusée, comme `PORT` et à la différence de `JWT_EXPIRATION`. Absente, la variable vaut `100`, inchangé. Une valeur faite uniquement de blancs est refusée par la règle de forme, comme pour `PORT` : aucun blanc n'est ignoré (à la différence de `SQLITE_DB_PATH`, US-001 CA-10, dont les blancs de bordure sont retirés).
+5. **Message** : il nomme `MAX_REQUESTS_PER_MINUTE` et la règle (entier de 1 à 2147483647 écrit en chiffres seulement), sans la valeur reçue. Le libellé exact est un choix de rédaction (voir Conséquences).
+6. **Ordre des refus de démarrage** (une seule erreur rapportée à la fois) : `JWT_*`, puis `PORT`, puis `MAX_REQUESTS_PER_MINUTE`, puis la base de données (`SQLITE_DB_PATH`, puis l'ouverture).
+
+**Alternatives écartées.**
+- **Repli sur `100` avec un `WARN`** : écartée, le hub tournerait avec un plafond que l'administrateur n'a pas demandé, et un avertissement se perd dans la console.
+- **Repli silencieux sur `100`** : écartée, c'est le défaut actuel sous une autre forme, sans aucun signal.
+- **Forme sans zéro en tête** (`0100` refusée, comme `BCRYPT_COST`) : écartée, `PORT` accepte les zéros en tête et la variable lui ressemble ; `00`, qui vaut 0, reste refusé.
+- **Toute écriture d'entier acceptée, signe `+` et espaces compris** : écartée, c'est la lecture de `parseInt` qui a produit les surprises du constat (`+5`, ` 5`, `8080abc`).
+- **Vide vaut absente** (comme `JWT_EXPIRATION`) : écartée, Olivier veut que `MAX_REQUESTS_PER_MINUTE=` refuse, comme `PORT=`.
+- **Autres positions dans l'ordre** (avant `PORT`, avant `JWT_*`, ou après la base) : écartées. `MAX_REQUESTS_PER_MINUTE` passe après `PORT` : les variables qui décident de l'écoute et des tokens d'abord, puis le plafond, puis tout ce qui touche à la base.
+
+**Conséquences.**
+- **Nouveau CA-21 dans US-003** (numéro libre suivant : CA-18 est retiré, CA-19 et CA-20 existent, aucun CA-21 ne l'était), avec une section de détail sur le modèle du CA-7 d'US-001. CA-13 renvoie au CA-21. Aucun autre CA n'est retiré ni renuméroté. Les passages d'US-001 qui énoncent l'ordre (CA-1, CA-7, CA-9, CA-10, périmètre) et le tableau des variables de `CONVENTIONS-TECHNIQUES.md` sont alignés ; `SECURITE-TRANSVERSALE.md` renvoie à la règle.
+- **Rien n'est codé dans cette session** : aucun code, aucun test. Écart code/CDC jusqu'au `fix(environment)` qui suit, consigné dans `DEBTS.md` : un rouge par règle (vide, non numérique, `8080abc`, décimal, `0`, `2147483648`, `+5`, ` 5`, ordre des refus), smoke test requis puisque le comportement observable change.
+- Choix de Claude, à challenger en revue : le libellé du message est un exemple, `Server starting failed: MAX_REQUESTS_PER_MINUTE must be an integer between 1 and 2147483647, written with digits only.`, aligné sur `PORT must be an integer between 1 and 65535.` et sur `JWT_EXPIRATION must be a strictly positive integer, in seconds.` (le préfixe est celui que le hub affiche déjà) ; la numérotation en CA-21 et la section de détail ; la formulation de la règle de forme reprend celle d'US-001 CA-7 ; la liste des valeurs refusées du CA-21 est celle de la décision, complétée de `5 ` (espace en fin) et des blancs seuls, qui découlent de la règle de forme.
+- Non décidé, inchangé : ce que fait le seed d'une valeur invalide (la règle est écrite pour le hub ; le seed instancie `ProcessEnvironment`, qui lit la variable sans l'utiliser : un contrôle placé dans son constructeur le ferait refuser, ce que le CDC ne dit pas) ; une valeur écrite dans un `.env` du répertoire de travail (non prouvée sur le hub réel, voir `DEBTS.md`) ; `trustProxy` ; le câblage du `429` sur les thèmes et les questions ; `.env.example`, qui ne porte pas cette variable. Les diagrammes d'US-001 et d'US-003 (images) ne montrent pas ce refus.
+- Dans le code, l'ordre `JWT_*`, `PORT`, `SQLITE_DB_PATH` puis la base est déjà celui de `createServer` (`index.ts`) ; `MAX_REQUESTS_PER_MINUTE` est lue dans le constructeur de `ProcessEnvironment`, qui contrôle déjà `SQLITE_DB_PATH` : le `fix(environment)` devra faire passer le contrôle du plafond avant celui de `SQLITE_DB_PATH`.
+- `ETAT-DES-LIEUX-socle-hub.md` (audit daté) cite encore la valeur invalide comme dette non décidée : non touché.
