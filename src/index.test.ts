@@ -1500,6 +1500,32 @@ describe('hub token (token_type and JWT_SECRET)', () => {
     }, TEST_TIMEOUT_MS)
 })
 
+// Shared by the rate limit blocks of the real process (tokens, questions, themes): the requests of one address under the limit are never
+// refused, the next one is refused with the standard 429 and Retry-After 60 (decision #36), body of decision #37.
+async function expectRefusedAfter(limit: number, request: () => Promise<Response>): Promise<void> {
+    const statusCodes: number[] = []
+    for (let i = 0; i < limit; i++) statusCodes.push((await request()).status)
+    const refused = await request()
+
+    expect(statusCodes).toHaveLength(limit)
+    expect(statusCodes).not.toContain(429)
+    expect(refused.status).toBe(429)
+    expect(refused.headers.get('retry-after')).toBe('60')
+    expect(await refused.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' })
+}
+
+// Starts a hub and returns a function that sends one request to a route with a valid admin token, signed with the JWT_SECRET of
+// the hub (no login: independent of the seed and of the counter of the tokens). POST and PUT send `{}`: the status under the limit is not asserted.
+async function startHubRequestingAsAdmin(overrides: Record<string, string | undefined>, route: { method: string, path: string, hasBody: boolean }): Promise<() => Promise<Response>> {
+    const port = await freePort()
+    const hub = startHub(String(port), overrides)
+    await waitUntilListening(hub, port)
+    const token = jwt.sign({ sub: 'an-admin', role: 'admin' }, JWT_SECRET, { algorithm: 'HS256', expiresIn: 3600 })
+    const headers: Record<string, string> = { Authorization: 'Bearer ' + token }
+    if (route.hasBody) headers['Content-Type'] = 'application/json'
+    return () => fetch('http://127.0.0.1:' + port + route.path, { method: route.method, headers, body: route.hasBody ? '{}' : undefined })
+}
+
 // US-003/CA-13 on the real process: the real hub lets the limit of requests of a minute through `POST /api/v1/token` from one
 // address and refuses the next one with the standard 429. The rule and the standard body are proved by token-route.test.ts and
 // rate-limit-middleware.test.ts with a low limit injected; here we prove that index.ts wires the limit of the environment of
@@ -1516,18 +1542,6 @@ describe('hub token rate limit (MAX_REQUESTS_PER_MINUTE)', () => {
         const hub = startHub(String(port), { SQLITE_DB_PATH: databasePath, ...overrides })
         await waitUntilListening(hub, port)
         return () => fetch('http://127.0.0.1:' + port + '/api/v1/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'admin', password: 'an-admin-password-1' }) })
-    }
-
-    async function expectRefusedAfter(limit: number, requestToken: () => Promise<Response>): Promise<void> {
-        const statusCodes: number[] = []
-        for (let i = 0; i < limit; i++) statusCodes.push((await requestToken()).status)
-        const refused = await requestToken()
-
-        expect(statusCodes).toHaveLength(limit)
-        expect(statusCodes).not.toContain(429)
-        expect(refused.status).toBe(429)
-        expect(refused.headers.get('retry-after')).toBe('60')
-        expect(await refused.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' })
     }
 
     it('US-003/CA-13 answers the 101st POST /api/v1/token of a minute from the same address with 429 RATE_LIMIT_EXCEEDED and Retry-After 60 when MAX_REQUESTS_PER_MINUTE is absent', async () => {
@@ -1575,33 +1589,39 @@ describe('hub questions rate limit (MAX_REQUESTS_PER_MINUTE)', () => {
         { name: 'DELETE /api/v1/questions/:id', method: 'DELETE', path: '/api/v1/questions/' + QUESTION_ID, hasBody: false }
     ] as const
 
-    async function startQuestionsHub(overrides: Record<string, string | undefined>, route: (typeof ROUTES)[number]): Promise<() => Promise<Response>> {
-        const port = await freePort()
-        const hub = startHub(String(port), overrides)
-        await waitUntilListening(hub, port)
-        const adminToken = jwt.sign({ sub: 'an-admin', role: 'admin' }, JWT_SECRET, { algorithm: 'HS256', expiresIn: 3600 })
-        const headers: Record<string, string> = { Authorization: 'Bearer ' + adminToken }
-        if (route.hasBody) headers['Content-Type'] = 'application/json'
-        return () => fetch('http://127.0.0.1:' + port + route.path, { method: route.method, headers, body: route.hasBody ? '{}' : undefined })
-    }
-
-    async function expectRefusedAfter(limit: number, request: () => Promise<Response>): Promise<void> {
-        const statusCodes: number[] = []
-        for (let i = 0; i < limit; i++) statusCodes.push((await request()).status)
-        const refused = await request()
-
-        expect(statusCodes).toHaveLength(limit)
-        expect(statusCodes).not.toContain(429)
-        expect(refused.status).toBe(429)
-        expect(refused.headers.get('retry-after')).toBe('60')
-        expect(await refused.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' })
-    }
-
     it.each(ROUTES)('US-005/CA-52 answers the 4th $name of a minute from the same address with 429 RATE_LIMIT_EXCEEDED and Retry-After 60 when MAX_REQUESTS_PER_MINUTE is 3', async (route) => {
-        await expectRefusedAfter(3, await startQuestionsHub({ MAX_REQUESTS_PER_MINUTE: '3' }, route))
+        await expectRefusedAfter(3, await startHubRequestingAsAdmin({ MAX_REQUESTS_PER_MINUTE: '3' }, route))
     }, TEST_TIMEOUT_MS)
 
     it('US-005/CA-52 answers the 101st GET /api/v1/questions of a minute from the same address with 429 RATE_LIMIT_EXCEEDED and Retry-After 60 when MAX_REQUESTS_PER_MINUTE is absent', async () => {
-        await expectRefusedAfter(100, await startQuestionsHub({ MAX_REQUESTS_PER_MINUTE: undefined }, ROUTES[1]))
+        await expectRefusedAfter(100, await startHubRequestingAsAdmin({ MAX_REQUESTS_PER_MINUTE: undefined }, ROUTES[1]))
+    }, TEST_TIMEOUT_MS)
+})
+
+
+// US-004/CA-34 and CA-RateLimit (SECURITE-TRANSVERSALE) on the real process: each of the five routes of the themes lets the limit of
+// requests of a minute through from one address and refuses the next one with the standard 429, Retry-After 60. The rule is proved by
+// theme-route.test.ts with a low limit injected; here we prove that index.ts wires the limit of the environment of the hub to the
+// themes plugin (3 when MAX_REQUESTS_PER_MINUTE is 3, 100 when it is absent). Every route is tested alone, on a fresh hub, so that
+// the refusal can only come from the counter of that route; DELETE lives in a child plugin of the themes plugin and is proved too.
+// The requests carry a valid admin token signed with the JWT_SECRET of the hub, so that the route answers normally under the limit; the
+// status of those answers is not asserted (only the absence of 429). The default (100) is proved on GET /api/v1/themes only (US-003/CA-13).
+// Out of scope: the questions and the tokens (blocks above), an unknown route, trustProxy, and whether the plugins share one counter (the CDC is silent).
+describe('hub themes rate limit (MAX_REQUESTS_PER_MINUTE)', () => {
+    const THEME_ID = '0190f3a2-7b1c-7d4e-8a5f-123456789abc'
+    const ROUTES = [
+        { name: 'POST /api/v1/themes', method: 'POST', path: '/api/v1/themes', hasBody: true },
+        { name: 'GET /api/v1/themes', method: 'GET', path: '/api/v1/themes', hasBody: false },
+        { name: 'GET /api/v1/themes/:id', method: 'GET', path: '/api/v1/themes/' + THEME_ID, hasBody: false },
+        { name: 'PUT /api/v1/themes/:id', method: 'PUT', path: '/api/v1/themes/' + THEME_ID, hasBody: true },
+        { name: 'DELETE /api/v1/themes/:id', method: 'DELETE', path: '/api/v1/themes/' + THEME_ID, hasBody: false }
+    ] as const
+
+    it.each(ROUTES)('US-004/CA-34 answers the 4th $name of a minute from the same address with 429 RATE_LIMIT_EXCEEDED and Retry-After 60 when MAX_REQUESTS_PER_MINUTE is 3', async (route) => {
+        await expectRefusedAfter(3, await startHubRequestingAsAdmin({ MAX_REQUESTS_PER_MINUTE: '3' }, route))
+    }, TEST_TIMEOUT_MS)
+
+    it('US-004/CA-34 answers the 101st GET /api/v1/themes of a minute from the same address with 429 RATE_LIMIT_EXCEEDED and Retry-After 60 when MAX_REQUESTS_PER_MINUTE is absent', async () => {
+        await expectRefusedAfter(100, await startHubRequestingAsAdmin({ MAX_REQUESTS_PER_MINUTE: undefined }, ROUTES[1]))
     }, TEST_TIMEOUT_MS)
 })
