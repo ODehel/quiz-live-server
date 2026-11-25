@@ -869,7 +869,8 @@ describe('hub startup: JWT_EXPIRATION', () => {
 })
 
 // US-003/CA-21 and decision #94 on the real process. The rule is proved by read-max-requests-per-minute.test.ts; here we prove that index.ts applies it, and in the
-// order of the decision (JWT_*, PORT, MAX_REQUESTS_PER_MINUTE, then the database). A value in a .env file is not covered (debt).
+// order of the decision (JWT_*, PORT, MAX_REQUESTS_PER_MINUTE, then the database). An empty value written in a .env file is covered at the end of the block
+// (the value is the one `dotenv` produces, as for PORT: the quotes, blanks and ` #` of a .env are not covered for this variable, the CDC is silent).
 // Every refusal leaves the working directory empty: no database file was created, so the check came before the opening of the database.
 const MAX_REQUESTS_PER_MINUTE_REFUSAL = 'Server starting failed: MAX_REQUESTS_PER_MINUTE must be an integer between 1 and 2147483647, written with digits only.'
 
@@ -950,6 +951,34 @@ describe('hub startup: MAX_REQUESTS_PER_MINUTE', () => {
         expect(hub.errors()).toContain(MAX_REQUESTS_PER_MINUTE_REFUSAL)
         expect(hub.errors()).not.toContain('SQLITE_DB_PATH')
         expect(hub.errors().match(/Server starting failed:/g)).toHaveLength(1)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-21 refuses to start when the .env file has an empty MAX_REQUESTS_PER_MINUTE and the environment has none: exit code 1, the message on the error output, nothing listens, no database created', async () => {
+        writeFileSync(join(workDirectory, '.env'), 'MAX_REQUESTS_PER_MINUTE=\n')
+        const port = await freePort()
+        const hub = startHub(String(port), { MAX_REQUESTS_PER_MINUTE: undefined })
+
+        const exit = await exitOf(hub)
+
+        expect(exit).toEqual({ code: 1, signal: null })
+        expect(hub.errors()).toContain(MAX_REQUESTS_PER_MINUTE_REFUSAL)
+        expect(hub.errors().match(/Server starting failed:/g)).toHaveLength(1)
+        expect(hub.errors()).not.toMatch(STACK_TRACE)
+        expect(hub.standardOutput()).not.toContain('MAX_REQUESTS_PER_MINUTE')
+        expect(hub.console()).not.toContain('Server started')
+        expect(hub.console()).not.toContain('Listening on')
+        expect(await canConnect(port)).toBe(false)
+        expect(readdirSync(workDirectory)).toEqual(['.env'])
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-21 does not read the empty MAX_REQUESTS_PER_MINUTE of the .env file when the real environment has a valid one', async () => {
+        writeFileSync(join(workDirectory, '.env'), 'MAX_REQUESTS_PER_MINUTE=\n')
+        const port = await freePort()
+        const hub = startHub(String(port), { MAX_REQUESTS_PER_MINUTE: '5' })
+
+        await waitUntilListening(hub, port)
+
+        expect(hub.errors()).not.toContain('MAX_REQUESTS_PER_MINUTE')
     }, TEST_TIMEOUT_MS)
 
     it('US-001/CA-10 still reports SQLITE_DB_PATH when MAX_REQUESTS_PER_MINUTE is valid', async () => {
@@ -1476,7 +1505,9 @@ describe('hub token (token_type and JWT_SECRET)', () => {
 // rate-limit-middleware.test.ts with a low limit injected; here we prove that index.ts wires the limit of the environment of
 // the hub (ProcessEnvironment) to the token route: 100 by default, the value of MAX_REQUESTS_PER_MINUTE when it is written in
 // the environment of the process. The content of the answers under the limit is not asserted, only the absence of 429.
-// Out of scope: an invalid value (empty, 0, not a number: the CDC is silent), a value written in a .env file, trustProxy.
+// A value written in a .env file of the working directory (the temporary one here) is applied too, and the real environment wins over it.
+// Out of scope: an invalid value in the real environment (empty, 0, not a number: refused, see the startup block above), the quotes, blanks
+// and ` #` of a .env for this variable (the CDC is silent), trustProxy.
 describe('hub token rate limit (MAX_REQUESTS_PER_MINUTE)', () => {
     async function startTokenHub(overrides: Record<string, string | undefined>): Promise<() => Promise<Response>> {
         const databasePath = join(workDirectory, 'hub.db')
@@ -1504,6 +1535,24 @@ describe('hub token rate limit (MAX_REQUESTS_PER_MINUTE)', () => {
     }, TEST_TIMEOUT_MS)
 
     it('US-003/CA-13 answers the 4th POST /api/v1/token of a minute from the same address with 429 RATE_LIMIT_EXCEEDED and Retry-After 60 when MAX_REQUESTS_PER_MINUTE is 3 in the real environment', async () => {
+        await expectRefusedAfter(3, await startTokenHub({ MAX_REQUESTS_PER_MINUTE: '3' }))
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-13 answers the 4th POST /api/v1/token of a minute from the same address with 429 RATE_LIMIT_EXCEEDED and Retry-After 60 when MAX_REQUESTS_PER_MINUTE is 3 in a .env file and absent from the real environment', async () => {
+        writeFileSync(join(workDirectory, '.env'), 'MAX_REQUESTS_PER_MINUTE=3\n')
+
+        await expectRefusedAfter(3, await startTokenHub({ MAX_REQUESTS_PER_MINUTE: undefined }))
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-13 applies the MAX_REQUESTS_PER_MINUTE of the real environment (3) rather than the one of the .env file (5)', async () => {
+        writeFileSync(join(workDirectory, '.env'), 'MAX_REQUESTS_PER_MINUTE=5\n')
+
+        await expectRefusedAfter(3, await startTokenHub({ MAX_REQUESTS_PER_MINUTE: '3' }))
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-21 applies the MAX_REQUESTS_PER_MINUTE of the real environment (3) when the .env file has an empty one', async () => {
+        writeFileSync(join(workDirectory, '.env'), 'MAX_REQUESTS_PER_MINUTE=\n')
+
         await expectRefusedAfter(3, await startTokenHub({ MAX_REQUESTS_PER_MINUTE: '3' }))
     }, TEST_TIMEOUT_MS)
 })
