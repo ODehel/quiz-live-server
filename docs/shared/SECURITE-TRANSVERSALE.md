@@ -56,8 +56,13 @@ Cette annexe centralise les **critères d'acceptation (CA) de sécurité transve
 | **Limite globale** : max **100 requêtes par minute par adresse IP** | Dépassement → `429 RATE_LIMIT_EXCEEDED` |
 | **Header de réessai** : `Retry-After: 60` (secondes avant la prochaine tentative) | Obligatoire dans la réponse 429 |
 | **La valeur est constante** : toujours `60`, quelle que soit la position de la requête dans la fenêtre (décision #36) | Jamais le temps restant de la fenêtre : un `429` obtenu 3 secondes après le premier répond encore `Retry-After: 60`, pas `57` |
-| La limite s'applique à **toutes les routes** (authentifiées ou non) | Même `/api/v1/token` est limité |
-| Le comptage se fait **par adresse IP source** | Les proxys/load-balancers doivent transmettre `X-Forwarded-For` |
+| La limite s'applique à **toutes les routes** (authentifiées ou non), **route inconnue comprise** (décision #96) | Même `/api/v1/token` est limité ; une URL qui ne correspond à aucune ressource l'est aussi : au-delà de la limite elle répond `429`, jamais `404` |
+| **Un seul compteur commun** par adresse IP pour toute l'API (décision #96) | Les requêtes vers les jetons, les thèmes, les questions, une URL inconnue ou une méthode non supportée se comptent ensemble : un client ne dépasse pas la limite en les répartissant |
+| **Toute requête compte**, quelle que soit sa réponse : `200`, `400`, `401`, `403`, `404`, `405` (décision #96) | Y compris la requête qui est refusée ; une requête compte une seule fois |
+| **Le `429` passe avant tout** : authentification (`401`), rôle (`403`), `405`, `404`, jugement du corps (décision #96) | Une requête au-delà de la limite répond `429` quelle que soit sa nature (token absent, rôle insuffisant, méthode non supportée, URL inconnue) |
+| Le comptage se fait **par adresse IP source** | Les proxys/load-balancers doivent transmettre `X-Forwarded-For` ; l'adresse vue par le hub derrière un proxy (`trustProxy`) n'est pas décidée |
+
+**Non décidé** (décision #96, `DEBTS.md`) : `GET /health` (US-020) et `/ws` (US-009, qui fixe sa propre limite de 15 tentatives par minute, CA-26) sont-ils dans ou hors du compteur commun ; la fenêtre d'une minute est-elle fixe ou glissante ; `trustProxy`. Tant que ce n'est pas décidé, aucun texte ne dit qu'une de ces trois choses s'applique ou non.
 
 Le plafond de 100 est la valeur par défaut de la variable `MAX_REQUESTS_PER_MINUTE` ([tableau des variables d'environnement](CONVENTIONS-TECHNIQUES.md#-variables-denvironnement), décision #39), absente. Définie, elle doit être un entier de 1 à 2147483647 écrit en chiffres seulement ; sinon le hub refuse de démarrer, sans jamais retomber sur 100 ([US-003](../specs/US-003-authentication-token.md), CA-21, décision #94).
 
@@ -101,7 +106,7 @@ Content-Type: application/json
 
 Une route **publique** (`/api/v1/token`, US-003 CA-16) n'a ni `401` ni `403` : elle répond `405` directement. Le rate limiting (`429`) s'applique à toutes les routes, y compris sur une méthode non supportée.
 
-**Le corps n'est jamais jugé sur une méthode non supportée** (décision #92, qui étend la décision #90 à toutes les routes protégées) — l'ordre des contrôles d'une méthode non supportée est : authentification (`401`), rôle (`403`), puis `405` avec `Allow` (le `429` s'applique comme dit ci-dessus). Le corps de la requête (JSON invalide, vide, `Content-Type` non conforme ou `charset` autre qu'`utf-8`, ou valide sans effet) n'est jamais jugé : il ne produit ni `400` ni `415`, et ne change ni le `401`, ni le `403`, ni le `405`. Un `400 INVALID_JSON` ou un `415` ne se rend que sur une méthode supportée par la ressource.
+**Le corps n'est jamais jugé sur une méthode non supportée** (décision #92, qui étend la décision #90 à toutes les routes protégées) — l'ordre des contrôles d'une méthode non supportée est : authentification (`401`), rôle (`403`), puis `405` avec `Allow` (le `429` passe avant ces trois contrôles, décision #96). Le corps de la requête (JSON invalide, vide, `Content-Type` non conforme ou `charset` autre qu'`utf-8`, ou valide sans effet) n'est jamais jugé : il ne produit ni `400` ni `415`, et ne change ni le `401`, ni le `403`, ni le `405`. Un `400 INVALID_JSON` ou un `415` ne se rend que sur une méthode supportée par la ressource.
 
 **`HEAD` et `OPTIONS` sur `/api/v1/token`** (décision #93) — la route publique suit la même règle que toute méthode autre que `POST` (US-003 CA-16, décision #90) : `HEAD` et `OPTIONS`, avec ou sans corps (JSON invalide, vide ou valide), répondent `405 METHOD_NOT_ALLOWED` avec `Allow: POST`, jamais le `400` natif de Fastify.
 
@@ -135,6 +140,7 @@ Content-Type: application/json
 |---|---|
 | **Une URL qui ne correspond à aucune ressource de l'API**, quelle que soit la méthode | `404 NOT_FOUND`, corps standard à trois champs (décision #35) |
 | Aucun token n'est exigé : token absent, invalide, expiré, de rôle `buzzer` ou `admin` | Même `404` (il passe avant l'authentification et le contrôle de rôle) |
+| **Au-delà de la limite de débit** (annexe « Rate limiting », décision #96) | `429 RATE_LIMIT_EXCEEDED` au lieu du `404` : le `429` passe avant le `404`. La requête compte dans le compteur commun, comme toute autre |
 | Le message ne reprend ni la méthode ni l'URL de la requête | Message fixe, `<resource>` vaut `resource` |
 
 **Format de la réponse `404 NOT_FOUND` d'une route inconnue :**
@@ -293,6 +299,19 @@ for i in $(seq 1 101); do
   fi
 done
 # Attendu : 101ème requête → 429 avec header Retry-After: 60
+```
+
+```bash
+# CA-RateLimit — compteur commun et URL inconnue (décision #96), avec MAX_REQUESTS_PER_MINUTE=3
+# Les trois premières requêtes d'une même adresse, de nature différente, comptent ensemble :
+curl -s -o /dev/null -w "%{http_code}\n" -X POST "$BASE_URL/api/v1/token" \
+  -H "Content-Type: application/json" -d '{"username": "admin", "password": "<mot de passe>"}'   # 200
+curl -s -o /dev/null -w "%{http_code}\n" "$BASE_URL/api/v1/themes"                               # 401 : compte aussi
+curl -s -o /dev/null -w "%{http_code}\n" "$BASE_URL/nope"                                        # 404 : compte aussi
+# 4ème requête, vers n'importe quelle route (ici une URL inconnue) :
+curl -s -i "$BASE_URL/nope" | grep -i -e "^HTTP" -e "Retry-After"
+# Attendu : 429 (pas 404) avec Retry-After: 60 ; même réponse pour la 4ème requête vers /api/v1/themes
+# (429, pas 401) : le 429 passe avant tout
 ```
 
 ```bash
