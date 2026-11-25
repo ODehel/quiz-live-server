@@ -1589,3 +1589,23 @@ Laissés ouverts volontairement, non décidés ici : (a) `GET /health` (US-020) 
 - **Non prouvé par un test** (consigné dans `DEBTS.md`) : `X-Forwarded-For` ignoré, fenêtre fixe, refus sans prolongation. Un `test(errors)` sur le serveur assemblé les prouverait, nés verts.
 - **Annexe et specs** : `SECURITE-TRANSVERSALE.md` (trois lignes du tableau `CA-RateLimit`, paragraphe « Non décidé » réduit à `/health` et `/ws`), US-003 CA-13 (une phrase), US-009 (la note sur le reverse proxy est réécrite : il n'est pas prévu).
 - Choix de Claude, à challenger en revue : (1) **une seule décision** pour les trois points, parce que la fenêtre et le refus se décident ensemble (le refus n'a de sens que dans la fenêtre fixe) et que l'adresse comptée en est l'entrée ; (2) le troisième point est une décision du CDC et non un détail du code : il est observable (la date à laquelle un client bloqué retrouve l'accès) ; (3) la note d'US-009 est réécrite, pas supprimée : elle disait le contraire de #97 ; (4) l'écart « jusqu'à deux fois la limite » est écrit dans l'annexe, pour qu'un futur test ne le prenne pas pour un bug.
+
+---
+
+## #98 — Les routes de thèmes contrôlent la forme de l'id, pas sa version ; `PUT` et `DELETE` répondent `400 INVALID_UUID` à un `:id` mal formé
+
+*`docs(specs): settle the UUID version of theme ids` — US-004 (CA-5, CA-10, CA-11, CA-25a, CA-29a). Tranche la question laissée ouverte par la décision #1 (le `POST` exigeait v7 ; il a depuis été aligné pour les questions, décision #25). Les décisions #1 à #97 ne sont pas modifiées.*
+
+**Contexte.** Le smoke test de la PR #246 (2026-11-25, PRE-3) a constaté que `GET /api/v1/themes/018e4f5a-0000-0000-0000-000000000000`, l'id de l'exemple de CA-10 (version `0`), répond `400 INVALID_UUID` au lieu du `404` écrit : `index.ts` donne `Uuidv7Validator` à `theme-route`, alors que les questions utilisent `UuidFormatValidator` (#1). Le CDC se contredisait : l'exemple de CA-10 n'est pas un UUIDv7 (CA-5, `CONVENTIONS-TECHNIQUES.md`) et CA-11 demande `400` pour un id « pas un UUID valide ». Par ailleurs `PUT` et `DELETE` n'appellent pas le validateur (`not-a-uuid` répond `404`), alors que `error-codes.md` et le diagramme d'US-004 (« UUID valide ? ») disent `400 INVALID_UUID`.
+
+**Décision.** Sur choix d'Olivier (2026-11-25) :
+1. **Forme seule en lecture.** `GET /themes/:id` contrôle la forme `8-4-4-4-12` hexadécimale, toute version (recommandé, accepté). Le producteur garantit la version 7 (CA-5) ; la contrainte ne fuit pas dans le contrat public. Écartée : exiger la version 7 en lecture.
+2. **`PUT` et `DELETE` : `:id` mal formé → `400 INVALID_UUID`** (recommandé, accepté), comme le `GET` et comme les questions (#30). Deux CA nouveaux, `CA-25a` et `CA-29a`, numérotés ainsi pour ne pas renuméroter. Écartée : conserver le `404` actuel.
+3. **L'id d'exemple d'US-004 devient un UUIDv7 valide** (`018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a`) (choix d'Olivier, contre ma recommandation de le garder avec une note). Les autres US et les tests gardent l'ancien id : écart connu, en dette.
+4. **`Uuidv7Validator` : sort décidé au `fix(themes)`** (recommandé, accepté), dette avec condition de réouverture.
+
+**Conséquences.**
+- **Rien n'est codé, aucun test n'est écrit** : documentation seule. Le code actuel diverge du CDC sur les points 1 et 2 ; un `fix(themes)` les alignera (comportement observable modifié : deux agents et un smoke test).
+- **Spec** : US-004, lignes CA-10 et CA-11 précisées, CA-25a et CA-29a ajoutés (tableau et exemples `curl`), id d'exemple remplacé aux quatre endroits.
+- **Hors périmètre, en dette** : l'ordre complet des contrôles du `PUT` des thèmes (`INVALID_UUID`, `ID_MISMATCH`, `Content-Type`, corps, décision #30 pour les questions) ; `ETAT-DES-LIEUX-socle-hub.md` (lignes ~815, 961 à 966, 1061 à 1065) décrit l'état actuel du code, à réaligner par une session `docs(specs)` après le `fix(themes)`.
+- Choix de Claude, à challenger en revue : (1) **une seule décision** pour quatre points liés, parce qu'ils partagent le même fait déclencheur ; (2) suffixes `a` (`CA-25a`, `CA-29a`) plutôt qu'une renumérotation, sur le précédent de `CA-19a` ; (3) le diagramme d'US-004 n'est pas modifié : « UUID valide ? » reste exact avec la forme seule.
