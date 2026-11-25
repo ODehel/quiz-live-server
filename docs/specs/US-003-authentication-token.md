@@ -79,7 +79,7 @@ Le corps est le corps standard à trois champs (`status`, `error`, `message`). E
 
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-13 | Le endpoint `/token` est limité à 100 requêtes par minute **par adresse IP** | Dépassement → `429 RATE_LIMIT_EXCEEDED` avec header `Retry-After: 60`. Le plafond est la variable `MAX_REQUESTS_PER_MINUTE`, `100` quand elle est absente ; définie mais invalide, le hub refuse de démarrer (CA-21). Le compteur est celui de toute l'API, commun à toutes les routes (annexe CA-RateLimit, décision #96) : les requêtes vers `/token` s'y comptent avec les autres |
+| CA-13 | Le endpoint `/token` est limité à 100 requêtes par minute **par adresse IP** | Dépassement → `429 RATE_LIMIT_EXCEEDED` avec header `Retry-After: 60`. Le plafond est la variable `MAX_REQUESTS_PER_MINUTE`, `100` quand elle est absente ; définie mais invalide, le hub refuse de démarrer (CA-21). Le compteur est celui de toute l'API, commun à toutes les routes (annexe CA-RateLimit, décision #96) : les requêtes vers `/token` s'y comptent avec les autres. L'adresse comptée est celle de la connexion (`X-Forwarded-For` ignoré) ; la fenêtre d'une minute est fixe, ouverte à la première requête, et un refus ne la prolonge pas (annexe CA-RateLimit, décision #97) |
 
 ### Logging
 

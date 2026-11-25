@@ -404,4 +404,4 @@ Pour prévenir les attaques par déni de service (DoS) où un client malveillant
 - Cette protection s'applique au **niveau réseau local uniquement** (réseau WiFi privé).
 - Pas de persistance en base de données.
 - Le rate limiter est réinitialisé à chaque redémarrage du serveur.
-- En production avec un reverse proxy (Nginx, HAProxy), il est recommandé d'appliquer également un rate limiting au niveau du proxy.
+- Le hub n'est pas prévu derrière un reverse proxy (réseau local uniquement, décision #97) : la limite de 15 tentatives s'applique à l'adresse de la connexion, `X-Forwarded-For` étant ignoré.
