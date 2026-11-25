@@ -839,6 +839,94 @@ describe('US-003/CA-13 - CA-RateLimit (decision #96) - One counter per address i
 	})
 });
 
+describe('US-003/CA-13 - CA-RateLimit (decision #97) - The counted address is the connection and the window is fixed on the assembled server', () => {
+	const rateLimitedBody = { status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' }
+	const firstRequestAt = new Date('2026-04-02T14:32:07.000Z')
+	let server: QuizServer
+	beforeEach(() => {
+		// Seule Date est simulée : le compteur de @fastify/rate-limit (LocalStore) lit Date.now() ; timers et I/O restent réels pour server.inject.
+		vi.useFakeTimers({ toFake: ['Date'] })
+		vi.setSystemTime(firstRequestAt)
+		const limitedConfiguration: QuizServerConfiguration = {
+			...mockQuizServerConfiguration,
+			rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: 3 }) }
+		}
+		server = new QuizServer(limitedConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+	})
+	afterEach(async () => {
+		await server.stop()
+		vi.useRealTimers()
+	})
+	const getUnknown = (options: { remoteAddress?: string, forwardedFor?: string } = {}) => server.inject({
+		method: 'GET',
+		url: '/api/v1/does-not-exist',
+		remoteAddress: options.remoteAddress,
+		headers: options.forwardedFor === undefined ? {} : { 'x-forwarded-for': options.forwardedFor }
+	})
+	const expectRefused = (response: { statusCode: number, headers: Record<string, unknown>, json: () => unknown }) => {
+		expect(response.statusCode).toBe(429)
+		expect(response.headers['retry-after']).toBe('60')
+		expect(response.json()).toEqual(rateLimitedBody)
+	}
+	const elapse = (seconds: number) => vi.setSystemTime(new Date(firstRequestAt.getTime() + seconds * 1000))
+	const countThreeThenRefuse = async () => {
+		const answered = [await getUnknown(), await getUnknown(), await getUnknown()]
+		expect(answered.map(response => response.statusCode)).toEqual([404, 404, 404])
+		expectRefused(await getUnknown())
+	}
+	it('counts the connection address when X-Forwarded-For changes on every request', async () => {
+		await server.start()
+		const answered = [
+			await getUnknown({ forwardedFor: '203.0.113.1' }),
+			await getUnknown({ forwardedFor: '203.0.113.2' }),
+			await getUnknown({ forwardedFor: '203.0.113.3' })
+		]
+		expect(answered.map(response => response.statusCode)).toEqual([404, 404, 404])
+		expectRefused(await getUnknown({ forwardedFor: '203.0.113.4' }))
+	})
+	it('does not share a counter between two connections that send the same X-Forwarded-For', async () => {
+		await server.start()
+		for (let attempt = 0; attempt < 3; attempt++) {
+			expect((await getUnknown({ remoteAddress: '10.0.0.1', forwardedFor: '203.0.113.1' })).statusCode).toBe(404)
+		}
+		expectRefused(await getUnknown({ remoteAddress: '10.0.0.1', forwardedFor: '203.0.113.1' }))
+		const otherConnection = await getUnknown({ remoteAddress: '10.0.0.2', forwardedFor: '203.0.113.1' })
+		expect(otherConnection.statusCode).toBe(404)
+	})
+	it('reopens the window one minute after the first request and resets the counter', async () => {
+		await server.start()
+		await countThreeThenRefuse()
+		elapse(60)
+		await countThreeThenRefuse()
+	})
+	it('keeps the window closed until one minute after the first request, whatever the clock minute', async () => {
+		await server.start()
+		await countThreeThenRefuse()
+		elapse(59)
+		expectRefused(await getUnknown())
+	})
+	it('opens the window at the first request, not at the last counted one', async () => {
+		await server.start()
+		await getUnknown()
+		elapse(30)
+		await getUnknown()
+		await getUnknown()
+		expectRefused(await getUnknown())
+		elapse(60)
+		await countThreeThenRefuse()
+	})
+	it('does not extend the window when requests are refused', async () => {
+		await server.start()
+		await countThreeThenRefuse()
+		for (const seconds of [20, 40, 59]) {
+			elapse(seconds)
+			expectRefused(await getUnknown())
+		}
+		elapse(60)
+		await countThreeThenRefuse()
+	})
+});
+
 describe('US-005/CA-53 - US-004/CA-35 - US-003/CA-16 (decisions #31 to #33) - An unsupported method on a protected route is answered after authentication and role on the assembled server', () => {
 	let server: QuizServer
 	let tokenValidator: TokenValidator
