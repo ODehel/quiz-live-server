@@ -18,11 +18,15 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
             reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
             return;
         }
-        const existingTheme = themeService.getById(id);
-        if (existingTheme === undefined) {
-            reply.status(404).send({ status: 404, error: 'NOT_FOUND', message: 'The requested theme was not found.' });
-        } else {
-            reply.status(200).send(existingTheme);
+        try {
+            const existingTheme = themeService.getById(id);
+            if (existingTheme === undefined) {
+                reply.status(404).send({ status: 404, error: 'NOT_FOUND', message: 'The requested theme was not found.' });
+            } else {
+                reply.status(200).send(existingTheme);
+            }
+        } catch (error) {
+            sendError(error, reply);
         }
     });
 
@@ -34,8 +38,12 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
             return;
         }
 
-        const pagination = themeService.getAll(Number(page), Number(limit));
-        reply.status(200).send(pagination);
+        try {
+            const pagination = themeService.getAll(Number(page), Number(limit));
+            reply.status(200).send(pagination);
+        } catch (error) {
+            sendError(error, reply);
+        }
     });
 
     app.register((instance) => {
