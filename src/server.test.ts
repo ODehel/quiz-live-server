@@ -927,6 +927,47 @@ describe('US-003/CA-13 - CA-RateLimit (decision #97) - The counted address is th
 	})
 });
 
+describe('US-003/CA-13 - CA-RateLimit (decision #36) - A rate limited request answered later in the window still says Retry-After 60 on the assembled server', () => {
+	const rateLimitedBody = { status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' }
+	const firstRequestAt = new Date('2026-04-02T14:32:07.000Z')
+	let server: QuizServer
+	beforeEach(() => {
+		// Seule Date est simulée : le compteur de @fastify/rate-limit (LocalStore) lit Date.now() ; timers et I/O restent réels pour server.inject.
+		vi.useFakeTimers({ toFake: ['Date'] })
+		vi.setSystemTime(firstRequestAt)
+		const tokenValidator: TokenValidator = { validateToken: vi.fn((token: string) => token !== 'invalid'), inspectToken: vi.fn() }
+		const tokenDecoder: TokenDecoder = { decode: vi.fn((token: string) => ({ role: token === 'admin' ? UserRole.ADMIN : UserRole.PLAYER })) }
+		const protectedThemeConfiguration: ThemeRouteConfiguration = { ...mockThemeRouteConfiguration, tokenValidator, tokenDecoder, middleware: authenticationMiddleware }
+		const protectedQuestionConfiguration: QuestionRouteConfiguration = { ...mockQuestionRouteConfiguration, tokenValidator, tokenDecoder, middleware: authenticationMiddleware }
+		const limitedConfiguration: QuizServerConfiguration = {
+			...mockQuizServerConfiguration,
+			rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: 3 }) }
+		}
+		server = new QuizServer(limitedConfiguration, mockTokenRouteConfiguration, protectedThemeConfiguration, mockWsRouteConfiguration, protectedQuestionConfiguration)
+	})
+	afterEach(async () => {
+		await server.stop()
+		vi.useRealTimers()
+	})
+	const postToken = () => server.inject({ method: 'POST', url: '/api/v1/token', payload: { username: 'user', password: 'secret' } })
+	const getThemes = () => server.inject({ method: 'GET', url: '/api/v1/themes', headers: { authorization: 'Bearer admin' } })
+	const getQuestions = () => server.inject({ method: 'GET', url: '/api/v1/questions', headers: { authorization: 'Bearer admin' } })
+	it.each([
+		['POST /api/v1/token', postToken],
+		['GET /api/v1/themes', getThemes],
+		['GET /api/v1/questions', getQuestions]
+	])('answers Retry-After 60, not the 57 seconds left, to a 429 obtained 3 seconds after the first request on %s', async (_route, send) => {
+		await server.start()
+		const answered = [await send(), await send(), await send()]
+		expect(answered.map(response => response.statusCode)).toEqual([200, 200, 200])
+		vi.setSystemTime(new Date(firstRequestAt.getTime() + 3000))
+		const refused = await send()
+		expect(refused.statusCode).toBe(429)
+		expect(refused.headers['retry-after']).toBe('60')
+		expect(refused.json()).toEqual(rateLimitedBody)
+	})
+});
+
 describe('US-005/CA-53 - US-004/CA-35 - US-003/CA-16 (decisions #31 to #33) - An unsupported method on a protected route is answered after authentication and role on the assembled server', () => {
 	let server: QuizServer
 	let tokenValidator: TokenValidator
