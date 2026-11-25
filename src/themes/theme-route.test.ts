@@ -744,6 +744,34 @@ describe("US-004/CA-36 - Unexpected error", () => {
     });
 });
 
+describe("US-004/CA-36 - Unexpected error on a read", () => {
+    const standardBody = {
+        status: 500,
+        error: 'INTERNAL_SERVER_ERROR',
+        message: 'An unexpected error occurred. Please try again later.'
+    };
+
+    it("should return the standard 500 body when reading a theme by its id fails", async () => {
+        mockThemeService.getById = vi.fn().mockImplementation(() => { throw new Error('no such table: T_THEME_THM'); });
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416'
+        });
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual(standardBody);
+    });
+
+    it("should return the standard 500 body when listing the themes fails", async () => {
+        mockThemeService.getAll = vi.fn().mockImplementation(() => { throw new Error('no such table: T_THEME_THM'); });
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes'
+        });
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual(standardBody);
+    });
+});
+
 describe("US-004/CA-36 - Log the technical details of an unexpected error", () => {
     let logLines: string[];
 
@@ -767,6 +795,30 @@ describe("US-004/CA-36 - Log the technical details of an unexpected error", () =
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu' })
         });
+
+        const logs = logLines.map(line => JSON.parse(line) as Record<string, unknown>);
+        expect(logs).toContainEqual(expect.objectContaining({
+            level: 50,
+            err: sqliteBusyError
+        }));
+    });
+
+    it("should log the unexpected error of a read by id with its technical message at error level", async () => {
+        mockThemeService.getById = vi.fn().mockImplementation(() => { throw new Error('SQLITE_BUSY: database is locked'); });
+
+        await app.inject({ method: 'GET', url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416' });
+
+        const logs = logLines.map(line => JSON.parse(line) as Record<string, unknown>);
+        expect(logs).toContainEqual(expect.objectContaining({
+            level: 50,
+            err: sqliteBusyError
+        }));
+    });
+
+    it("should log the unexpected error of a list with its technical message at error level", async () => {
+        mockThemeService.getAll = vi.fn().mockImplementation(() => { throw new Error('SQLITE_BUSY: database is locked'); });
+
+        await app.inject({ method: 'GET', url: '/api/v1/themes' });
 
         const logs = logLines.map(line => JSON.parse(line) as Record<string, unknown>);
         expect(logs).toContainEqual(expect.objectContaining({
