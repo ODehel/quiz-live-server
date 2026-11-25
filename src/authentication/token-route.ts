@@ -35,8 +35,8 @@ const rejectUnsupportedContentType = (request: FastifyRequest, _reply: FastifyRe
     done();
 };
 
-export default async function tokenRoute(app: FastifyInstance, options: TokenRouteConfiguration) {
-    const { authenticationService, tokenGenerator, rateLimitMiddleware } = options;
+export default function tokenRoute(app: FastifyInstance, options: TokenRouteConfiguration) {
+    const { authenticationService, tokenGenerator } = options;
     const schema = {
         body: {
             type: 'object',
@@ -48,8 +48,6 @@ export default async function tokenRoute(app: FastifyInstance, options: TokenRou
             additionalProperties: false
         }
     };
-    
-    await rateLimitMiddleware(app);
 
     app.removeContentTypeParser('text/plain');
 

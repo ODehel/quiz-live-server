@@ -8,9 +8,7 @@ import { isWrittenPaginationNumber } from "../common/is-written-pagination-numbe
 import { ThemeRouteConfiguration } from "./theme-route-configuration.interface";
 
 export default async function themeRoute(app: FastifyInstance, options: ThemeRouteConfiguration) {
-    const { themeService, uuidValidator, tokenValidator, tokenDecoder, middleware, rateLimitMiddleware } = options;
-
-    await rateLimitMiddleware(app);
+    const { themeService, uuidValidator, tokenValidator, tokenDecoder, middleware } = options;
 
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 

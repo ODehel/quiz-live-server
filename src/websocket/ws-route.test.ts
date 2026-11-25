@@ -47,7 +47,6 @@ describe("WebSocket", () => {
     let mockTokenValidator: TokenValidator;
     let mockWsEventReporter: Pick<WsEventReporter, 'connected' | 'tokenExpired' | 'invalidToken' | 'authenticationTimeout' | 'serverFull' | 'authenticated' | 'disconnected' | 'internalError' | 'rateLimited'>;
     const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async () => { };
-    const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async () => { };
     let mockTokenRouteConfiguration: TokenRouteConfiguration;
     let mockThemeRouteConfiguration: ThemeRouteConfiguration;
     let mockWsRouteConfiguration: WsRouteConfiguration;
@@ -133,16 +132,14 @@ describe("WebSocket", () => {
         };
         mockTokenRouteConfiguration = {
             authenticationService: mockAuthenticationService,
-            tokenGenerator: mockTokenGenerator,
-            rateLimitMiddleware: mockRateLimitMiddleware
+            tokenGenerator: mockTokenGenerator
         };
         mockThemeRouteConfiguration = {
             themeService: mockThemeService,
             uuidValidator: mockUuidValidator,
             tokenValidator: mockTokenValidator,
             tokenDecoder: mockTokenDecoder,
-            middleware: mockMiddleware,
-            rateLimitMiddleware: mockRateLimitMiddleware
+            middleware: mockMiddleware
         };
         mockWsRouteConfiguration = {
             tokenValidator: mockTokenValidator,
@@ -159,8 +156,7 @@ describe("WebSocket", () => {
             tokenValidator: mockTokenValidator,
             tokenDecoder: mockTokenDecoder,
             questionService: mockQuestionService,
-            middleware: mockMiddleware,
-            rateLimitMiddleware: mockRateLimitMiddleware
+            middleware: mockMiddleware
         };
         server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration);
         await server.start();

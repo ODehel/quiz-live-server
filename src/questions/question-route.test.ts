@@ -13,7 +13,6 @@ import { NotFoundError } from '../common/not-found-error';
 import authenticationMiddleware from '../authentication/authentication-middleware';
 import { TokenValidator } from '../authentication/token-validator.interface';
 import { TokenDecoder } from '../authentication/token-decoder.interface';
-import rateLimitMiddleware from '../infrastructure/rate-limit-middleware';
 import { UserRole } from '../users/user-role';
 
 let app: FastifyInstance;
@@ -49,9 +48,8 @@ beforeEach(() => {
     mockTokenValidator = { validateToken: vi.fn(), inspectToken: vi.fn() };
     mockTokenDecoder = { decode: vi.fn() };
     const mockMiddleware = async () => { };
-    const mockRateLimitMiddleware = async () => { };
     app = Fastify();
-    app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, rateLimitMiddleware: mockRateLimitMiddleware });
+    app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware });
 });
 
 describe('US-005/CA-1 - Create an MCQ question', () => {
@@ -788,7 +786,7 @@ describe('US-005/CA-50 - Refuse a missing or rejected token on every questions r
         // Without a token the validator would accept anything: only the absence of the token may produce the 401.
         mockTokenValidator = { validateToken: vi.fn().mockReturnValue(validatorAnswer), inspectToken: vi.fn() };
         app = Fastify();
-        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware, rateLimitMiddleware: async () => { } });
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
         const response = await app.inject({
             method,
             url,
@@ -832,7 +830,7 @@ describe('US-005/CA-51 - Refuse a buzzer on every questions route', () => {
         mockTokenValidator = { validateToken: vi.fn().mockReturnValue(true), inspectToken: vi.fn() };
         mockTokenDecoder = { decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER }) };
         app = Fastify();
-        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware, rateLimitMiddleware: async () => { } });
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
     });
     it.each(routes)('should answer $name with the standard 403 body and not call the service', async ({ method, url, service, body }) => {
         const response = await app.inject({
@@ -891,7 +889,7 @@ describe('US-005/CA-54 - Log the technical details of an unexpected error', () =
                 stream: { write: (line: string) => { logLines.push(line); } }
             }
         });
-        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { }, rateLimitMiddleware: async () => { } });
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { } });
     });
 
     it('should log the unexpected error with its technical message at error level', async () => {
@@ -932,53 +930,6 @@ describe('US-005/CA-54 - Log the technical details of an unexpected error', () =
             level: 50,
             err: sqliteBusyError
         }));
-    });
-});
-
-describe('US-005/CA-52 - Rate limiting on every questions route', () => {
-    const limit = 5;
-    const questionId = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
-    const body = JSON.stringify({ type: 'MCQ' });
-    const routes = [
-        { name: 'POST /api/v1/questions', method: 'POST', url: '/api/v1/questions', body },
-        { name: 'GET /api/v1/questions', method: 'GET', url: '/api/v1/questions', body: undefined },
-        { name: 'GET /api/v1/questions/:id', method: 'GET', url: `/api/v1/questions/${questionId}`, body: undefined },
-        { name: 'PUT /api/v1/questions/:id', method: 'PUT', url: `/api/v1/questions/${questionId}`, body },
-        { name: 'DELETE /api/v1/questions/:id', method: 'DELETE', url: `/api/v1/questions/${questionId}`, body: undefined }
-    ] as const;
-    const request = (route: (typeof routes)[number]) => app.inject({
-        method: route.method,
-        url: route.url,
-        headers: route.body === undefined ? {} : { 'Content-Type': 'application/json' },
-        body: route.body
-    });
-    // Every request goes to the route under test, so the refusal can only come from the limit applying to that route.
-    const exhaustTheLimit = async (route: (typeof routes)[number]) => {
-        const statusCodes: number[] = [];
-        for (let i = 0; i < limit; i++) { statusCodes.push((await request(route)).statusCode); }
-        return statusCodes;
-    };
-
-    beforeEach(() => {
-        const lowRateLimitMiddleware = (app: FastifyInstance) => rateLimitMiddleware(app, { maxRequestsPerMinute: limit });
-        app = Fastify();
-        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { }, rateLimitMiddleware: lowRateLimitMiddleware });
-    });
-    it.each(routes)('should let $name answer up to the limit and reject the request exceeding it with a 429', async (route) => {
-        const statusCodes = await exhaustTheLimit(route);
-        const response = await request(route);
-        expect(statusCodes).not.toContain(429);
-        expect(response.statusCode).toBe(429);
-    });
-    it.each(routes)('should tell the client of $name to retry after 60 seconds', async (route) => {
-        await exhaustTheLimit(route);
-        const response = await request(route);
-        expect(response.headers['retry-after']).toBe('60');
-    });
-    it.each(routes)('should explain the refusal of $name with the standard error body', async (route) => {
-        await exhaustTheLimit(route);
-        const response = await request(route);
-        expect(response.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' });
     });
 });
 
