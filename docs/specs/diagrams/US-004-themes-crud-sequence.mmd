@@ -45,7 +45,7 @@ sequenceDiagram
     S->>S: :id du chemin (400 INVALID_UUID)
     S->>S: Body = objet (400 INVALID_BODY)
     S->>S: id du body : forme (400 INVALID_UUID), puis égalité à l'URL (400 ID_MISMATCH)
-    S->>S: name mal typé, puis manquant (400 VALIDATION_ERROR), puis champ inconnu (400 UNKNOWN_FIELDS)
+    S->>S: name mal typé, puis manquant ou null (400 VALIDATION_ERROR), puis champ inconnu (400 UNKNOWN_FIELDS)
     S->>S: Valider et normaliser le nom (trim, collapse, regex) (400 VALIDATION_ERROR)
     S->>DB: SELECT * FROM T_THEME_THM WHERE id = ?
     alt Thème introuvable
