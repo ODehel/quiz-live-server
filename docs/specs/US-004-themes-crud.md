@@ -61,14 +61,43 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | # | Critère | Résultat attendu |
 |---|---|---|
 | CA-20 | Modifier le nom d'un thème existant | `200 OK` avec le thème mis à jour, `last_updated_at` mis à jour |
-| CA-21 | Les mêmes règles de validation et normalisation que le POST s'appliquent | Trim, collapse, regex, unicité |
-| CA-22 | Le nom envoyé est identique à l'existant (comparaison insensible à la casse) | `200 OK` avec le thème inchangé, `last_updated_at` **non modifié** |
-| CA-23 | L'ID peut être présent dans le body ; s'il l'est, il doit correspondre à l'URL | Sinon → `400 ID_MISMATCH` |
-| CA-24 | Le nom est déjà pris par un autre thème | `409 THEME_ALREADY_EXISTS` |
-| CA-25 | ID inexistant | `404 NOT_FOUND` |
-| CA-25a | `:id` de l'URL mal formé (décision #98) | `400 INVALID_UUID` |
-| CA-26 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
-| CA-27 | Le body ne doit contenir que les champs `name` (et optionnellement `id`) | Champs inconnus → `400 UNKNOWN_FIELDS` |
+| CA-21 | Les mêmes règles de validation et normalisation que le POST s'appliquent. La forme du nom (trim, collapse, regex) est jugée avant le `404` (CA-25), même sur un id inconnu ; l'unicité (CA-24) après lui (décision #99). Un `name` absent ou qui n'est pas une chaîne répond `400 VALIDATION_ERROR`, avant les champs inconnus (CA-27) | Trim, collapse, regex, unicité |
+| CA-22 | Le nom envoyé est identique à l'existant (comparaison insensible à la casse). Jugé après la forme du nom et le `404`, avant le `409` (décision #99) | `200 OK` avec le thème inchangé, `last_updated_at` **non modifié** |
+| CA-23 | L'ID peut être présent dans le body ; s'il l'est, il doit correspondre à l'URL. Il est jugé juste après le `:id` du chemin, avant le reste du corps (décision #99, comme #30) : mal formé ou non chaîne (`null`, nombre…), même s'il diffère de l'URL → `400 INVALID_UUID` ; bien formé mais différent → `400 ID_MISMATCH` | Sinon → `400 ID_MISMATCH` |
+| CA-24 | Le nom est déjà pris par un autre thème. Jugé après le `404` (CA-25) et après CA-22 (décision #99) | `409 THEME_ALREADY_EXISTS` |
+| CA-25 | ID inexistant (UUID bien formé). Jugé après toutes les règles de forme du corps, nom compris : un corps invalide répond `400` même sur un id inconnu (décision #99, comme #23) | `404 NOT_FOUND` |
+| CA-25a | `:id` de l'URL mal formé (décision #98). Jugé après le `415` et le JSON invalide, avant les contrôles du corps (décision #99) | `400 INVALID_UUID` |
+| CA-26 | Le `Content-Type` doit être `application/json` (jugé avant le `:id` du chemin et le corps, décision #99) | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
+| CA-27 | Le body ne doit contenir que les champs `name` (et optionnellement `id`). Jugé après le `name` mal typé ou manquant (décision #99, comme #9 et #10) | Champs inconnus → `400 UNKNOWN_FIELDS` |
+
+### Ordre des contrôles du `PUT`
+
+Une requête `PUT /api/v1/themes/:id` est jugée dans cet ordre ; le premier contrôle en échec fixe la réponse, les suivants ne sont pas évalués (décision #99). Les diagrammes de flux et de séquence suivent le même ordre.
+
+| Ordre | Contrôle | Réponse si échec | CA |
+|---|---|---|---|
+| 1 | Limite de débit (décision #96), puis authentification et rôle (annexe, CA-Bearer et CA-Forbidden) | `429 RATE_LIMIT_EXCEEDED`, `401 UNAUTHORIZED`, `403 FORBIDDEN` | CA-32, CA-33, CA-34 |
+| 2 | `Content-Type` autre que `application/json` (absent et vide compris) | `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` | CA-26 |
+| 3 | Corps qui n'est pas du JSON | `400` (le code de l'erreur n'est pas décidé ici, voir `DEBTS.md`) | — |
+| 4 | `:id` du chemin mal formé | `400 INVALID_UUID` | CA-25a |
+| 5 | Corps JSON qui n'est pas un objet (`null`, tableau, chaîne, nombre, booléen) | `400 INVALID_BODY` (`error-codes.md`) | — |
+| 6 | `id` du corps présent et mal formé ou non chaîne, puis bien formé mais différent de l'URL | `400 INVALID_UUID`, puis `400 ID_MISMATCH` | CA-23 |
+| 7 | `name` présent mais qui n'est pas une chaîne | `400 VALIDATION_ERROR` | CA-21 |
+| 8 | `name` manquant | `400 VALIDATION_ERROR` | CA-21 |
+| 9 | Champ inconnu dans le body | `400 UNKNOWN_FIELDS` | CA-27 |
+| 10 | Forme du `name` après normalisation (trim, collapse, regex) | `400 VALIDATION_ERROR` | CA-21 |
+| 11 | Thème inexistant | `404 NOT_FOUND` | CA-25 |
+| 12 | Nom identique à l'existant (insensible à la casse) | `200 OK`, thème inchangé, `last_updated_at` non modifié (ce n'est pas un échec : le contrôle 13 n'est pas évalué) | CA-22 |
+| 13 | Nom déjà pris par un autre thème | `409 THEME_ALREADY_EXISTS` | CA-24 |
+
+Précisions (décision #99) :
+- Le rang 1 reprend les décisions existantes : le `429` passe avant l'authentification (#96), l'authentification et le rôle avant tout jugement du corps (#31, #92 ; annexe `SECURITE-TRANSVERSALE.md`). Elles ne sont pas redécidées ici.
+- Les rangs 2 et 3 sont ceux de Fastify, avant la route (#82, #84, #11) ; le rang 3 ne se rend que sur une méthode supportée (#92).
+- Le rang 5 ne s'applique qu'à un corps qui n'est pas un objet : on ne peut pas lire son `id`. `INVALID_BODY` est le code du catalogue `error-codes.md` pour ce cas (message du catalogue : « Request body must be a JSON object. »).
+- Les rangs 7 et 8 ne portent que sur `name` ; `id` est jugé au rang 6. Un `name` à `null` compte comme mal typé (7) ou manquant (8) : non décidé, la réponse est dans les deux cas `400 VALIDATION_ERROR` (voir `DEBTS.md`). Le texte des messages de `VALIDATION_ERROR` n'est pas fixé non plus.
+- Un corps invalide ne révèle pas si le thème existe : les rangs 4 à 10 passent avant le `404`.
+- Un `:id` vide (URL à segment vide) est jugé au rang 4 comme un `:id` mal formé (#93).
+- Aucun CA n'est ajouté, retiré ni renuméroté.
 
 ### Suppression — `DELETE /api/v1/themes/:id`
 
@@ -262,6 +291,15 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/themes/$THEME_ID
   -d '{"id": "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a", "name": "Musique classique"}'
 ```
 
+**CA-23** — ID du body mal formé (même s'il diffère de l'URL) → `400 INVALID_UUID` (décision #99)
+
+```bash
+curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/themes/$THEME_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"id": "not-a-uuid", "name": "Musique classique"}'
+```
+
 **CA-25a** — `:id` mal formé → `400 INVALID_UUID`
 
 ```bash
@@ -278,6 +316,15 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/themes/018e4f5a-
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "Inexistant"}'
+```
+
+**CA-25** — Nom de forme invalide sur un ID inexistant → `400 VALIDATION_ERROR`, pas `404` (décision #99)
+
+```bash
+curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/themes/018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "m"}'
 ```
 
 ### Suppression — `DELETE /api/v1/themes/:id`

@@ -13,7 +13,7 @@ flowchart TD
     ROUTE -->|"POST /themes"| POST_CT
     ROUTE -->|"GET /themes"| LIST_PG
     ROUTE -->|"GET /themes/:id"| READ_ID
-    ROUTE -->|"PUT /themes/:id"| PUT_ID
+    ROUTE -->|"PUT /themes/:id"| PUT_CT
     ROUTE -->|"DELETE /themes/:id"| DEL_ID
 
     subgraph POST["➕ Création — POST /api/v1/themes"]
@@ -52,21 +52,29 @@ flowchart TD
 
     subgraph PUT["✏️ Modification complète — PUT /api/v1/themes/:id"]
         direction TB
-        PUT_ID{"UUID valide ?"}
-        PUT_ID -->|"Non"| PUE400a["400 INVALID_UUID"]
-        PUT_ID -->|"Oui"| PUT_FIND{"Thème trouvé ?"}
-        PUT_FIND -->|"Non"| PUE404["404 NOT_FOUND"]
-        PUT_FIND -->|"Oui"| PUT_CT{"Content-Type\n= application/json ?"}
+        PUT_CT{"Content-Type\n= application/json ?"}
         PUT_CT -->|"Non"| PUE415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         PUT_CT -->|"Oui"| PUT_JSON{"JSON valide ?"}
         PUT_JSON -->|"Non"| PUE400b["400 INVALID_JSON"]
-        PUT_JSON -->|"Oui"| PUT_UF{"Champs inconnus ?\n(seuls name et id acceptés)"}
-        PUT_UF -->|"Oui"| PUE400c["400 UNKNOWN_FIELDS"]
-        PUT_UF -->|"Non"| PUT_IDM{"id présent dans body\net ≠ id URL ?"}
+        PUT_JSON -->|"Oui"| PUT_ID{"UUID du chemin\nvalide ?"}
+        PUT_ID -->|"Non"| PUE400a["400 INVALID_UUID"]
+        PUT_ID -->|"Oui"| PUT_OBJ{"Body = objet JSON ?"}
+        PUT_OBJ -->|"Non"| PUE400o["400 INVALID_BODY"]
+        PUT_OBJ -->|"Oui"| PUT_BID{"id du body présent\net mal formé ou non chaîne ?"}
+        PUT_BID -->|"Oui"| PUE400i["400 INVALID_UUID"]
+        PUT_BID -->|"Non"| PUT_IDM{"id du body présent\net ≠ id URL ?"}
         PUT_IDM -->|"Oui"| PUE400d["400 ID_MISMATCH"]
-        PUT_IDM -->|"Non"| PUT_NORM["Trim + Collapse + Regex"]
+        PUT_IDM -->|"Non"| PUT_TYP{"name présent\net pas une chaîne ?"}
+        PUT_TYP -->|"Oui"| PUE400t["400 VALIDATION_ERROR"]
+        PUT_TYP -->|"Non"| PUT_MIS{"name manquant ?"}
+        PUT_MIS -->|"Oui"| PUE400m["400 VALIDATION_ERROR"]
+        PUT_MIS -->|"Non"| PUT_UF{"Champs inconnus ?\n(seuls name et id acceptés)"}
+        PUT_UF -->|"Oui"| PUE400c["400 UNKNOWN_FIELDS"]
+        PUT_UF -->|"Non"| PUT_NORM["Trim + Collapse + Regex"]
         PUT_NORM -->|"Invalide"| PUE400e["400 VALIDATION_ERROR"]
-        PUT_NORM -->|"Valide"| PUT_SAME{"Nom identique\nà l'existant ?\nCOLLATE NOCASE"}
+        PUT_NORM -->|"Valide"| PUT_FIND{"Thème trouvé ?"}
+        PUT_FIND -->|"Non"| PUE404["404 NOT_FOUND"]
+        PUT_FIND -->|"Oui"| PUT_SAME{"Nom identique\nà l'existant ?\nCOLLATE NOCASE"}
         PUT_SAME -->|"Oui"| PU200a(["200 OK — Aucune modification\nlast_updated_at non modifié"])
         PUT_SAME -->|"Non"| PUT_UNIQ{"Nom déjà pris\npar un autre thème ?"}
         PUT_UNIQ -->|"Oui"| PUE409["409 THEME_ALREADY_EXISTS"]
@@ -92,6 +100,6 @@ flowchart TD
     class PE415,PE400a,PE400b,PE400c,PE409 error
     class LE400 error
     class RE400,RE404 error
-    class PUE400a,PUE404,PUE415,PUE400b,PUE400c,PUE400d,PUE400e,PUE409 error
+    class PUE400a,PUE404,PUE415,PUE400b,PUE400c,PUE400d,PUE400e,PUE409,PUE400o,PUE400i,PUE400t,PUE400m error
     class DE400,DE404,DE409 error
     class P201,L200,R200,PU200a,PU200b,D204 success
