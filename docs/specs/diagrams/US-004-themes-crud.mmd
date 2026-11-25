@@ -64,9 +64,9 @@ flowchart TD
         PUT_BID -->|"Oui"| PUE400i["400 INVALID_UUID"]
         PUT_BID -->|"Non"| PUT_IDM{"id du body présent\net ≠ id URL ?"}
         PUT_IDM -->|"Oui"| PUE400d["400 ID_MISMATCH"]
-        PUT_IDM -->|"Non"| PUT_TYP{"name présent\net pas une chaîne ?"}
+        PUT_IDM -->|"Non"| PUT_TYP{"name présent, non null\net pas une chaîne ?"}
         PUT_TYP -->|"Oui"| PUE400t["400 VALIDATION_ERROR"]
-        PUT_TYP -->|"Non"| PUT_MIS{"name manquant ?"}
+        PUT_TYP -->|"Non"| PUT_MIS{"name manquant ou null ?"}
         PUT_MIS -->|"Oui"| PUE400m["400 VALIDATION_ERROR"]
         PUT_MIS -->|"Non"| PUT_UF{"Champs inconnus ?\n(seuls name et id acceptés)"}
         PUT_UF -->|"Oui"| PUE400c["400 UNKNOWN_FIELDS"]
