@@ -36,6 +36,20 @@
 > dettes du §3 et le §4 (le décompte des CA ne change pas). Sept des huit mutants cités par #213
 > ont été rejoués par cette session sur le test seul puis annulés, tous tués ; aucun code ni test
 > n'a changé.
+> **Réalignement du 2026-11-25 (`docs(specs)`, HEAD `418aa13`)** : la partie **US-003** (§1, ligne
+> US-003 ; §2, section US-003) est réalignée sur le réel avec la méthode du fichier, avec la ligne
+> **Total**, les cellules d'US-003 des dettes C à H (§3), le §0 et le §4. US-003 : **20 CA** (CA-21,
+> `MAX_REQUESTS_PER_MINUTE` invalide, s'est ajouté le 2026-11-24, décision #94 ; CA-18 reste retiré,
+> décision #54), **20 solides, aucun partiel** : CA-1 (`token_type`) et CA-2 (câblage de `JWT_SECRET`)
+> passent de partiels à solides, prouvés sur processus réel par le `test(authentication)` #210
+> (2026-11-23) ; le constat du réalignement du HEAD `ed6bd31`, qui les disait non prouvés, est périmé.
+> D'autres cellules étaient périmées depuis `ed6bd31` et sont corrigées : l'ordre des contrôles, le
+> `null`, le champ mal typé et le corps non objet (CA-6, CA-9, CA-10, `fix(authentication)` #206 et
+> #208), le temps de réponse constant du login (`fix(authentication)` #209), le `charset` (CA-7), le
+> `405` quel que soit le corps, `OPTIONS` et `HEAD` compris (CA-16), le `Content-Type` du `500`
+> (CA-17) et le compteur de CA-13, devenu commun à toute l'API (décisions #96 et #97). Total :
+> 106 CA, ~93 solides. Six mutants (CA-1, CA-2, comparaison factice, `null`, `charset`, `OPTIONS`) ont été
+> rejoués par cette session puis annulés, tous tués ; aucun code ni test n'a changé.
 > Les parties **US-004 et US-009** (leurs lignes du §1 et leurs sections du §2)
 > **restent celles du relevé daté (HEAD `5407e38`) et ne sont pas réalignées par cette
 > session** : plusieurs de leurs cellules sont connues périmées (US-004 CA-19, CA-30 et CA-35 :
@@ -58,11 +72,12 @@
 
 ## 0. Portée et faits de départ
 
-- **HEAD hub audité** : `ef7a221` — `test(seed): prove BCRYPT_COST written in a .env file is read and checked on the real process (#166)` (`main`, 2026-11-20). Il vaut pour le §0, la partie US-002, les dettes A à E, G et H et le §4. **La partie US-003 et les cellules d'US-003 des dettes C à H sont au HEAD `ed6bd31`** — `docs(specs): correct the rate limit in the US-003 diagrams (#202)` (`main`, 2026-11-22). **La partie US-001 est au HEAD `319d443`** — `test(startup): prove the localhost fallback of the startup message on the real hub (#211)` (`main`, 2026-11-23) ; **seule sa limite dite du repli avec `PORT` absente (CA-4) est au HEAD `833c78b`** — `test(startup): prove the localhost fallback announces port 3000 when PORT is absent on the real process (#213)` (`main`, 2026-11-23). Les autres parties gardent leur date : US-004 et US-009 au HEAD `5407e38`.
+- **HEAD hub audité** : `ef7a221` — `test(seed): prove BCRYPT_COST written in a .env file is read and checked on the real process (#166)` (`main`, 2026-11-20). Il vaut pour le §0, la partie US-002, les dettes A à E, G et H et le §4. **La partie US-003 et les cellules d'US-003 des dettes C à H sont au HEAD `418aa13`** — `test(errors): prove a delayed 429 still answers Retry-After 60 on the assembled server (#243)` (`main`, 2026-11-25). **La partie US-001 est au HEAD `319d443`** — `test(startup): prove the localhost fallback of the startup message on the real hub (#211)` (`main`, 2026-11-23) ; **seule sa limite dite du repli avec `PORT` absente (CA-4) est au HEAD `833c78b`** — `test(startup): prove the localhost fallback announces port 3000 when PORT is absent on the real process (#213)` (`main`, 2026-11-23). Les autres parties gardent leur date : US-004 et US-009 au HEAD `5407e38`.
 - **Tests au vert** : à `ef7a221`, sous Node 26.13.1 et sous root, `npx vitest run` donne 40 fichiers, **1201 verts et 22 sautés** (les tests de permissions : 12 de `seed.test.ts` et 10 de `index.test.ts`, sautés en root et sous Windows) ; `npx tsc --noEmit` et `npm run lint` sans erreur (code 0) ; seuils de couverture respectés (94,68 % d'instructions, 97,52 % de branches). Le run de la CI sur ce HEAD (`ubuntu-latest`, hors root, run 44785880839) donne **1223 verts, aucun sauté**. Le relevé daté (184 tests, 24 fichiers) et le réalignement US-001 du 2026-11-18 (1026 tests, 39 fichiers) sont périmés.
   **À `ed6bd31`** (réalignement d'US-003, 2026-11-22), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : `npx vitest run` donne 42 fichiers, **1278 verts et 22 sautés** ; `npx tsc --noEmit` et `npm run lint` sortent en code 0 ; le run de la CI sur ce HEAD (run 45032891184, `push`) est au vert (`verify` : success) ; seuils de couverture : non exécutés par cette session.
   **À `319d443`** (réalignement d'US-001, 2026-11-23), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : `npx vitest run` donne 42 fichiers, **1320 verts et 22 sautés** ; `npx tsc --noEmit` et `npx eslint src` sortent en code 0 ; le run de la CI sur ce HEAD (run 45141148244, `push`) est au vert ; seuils de couverture : non exécutés par cette session.
   **À `833c78b`** (réalignement de la limite du repli avec `PORT` absente, 2026-11-23), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : `npm ci` échoue ici à la compilation de better-sqlite3, installé par `npm ci --ignore-scripts` ; `npx vitest run` donne 42 fichiers, **1321 verts et 22 sautés** (3000 libre ici : le test de #213 s'est exécuté) ; `npx tsc --noEmit` et `npx eslint src` sortent en code 0 ; le run de la CI sur ce HEAD (run 45147313264, `push`) est au vert ; seuils de couverture : non exécutés par cette session.
+  **À `418aa13`** (réalignement d'US-003, 2026-11-25), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : better-sqlite3 installé par `npm ci --ignore-scripts` (pas de compilation ; le binaire prébuilt du paquet se charge, les tests qui lancent le hub réel s'exécutent) ; `npx vitest run` donne 43 fichiers, **1620 verts et 22 sautés** (10 dans `index.test.ts` et 12 dans `seed.test.ts`, les tests de permissions) ; `npx tsc --noEmit` et `npx eslint src` sortent en code 0 ; le run de la CI sur ce HEAD (run 45679666346, `push`, `main`) est au vert ; seuils de couverture : non exécutés par cette session.
 - **US auditées par ce fichier** : US-001, US-002, US-003, US-004, US-009 (les seules « prétendument faites » au relevé daté). Les US livrées depuis ne sont pas auditées ici.
 - **US-005 à US-008** : le relevé daté les disait « absentes du code ET du git log » (~148 CA jamais implémentés). **C'est faux aujourd'hui pour US-005 seule.**
   - **US-005 existe** : `POST`, `GET /`, `GET /:id`, `PUT` et `DELETE` de `/api/v1/questions` (`questions/question-route.ts`), son service et son repository ; au moins 48 des 55 CA de la spec ont un test dont le titre cite `US-005/CA-n` (comptage par déclaration ; il ne voit pas un second CA cité sans préfixe d'US, comme dans `CA-20 and CA-41`). **Elle n'est pas auditée par ce fichier** : aucune confrontation CA par CA, aucun jugement sur la solidité de ses assertions.
@@ -82,10 +97,10 @@
 |----|:---:|:---:|:---:|:---:|:---:|
 | US-001 — server startup | 9  | 9   | —                                   | —                          | —      |
 | US-002 — seed users     | 8  | 8   | —                                   | —                          | —      |
-| US-003 — auth token     | 19 | 17  | CA-1, 2                             | —                          | —      |
+| US-003 — auth token     | 20 | 20  | —                                   | —                          | —      |
 | US-004 — themes CRUD    | 40 | ~31 | CA-12 / 12a / 19 / 34               | **CA-35 (405)**            | **CA-30** |
 | US-009 — websocket      | 29 | ~25 | CA-12, 22, 26                       | —                          | —      |
-| **Total** | **105** | **~90** | **~9** | **1** | **1** |
+| **Total** | **106** | **~93** | **~7** | **1** | **1** |
 
 Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18), puis mise à jour après le
 `test(startup)` des permissions et de `EACCES`, puis après le `test(startup)` de `JWT_SECRET`
@@ -102,10 +117,15 @@ CA-3 et CA-7, partiels depuis la décision #77, sont solides depuis le `fix(seed
 CA-17, CA-19 et CA-20 ; CA-18 est retiré par la décision #54, le relevé daté en comptait 18) ;
 17 sont solides, CA-1 (le `token_type` du hub réel n'est asserté par aucun test) et CA-2 (le
 câblage de `JWT_SECRET` au générateur n'est prouvé par aucun test d'US-003) sont partiels ; les
-deux trous du relevé daté (CA-16, CA-17) sont corrigés dans le code et prouvés. **Les lignes
+deux trous du relevé daté (CA-16, CA-17) sont corrigés dans le code et prouvés. **Puis réalignée
+au HEAD `418aa13` (2026-11-25)** : la spec compte 20 CA (CA-21, `MAX_REQUESTS_PER_MINUTE`
+invalide, s'est ajouté le 2026-11-24, décision #94) ; les 20 sont solides : CA-1 et CA-2 le
+deviennent, le `test(authentication)` #210 (2026-11-23) prouvant sur le processus réel le
+`token_type` `Bearer` et un token signé avec le `JWT_SECRET` de l'environnement du hub, et CA-21
+est solide d'emblée (fonction, processus réel, `.env`). **Les lignes
 US-004 et US-009 sont celles du relevé daté (HEAD `5407e38`), non réalignées.** La ligne
-**Total** est recalculée à partir des lignes telles qu'elles sont écrites (105 CA ; solides
-9 + 8 + 17 + ~31 + ~25 ; partiels 0 + 0 + 2 + 4 + 3 ; trou réel 1 ; faux vert 1) : elle compte
+**Total** est recalculée à partir des lignes telles qu'elles sont écrites (106 CA ; solides
+9 + 8 + 20 + ~31 + ~25 ; partiels 0 + 0 + 0 + 4 + 3 ; trou réel 1 ; faux vert 1) : elle compte
 donc encore un trou réel (US-004 CA-35) et un faux vert (US-004 CA-30), alors que ce trou et ce
 faux vert sont corrigés dans le code (dettes C et A, §3).
 
@@ -455,26 +475,58 @@ comportement cassé en production réelle.
     `DEBTS.md` (`infrastructure/ & composition`, « Seed (US-002) : `.env` non versionné, non
     testé »).
 
-### US-003 — Token d'authentification (19 CA : CA-1 à CA-17, CA-19 et CA-20)
+### US-003 — Token d'authentification (20 CA : CA-1 à CA-17 et CA-19 à CA-21)
 
-> **Section réalignée sur le réel au HEAD `ed6bd31` (2026-11-22)**, avec la méthode du fichier
-> (spec, code de production, corps des tests). Le relevé daté comptait 18 CA (CA-1 à CA-18) ; la
-> spec en compte 19 : CA-18 (couverture) est retiré par la décision #54 (numérotation conservée,
-> il n'y a pas de CA-18), CA-19 et CA-20 (démarrage : `JWT_SECRET`, `JWT_EXPIRATION`) se sont
-> ajoutés (décisions #40 et #42). Suite concernée : `authentication/token-route.test.ts` (plugin
-> des tokens seul, `inject`, services simulés : 44 tests), `jwt-generator.test.ts`,
-> `jwt-settings.test.ts`, `authentication-service.test.ts` (sans étiquette d'US),
-> `users/sqlite-user-repository.test.ts` (sans étiquette d'US), `server.test.ts` (serveur
-> assemblé), `index.test.ts` (processus réel : `tsx src/index.ts` lancé en `spawn`, environnement
-> explicite, base jetable), `env-example.test.ts` et `common/process-environment.test.ts`. Run du
-> 2026-11-22 (Node 22.23.5, root) : 42 fichiers, 1278 verts, 22 sautés (dont 10 dans
-> `index.test.ts`, les tests de permissions). Un CA n'est *solide* que si chacun de ses
+> **Section réalignée sur le réel au HEAD `418aa13` (2026-11-25)**, avec la méthode du fichier
+> (spec, code de production, corps des tests), à partir du réalignement du HEAD `ed6bd31`
+> (2026-11-22). Le relevé daté comptait 18 CA (CA-1 à CA-18) ; la spec en compte 20 : CA-18
+> (couverture) est retiré par la décision #54 (numérotation conservée, il n'y a pas de CA-18),
+> CA-19 et CA-20 (démarrage : `JWT_SECRET`, `JWT_EXPIRATION`) se sont ajoutés (décisions #40 et
+> #42), puis CA-21 (`MAX_REQUESTS_PER_MINUTE` invalide, décision #94, 2026-11-24). Suite concernée :
+> `authentication/token-route.test.ts` (plugin des tokens seul, `inject`, services simulés : 86
+> tests), `jwt-generator.test.ts` (6), `jwt-settings.test.ts` (23), `authentication-service.test.ts`
+> (6, sans étiquette d'US), `users/sqlite-user-repository.test.ts` (sans étiquette d'US),
+> `common/read-max-requests-per-minute.test.ts` (23), `server.test.ts` (serveur assemblé),
+> `index.test.ts` (processus réel : `tsx src/index.ts` lancé en `spawn`, environnement explicite,
+> base jetable), `env-example.test.ts` et `common/process-environment.test.ts`. Run du 2026-11-25
+> (Node 22.23.5, root) : 43 fichiers, 1620 verts, 22 sautés (10 dans `index.test.ts` et 12 dans
+> `seed.test.ts`, les tests de permissions). Un CA n'est *solide* que si chacun de ses
 > comportements est prouvé par une assertion qui mord. Les « mutants » sont des modifications de
-> production rejouées sous les tests puis annulées par cette session (aucun test n'est ajouté ni
-> modifié) ; les constats « sondé à la main » et les smoke tests d'Olivier viennent des décisions et
-> des handoffs, non rejoués ici. Un CA dont la cellule dit « périmé » contredit le relevé daté.
+> production rejouées sous les tests puis annulées. **Rejoués par cette session (2026-11-25), tous
+> tués et annulés (`git status` propre)** : ceux du CA-1, du CA-2, de la comparaison factice
+> (« Hors CA »), du `null` (CA-9 et CA-10), du `charset` (CA-7) et d'`OPTIONS` (CA-16), chacun sous
+> le ou les fichiers de test qui le visent. **Toute autre mention « mutants rejoués et tués » est
+> celle du réalignement du 2026-11-22 (HEAD `ed6bd31`) ; celles qui viennent des PR ou de
+> `DEBTS.md` sont dites telles : non rejouées ici.** Les constats « sondé à la main » et les smoke
+> tests d'Olivier viennent des décisions et des handoffs, non rejoués ici. Un CA dont la cellule dit
+> « périmé » contredit le relevé daté ou le réalignement précédent.
 
-- **Solides (17)** :
+- **Solides (20)** :
+  - **CA-1** (`200`, token, durée, type) : `token-route.test.ts` (`CA-01`) asserte le corps exact
+    `{ token, expires_in, token_type }` en snake_case (décision #15), générateur simulé ;
+    `authentication-service.test.ts` rend l'utilisateur pour de bons identifiants et `undefined`
+    sinon ; `sqlite-user-repository.test.ts` retrouve l'utilisateur par login. **Sur processus réel**
+    (`index.test.ts`, `describe('hub token (token_type and JWT_SECRET)')`, test `US-003/CA-1`), un
+    `POST /api/v1/token` du compte `admin` seedé répond `200` et `token_type` vaut `Bearer`
+    (`test(authentication)` #210, 2026-11-23) ; la durée l'est par `expires_in` et `exp - iat`
+    (voir CA-4). `JwtGenerator` écrit `tokenType: "Bearer"` en dur ; `jwt-generator.test.ts` ne lit
+    toujours pas le champ. **Périmé : « le `token_type` du hub réel n'est asserté par aucun test »**
+    (constat du HEAD `ed6bd31`, où le mutant `"Bearer"` → `"Basic"` survivait : 1278 verts, 22
+    sautés). Mutant rejoué par cette session (`"Bearer"` → `"Basic"` dans `jwt-generator.ts`, test
+    de processus seul) : **tué** (`expected 'Basic' to be 'Bearer'`). Le smoke test d'Olivier du
+    2026-11-21 l'assertait déjà (NR-3, `docs/sessions/2026-11-21-1537.md`), hors dépôt, non rejoué.
+  - **CA-2** (HS256, vérifiable avec `JWT_SECRET`) : `jwt-generator.test.ts` : l'en-tête décodé
+    porte `alg: HS256` et `jwt.verify(token, secret)` accepte le token ; mutant `HS512` tué
+    (2026-11-22) ; `jwt-settings.test.ts` : l'ancien nom `JWT_SECRET_KEY` est ignoré. **Sur
+    processus réel** (`index.test.ts`, même `describe`, test `US-003/CA-2`, #210) : le token d'un
+    vrai `POST /api/v1/token`, avec un `JWT_SECRET` propre au test (différent du secret par défaut
+    de `startHub`), a `alg: HS256`, se vérifie avec ce secret (`algorithms: ['HS256']`) et
+    **seulement** avec lui : la vérification avec le secret par défaut lève `invalid signature`. Le
+    câblage d'`index.ts` (`new JwtGenerator(jwtSettings.secret, …)`) est donc prouvé par un test
+    d'US-003. **Périmé : « aucun test d'US-003 ne prouve que le hub réel signe avec `JWT_SECRET` »**
+    (HEAD `ed6bd31` : le mutant survivait sous root, et n'était tué sous non-root que par hasard,
+    par un test d'US-001/CA-9). Mutant rejoué par cette session (le générateur d'`index.ts` reçoit
+    `jwtSettings.secret + "x"`, test de processus seul) : **tué** (`invalid signature`).
   - **CA-3** (`sub`, `role` en libellé, `iat`, `exp`) : `jwt-generator.test.ts` (`describe CA-003`,
     trois tests) : les quatre claims sont présents ; `role` vaut `"buzzer"` pour un joueur et
     `"admin"` pour un administrateur ; `sub` est l'identifiant de l'utilisateur. Mutants rejoués
@@ -509,34 +561,53 @@ comportement cassé en production réelle.
     `additionalProperties` retiré. **Périmé : « code `UNKNOWN_FIELDS` non asserté »** : il l'est, dans
     le corps complet. Il n'existe pas d'étiquette `US-003/CA-12` : la spec écrit deux fois la même
     règle (CA-6 et CA-12) et les tests portent « (CA-12) » dans le `describe` du CA-6. Le cumul
-    avec un champ manquant est fixé par la décision #84 (`VALIDATION_ERROR` d'abord) ; le code
-    répond encore `UNKNOWN_FIELDS` : écart du code au CDC, consigné dans `DEBTS.md` (`fix(authentication)` à venir).
-  - **CA-7** (`Content-Type` autre que JSON → `415`) : `token-route.test.ts` (`describe CA-07`,
-    sept tests) : `application/xml` et `text/plain` → `415`, corps natif de Fastify
+    avec un champ manquant, vide ou `null` est fixé par la décision #84 (`VALIDATION_ERROR`
+    d'abord, un champ mal typé avant les deux) : codé par le `fix(authentication)` #206
+    (2026-11-22, manquant, vide et mal typé) et #208 (`null`), prouvé par le `describe` « decision
+    #84, rank 5 before rank 6 » (six tests : `username` et `password` manquant, vide ou `null`,
+    avec un champ en trop, `authenticate` jamais appelé) et par le test « the type of a field before
+    an unknown field » ; l'écart du code au CDC relevé le 2026-11-22 est soldé. La branche des
+    champs inconnus est la dernière de la garde, sans test de la liste vide (`DEBTS.md`).
+  - **CA-7** (`Content-Type` autre que JSON → `415`) : `token-route.test.ts`
+    (`describe CA-07`,
+    dix-neuf tests) : `application/xml` et `text/plain` → `415`, corps natif de Fastify
     `{ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error, message, statusCode: 415 }` (décision #11) ;
     `Content-Type` absent, avec ou sans corps, et présent mais vide, avec ou sans corps → même
     `415`, `authenticate` jamais appelé (décision #82). Mutants rejoués et tués : garde de l'absence
     retirée (`onRequest: rejectUnsupportedContentType`, ex-`rejectMissingContentType`), parseur `text/plain` conservé. Codé par
     `fix(authentication)` #193 (`text/plain`) et #195 (absence), 2026-11-21 et 2026-11-22.
-    `charset` autre qu'`utf-8` → même `415` (décision #89, `fix(authentication)` du 2026-11-23, dix
-    tests de refus et d'acceptation du `charset`) ; `Application/JSON` seul et
-    `application/json; foo=bar` seul → `200` (`test(authentication)` du 2026-11-23, décision #89
-    points 2 et 4).
+    `charset` autre qu'`utf-8` → même `415` (décision #89, `fix(authentication)` #217, 2026-11-23) :
+    trois refus (`iso-8859-1`, `utf-16`, et `Application/JSON; CHARSET=ISO-8859-1`) et neuf
+    `Content-Type` acceptés en `200` (`charset=utf-8` en toutes casses, avec ou sans espace, entre
+    guillemets, un paramètre inconnu avant ou après, `Application/JSON` seul et
+    `application/json; foo=bar` seul, `test(authentication)` #218, décision #89 points 2 et 4).
+    Sur le serveur assemblé, un `POST` au `Content-Type` non conforme garde son `415`
+    (`server.test.ts`, test témoin du `describe` du `405`). Mutant rejoué par cette session
+    (contrôle du `charset` retiré) : **tué** (3 rouges sur 86).
   - **CA-8** (`401 INVALID_CREDENTIALS`) : `token-route.test.ts` (`CA-08`) : `401`, corps
     `{ status: 401, error: 'INVALID_CREDENTIALS', message: 'Invalid credentials.' }`. Le même corps
     répond au login inconnu et au mauvais mot de passe parce que le service rend `undefined` dans les
     deux cas (`authentication-service.test.ts`, deux tests sans étiquette) et que la route n'a
     qu'une branche. Mutant rejoué et tué : message changé. Le point de vigilance du CDC sur le
     temps de réponse n'est pas un CA : voir « Hors CA » plus bas.
-  - **CA-9 et CA-10** (`username` / `password` manquant ou vide → `400 VALIDATION_ERROR`) :
-    `token-route.test.ts` (`CA-09` et `CA-10`, quatre tests chacun) : champ manquant → `400
-    VALIDATION_ERROR` (`Username is required.` / `Password is required.`), champ vide → même
-    réponse, `authenticate` jamais appelé. Mutants rejoués et tués : `minLength` retiré (un par
-    champ), `required` retiré. Les libellés sont normatifs depuis la décision #85 (2026-11-22), qui fixe aussi que seul `Username`
-    est nommé quand les deux champs manquent (non testé). Le champ de mauvais type et un corps qui
-    n'est pas un objet répondent le corps natif de Fastify (lu dans `token-route.ts`,
-    `reply.send(request.validationError)`, non rejoué), alors que #85 exige `400 VALIDATION_ERROR` :
-    écart consigné dans `DEBTS.md` (`fix(authentication)` à venir).
+  - **CA-9 et CA-10** (`username` / `password` manquant, `null` ou vide → `400 VALIDATION_ERROR`) :
+    `token-route.test.ts`, sept `describe` (quarante-quatre tests) : `CA-09` et `CA-10` (quatre
+    tests chacun) : champ manquant → `400 VALIDATION_ERROR` (`Username is required.` / `Password
+    is required.`), champ vide → même réponse, `authenticate` jamais appelé ; « decision #86, rank
+    5 » (huit tests) : un champ `null` compte comme manquant, même message ; « decision #85, rank
+    5 » (deux tests) : seul `Username` est nommé quand les deux champs manquent (`{}`) ou sont
+    vides ; « decision #85, rank 4 » : un champ qui n'est ni une chaîne ni `null` (nombre,
+    booléen, tableau, objet) → `Username must be a string.` / `Password must be a string.`, avant
+    un champ manquant, vide ou inconnu et, quand les deux sont mal typés, `username` seul
+    (quatorze tests) ; un corps JSON qui n'est pas un objet (`null`, `[]`, tableau non vide,
+    chaîne, nombre, booléen) → `Request body must be a JSON object.` (six tests). Les libellés
+    sont normatifs (décision #85, 2026-11-22). Codé par le `fix(authentication)` #206 (ordre, type
+    et corps non objet) et #208 (`null` lu comme manquant, décisions #86 et #87). Mutants rejoués et
+    tués (2026-11-22) : `minLength` retiré (un par champ), `required` retiré. Mutant rejoué par
+    cette session (le `null` n'est plus lu comme manquant) : **tué** (6 rouges sur 86).
+    **Périmé : « le champ de mauvais type et un corps qui n'est pas un objet répondent le corps
+    natif de Fastify »** : corrigé par #206 ; l'écart consigné dans `DEBTS.md` est soldé. Le test
+    de #215 (`test(authentication)`) prouve la réponse quand les deux champs manquent.
   - **CA-11** (JSON invalide → `400 INVALID_JSON`) : `token-route.test.ts` (deux `describe` d'un
     test) : un JSON tronqué (`{"username":`) → `400`, `INVALID_JSON`, `Request body must be valid
     JSON.` ; un corps vide avec `Content-Type: application/json` → même réponse. Mutants rejoués
@@ -544,19 +615,40 @@ comportement cassé en production réelle.
     pas JSON malformé »** : le JSON malformé l'est (traduction des deux codes Fastify par le
     gestionnaire d'erreurs du plugin, `fix(authentication)` du 2026-11-07 selon `DEBTS.md`) ; dette H.
   - **CA-13** (100 requêtes par minute et par IP, `429 RATE_LIMIT_EXCEEDED`, `Retry-After: 60`) :
-    `token-route.test.ts` (`CA-13`, sept tests, limite de 5 injectée sauf pour le dernier) : `429` ;
-    `Retry-After: 60` au premier `429` et à +3 s dans la fenêtre (horloge `Date` simulée) ; corps
-    standard `Too many requests. Please retry in 60 seconds.` ; par IP (`remoteAddress` : une IP
-    refusée, une autre répond `200` ; deux IP comptées chacune pour elle) ; avec la limite à 100 :
-    100 acceptées, la 101ᵉ refusée. Sur processus réel (`index.test.ts`, `describe('hub token rate
-    limit (MAX_REQUESTS_PER_MINUTE)')`), sans `MAX_REQUESTS_PER_MINUTE`, la 101ᵉ requête d'une même
-    adresse reçoit `429`, `Retry-After: 60` et le corps standard : le défaut 100 est prouvé câblé.
-    Mutants rejoués et tués : `Retry-After` à 59, rate limit retiré du plugin des tokens, limite
-    câblée à 99 dans `index.ts` (processus). **Périmé : « `Retry-After:60` et « par IP » non
-    prouvés »** : `test(authentication)` #188 (2026-11-21), puis #197 (2026-11-22). Restent non
-    prouvés (`DEBTS.md`, ligne « Limite du `429` des tokens ») : une valeur explicite de
-    `MAX_REQUESTS_PER_MINUTE` sur le hub réel, et l'IP vue derrière un proxy (`trustProxy`, non
-    spécifié).
+    **le compteur n'est plus celui du plugin des tokens.** Depuis le `feat(errors)` #240
+    (2026-11-25, décision #96), un seul `@fastify/rate-limit` compte toute l'API par adresse,
+    les tokens comprises (une requête n'use qu'une unité, quelle que soit sa réponse) ; les sept
+    tests de `token-route.test.ts` (`CA-13`, limite injectée) sont retirés avec lui et le plugin
+    des tokens monté seul ne porte plus de limite. Preuves au réel :
+    - **règle de la valeur** (`read-max-requests-per-minute.test.ts`, deux tests `CA-13`) : `100`
+      quand `MAX_REQUESTS_PER_MINUTE` est absente, la valeur écrite sinon ;
+    - **serveur assemblé** (`server.test.ts`, limite 3) : `describe` « decision #96 » (seize
+      tests) : un seul compteur pour tokens, thèmes et route inconnue (la 4ᵉ requête, d'une famille
+      ou d'une autre, est refusée), `401`, `400`, `403`, `404` et `405` comptés une unité chacun,
+      `429` au corps standard `Too many requests. Please retry in 60 seconds.` avec `Retry-After:
+      60`, **par adresse** (`remoteAddress` : une adresse refusée, une autre servie), `/health` et
+      `/ws` ni comptés ni refusés (comportement actuel figé, CDC muet) ; `describe` « decision #97 »
+      (six tests, `test(errors)` #242) : l'adresse comptée est celle de la connexion
+      (`X-Forwarded-For` ignoré), la fenêtre est fixe, rouverte à +60 s, un refus ne la prolonge pas ;
+      `describe` « decision #36 » (trois tests, `test(errors)` #243, `Date` simulée seule) :
+      `Retry-After: 60` d'un `429` obtenu à +3 s de la première requête, sur `POST /api/v1/token`,
+      thèmes et questions ;
+    - **processus réel** (`index.test.ts`, `describe('hub token rate limit
+      (MAX_REQUESTS_PER_MINUTE)')`, cinq tests) : sans variable, la 101ᵉ requête d'une même adresse
+      reçoit `429`, `Retry-After: 60` et le corps standard (`test(authentication)` #197 : le défaut
+      100 est câblé) ; avec `MAX_REQUESTS_PER_MINUTE=3` dans l'environnement du processus, la 4ᵉ
+      (#229) ; `3` dans un `.env` du dossier de travail et absente de l'environnement réel, la 4ᵉ ;
+      `.env` à 5 et environnement réel à 3 : la limite est celle de l'environnement réel ; `.env`
+      vide et environnement réel à 3 : 3 (CA-21) (#235).
+    Mutants : ceux du plugin (`Retry-After` à 59, limite retirée du plugin, limite câblée à 99) sont
+    ceux du 2026-11-22 et visaient un compteur qui n'existe plus ; ceux de #229, #235, #240, #242 et
+    #243 sont cités par `DEBTS.md` et les PR, non rejoués ici. **Périmé : « une valeur explicite de
+    `MAX_REQUESTS_PER_MINUTE` sur le hub réel et l'IP vue derrière un proxy non prouvées »** : la
+    valeur est prouvée par #229 et #235 ; l'adresse est tranchée par la décision #97 (adresse de la
+    connexion) et prouvée sur le serveur assemblé (#242). Reste non prouvé (`DEBTS.md`) : le
+    `Retry-After: 60` d'un `429` retardé **sur le hub réel** (l'horloge d'un processus enfant n'est
+    pas simulable ; prouvé sur le serveur assemblé), les guillemets, blancs et ` #` d'un `.env` pour
+    cette variable (CDC muet), `/health` et `/ws` dans ou hors compteur (non décidé).
   - **CA-14 et CA-15** (logs de connexion : contenu et niveau) : `token-route.test.ts` (`describe
     CA-14, CA-15 et CA-17`, logger Pino capturé) : une connexion réussie écrit une ligne de niveau
     INFO (30) qui porte le `username` et l'IP ; un mauvais mot de passe et un login inconnu écrivent
@@ -567,26 +659,37 @@ comportement cassé en production réelle.
     `username` retiré du log d'échec, IP retirée. **Périmé : « aucun test ne les capture »** :
     `test(authentication)` #187 (2026-11-21). La forme de la ligne (`event`, `timestamp`) n'est pas
     exigée (décision #81) : elle n'est pas testée.
-  - **CA-16** (`405 METHOD_NOT_ALLOWED`, `Allow: POST`) : `server.test.ts` : `PUT /api/v1/token`
-    sans token → `405`, `Allow: POST`, corps `HTTP method PUT is not allowed on this resource.` (un
-    test du `describe` « … US-003/CA-16 … public route » ; les dix-sept autres tests des deux
-    `describe` qui portent l'étiquette visent thèmes, questions, `/health` et `/ws`, pas le token).
-    Codé par `feat(errors)` #89 (2026-11-11, décisions #31 à #33 et #38, `routes/not-found-route.ts`).
-    Mutants rejoués et tués : en-tête `Allow` retiré (7 tests rouges de `server.test.ts`), route des
-    tokens non publique (le test du token passe à `401`). **Périmé : « absent (ni code ni test) »**.
-    Non testés sur le token : les méthodes autres que `PUT` (d'après `not-found-route.ts`, toute
-    méthode non enregistrée sur le chemin reçoit le même `405` ; non rejoué sur le token) et `HEAD`
-    (testé sur `/api/v1/themes`, décision #32).
-    **Écart décidé le 2026-11-23 (décision #90)** : un `PUT` ou un `DELETE` avec un corps JSON invalide
-    ou vide répond `400` natif sans `Allow` ; la spec exige `405` + `Allow: POST`. Non codé, non testé
-    (dette `405` du token).
+  - **CA-16** (`405 METHOD_NOT_ALLOWED`, `Allow: POST`, corps jamais jugé) : `server.test.ts`
+    (serveur assemblé), trois `describe` : route publique (trois tests) : `PUT`, `GET` et `DELETE`
+    sans token → `405`, `Allow: POST`, corps standard `HTTP method <M> is not allowed on this
+    resource.` (`feat(errors)` #89, 2026-11-11, décisions #31 à #33 et #38,
+    `routes/not-found-route.ts` ; `GET` et `DELETE` ajoutés par #210) ; « decisions #90 and #93 » :
+    pour `PUT`, `DELETE`, `PATCH` et `OPTIONS`, sept tests chacun : le même `405` avec un corps
+    JSON invalide, vide ou valide, avec un `Content-Type` `text/plain`, `application/xml` ou
+    `application/json; charset=latin1` (jamais `415`) et avec une chaîne de requête, plus cinq tests
+    du bloc (un `PUT` et un `OPTIONS` à corps invalide comptent dans la limite, `429` au-delà ; trois
+    contrôles : un `POST` à JSON invalide garde `400 INVALID_JSON`, un `POST` au `Content-Type` non
+    conforme garde `415`, un `PUT` à corps invalide sur une route inconnue garde le `400` natif) ;
+    « decision #93 » : `HEAD`, huit tests : `405` et `Allow: POST` avec un corps JSON invalide, vide
+    ou valide, sans corps ni `Content-Type`, avec un `Content-Type` non conforme, avec une chaîne de
+    requête (statut et `Allow` seulement : une réponse `HEAD` n'a pas de corps). Codé par le
+    `fix(authentication)` #220 (méthode autre que `POST`, corps jamais lu, 2026-11-23, décision
+    #90), le `fix(errors)` #227 (`OPTIONS`, 2026-11-24) et le `test(errors)` #228 (`HEAD`, déjà
+    conforme, décision #93). Mutant rejoué par cette session (`OPTIONS` retiré des méthodes
+    traitées avant le corps, `not-found-route.ts`, `server.test.ts` seul) : **tué** (53 rouges sur
+    225 : les tests d'`OPTIONS` du token, des thèmes et des questions) ; ceux du 2026-11-22 (en-tête
+    `Allow` retiré : 7 tests rouges ; route des tokens non publique : le test du token passe à
+    `401`) ne sont pas rejoués. **Périmé : « absent (ni code ni test) »** et **« écart décidé le
+    2026-11-23 (décision #90), non codé, non testé »** : codé et testé. Non testés sur le token :
+    `TRACE`, `CONNECT` et les méthodes inconnues (`DEBTS.md`, ligne « `405` : segment vide non
+    testé »).
   - **CA-17** (`500 INTERNAL_SERVER_ERROR` sans détail technique, erreur journalisée au niveau
-    `ERROR`) : `token-route.test.ts` (`describe CA-17`, quatre tests ; quatre autres dans le
+    `ERROR`) : `token-route.test.ts` (`describe CA-17`, cinq tests ; quatre autres dans le
     `describe` du log) : une erreur du service d'authentification, une erreur du générateur, une
     erreur portant le code 503 et une erreur portant le code 302 → `500`, corps `{ status: 500,
     error: 'INTERNAL_SERVER_ERROR', message: 'An unexpected error occurred. Please try again
     later.' }` ; ni le message ni la pile dans la réponse ; la ligne `ERROR` (50) porte le message et
-    la pile de l'erreur, une seule fois ; aucune ligne `ERROR` quand le client est en tort (`415`).
+    la pile de l'erreur, une seule fois ; aucune ligne `ERROR` quand le client est en tort (`415`) ; le `Content-Type` de la réponse est de type `application/json`, `charset` non imposé (cinquième test, `test(authentication)` #222, décision #91 ; le corps exact et l'absence de détail technique sont ceux de la décision #91).
     Mutants rejoués et tués : `request.log.error` retiré, un statut 5xx traité en erreur client,
     statut du corps changé. **Périmé : « aucun `try/catch` dans `token-route` »** : le
     `setErrorHandler` du plugin répond le `500` standard (`fix(authentication)` #185, 2026-11-21) et
@@ -616,46 +719,55 @@ comportement cassé en production réelle.
     tués : `0` accepté, `readJwtSettings` contourné. Prouvé par `test(startup)` #189 (2026-11-21) et
     `test(authentication)` #199 (2026-11-22). Un `exp` absurde pour vingt chiffres est une dette
     assumée (`DEBTS.md`).
-- **Partiels (2)** :
-  - **CA-1** (`200`, token, durée, type) : `token-route.test.ts` (`CA-01`) asserte le corps exact
-    `{ token, expires_in, token_type }` en snake_case (décision #15), générateur simulé ; sur
-    processus réel, `POST /api/v1/token` du compte `admin` seedé répond `200` avec un `expires_in`
-    égal à la durée du token (voir CA-4) ; `authentication-service.test.ts` rend l'utilisateur pour de
-    bons identifiants et `undefined` sinon ; `sqlite-user-repository.test.ts` retrouve l'utilisateur
-    par login. **Partiel : le type.** `JwtGenerator` écrit `tokenType: "Bearer"` en dur et aucun test
-    n'asserte cette valeur : la route la lit d'un générateur simulé qui rend `'Bearer'`,
-    `jwt-generator.test.ts` ne lit pas le champ, le processus réel ne lit que `token` et
-    `expires_in`. Mutant rejoué (`"Bearer"` → `"Basic"`, suite complète) : **survit** (1278 verts,
-    22 sautés). Le smoke test d'Olivier du 2026-11-21 asserte `token_type` = `Bearer` (NR-3,
-    `docs/sessions/2026-11-21-1537.md`), hors dépôt, non rejoué.
-  - **CA-2** (HS256, vérifiable avec `JWT_SECRET`) : `jwt-generator.test.ts` : l'en-tête décodé
-    porte `alg: HS256` et `jwt.verify(token, secret)` accepte le token ; mutant `HS512` tué ;
-    `jwt-settings.test.ts` : l'ancien nom `JWT_SECRET_KEY` est ignoré. **Partiel : le câblage.**
-    Aucun test d'US-003 ne prouve que le hub réel signe avec la valeur de `JWT_SECRET` ; `index.ts`
-    passe `jwtSettings.secret` à `JwtGenerator` (lecture du code). Mutant rejoué (le générateur
-    d'`index.ts` reçoit un autre secret) : **survit sous root** (`index.test.ts` et `server.test.ts` :
-    172 verts, 10 sautés) ; sous un utilisateur non root il est tué, par hasard, par un test
-    d'US-001/CA-9 (`answers a write on a read-only …`, qui rejoue le token du hub sur
-    `/api/v1/themes` : `401` au lieu de `200`), pas par un test d'US-003.
+  - **CA-21** (`MAX_REQUESTS_PER_MINUTE` définie mais invalide : le hub refuse de démarrer) :
+    `read-max-requests-per-minute.test.ts` (vingt et un tests `CA-21`, sur vingt-trois) : refusées,
+    les valeurs de la décision #94 (chaîne vide, `abc`, nombre suivi de lettres, décimal, notation
+    exponentielle, `0`, `00`, négatif, `+5`, espace en tête ou en fin, blancs seuls, `2147483648`)
+    et, en plus, hexadécimal, chiffres non ASCII, séparateur de chiffres, très longue suite de
+    chiffres ; acceptées, `1`, `2147483647` et `0100` (qui vaut 100) ; la valeur n'est jamais
+    reprise dans le message. Sur processus réel (`index.test.ts`,
+    `describe('hub startup: MAX_REQUESTS_PER_MINUTE')`, trente et un tests) : les douze valeurs de
+    la décision refusées (code `1`, `Server starting failed: MAX_REQUESTS_PER_MINUTE must be an
+    integer between 1 and 2147483647, written with digits only.` sur la sortie d'erreur, une seule
+    ligne d'échec, ni pile ni valeur, sortie standard sans la variable, rien n'écoute, aucune base
+    créée) ; sept valeurs non reprises dans la console ; absente, `1`, `0100` et `2147483647` : le hub
+    écoute ; l'ordre des refus (`JWT_SECRET`, `JWT_EXPIRATION` et `PORT` avant, `SQLITE_DB_PATH`
+    vide ou dans un dossier inexistant après) ; `MAX_REQUESTS_PER_MINUTE=` vide dans un `.env` et
+    absente de l'environnement réel : refusé comme toute chaîne vide ; vide dans le `.env` et `3`
+    dans l'environnement réel : le hub écoute et applique 3 (voir CA-13). Le seed ignore la variable
+    (US-002/CA-10, `seed.test.ts`, décision #95). Codé par le `fix(environment)` #231 (2026-11-24),
+    puis le `fix(seed)` #233, prouvé par #231 et le `test(authentication)` #235. **Non prouvé** :
+    que `0100` vaille 100 **sur le processus réel** (le test du processus prouve que le hub
+    démarre ; la valeur est prouvée à la fonction) ; les guillemets, blancs et ` #` d'un `.env` pour
+    cette variable (CDC muet). Mutants : vingt cités par `DEBTS.md` (#231), non rejoués ici.
+- **Partiels : aucun.** CA-1 et CA-2, partiels au HEAD `ed6bd31`, sont solides (plus haut).
 - **Trous réels : aucun.** Les deux trous du relevé daté, CA-16 (405) et CA-17 (500), sont corrigés
   dans le code et prouvés (voir plus haut).
 - **Hors CA (relevé par cette session)** :
   - **Temps de réponse constant** (CDC, « Points de vigilance », pas un CA) : le CDC veut une
     comparaison bcrypt factice pour un login inconnu, afin que le temps de réponse ne dise pas si
-    le login existe. `JwtAuthenticationService.authenticate` rend `undefined` avant tout appel au
-    `hasher` quand le login est inconnu (`jwt-authentication-service.ts`) : le code ne tient pas
-    ce point. Temps de réponse non mesuré ; avant cette session, aucun test, aucune décision ni
-    aucune dette ne le visait (recherche par mots-clés dans `src`, `DECISIONS.md` et `DEBTS.md`) ;
-    inscrit dans `DEBTS.md`.
+    le login existe. **Codé** par le `fix(authentication)` #209 (2026-11-23, décision #88) :
+    `JwtAuthenticationService.authenticate` compare le mot de passe fourni à `DUMMY_PASSWORD_HASH`
+    (hash bcrypt valide de coût 12) quand le login est inconnu (`jwt-authentication-service.ts`).
+    `authentication-service.test.ts` le prouve par l'appel du `hasher` : une seule comparaison, avec
+    le mot de passe fourni et un hash `$2[aby]$12$…` ; le résultat reste `undefined` même si la
+    comparaison factice réussit ; un login connu ne déclenche qu'une comparaison, contre son hash.
+    Mutant rejoué par cette session (comparaison factice retirée) : **tué** (1 rouge sur 6).
+    **Non prouvé** : le temps de réponse lui-même, qu'aucun test ne mesure (le CDC ne donne aucune
+    valeur, une mesure serait instable), et le coût figé à 12, qui ne suit pas `BCRYPT_COST` :
+    inscrits dans `DEBTS.md` (« Login inconnu : le coût du hash bidon est figé à 12… »). **Périmé :
+    « le code ne tient pas ce point »**.
   - **Recherche du login sensible à la casse** (CDC, flux d'émission, étape 2) : le code lit
     `WHERE USR_LOGIN = ?` sur une colonne `UNIQUE` sans `COLLATE NOCASE` (lecture du code,
     `sqlite-user-repository.ts`) ; aucun test ne le vise : non vérifié par test.
   - **Ordre des contrôles** : fixé par la décision #84 (tableau « Ordre des contrôles » d'US-003,
-    diagrammes alignés). Le code n'y est pas conforme sur deux points : un champ manquant doit
-    passer avant un champ inconnu, un champ mal typé avant les deux (aujourd'hui `UNKNOWN_FIELDS`
-    d'abord, et corps natif de Fastify pour le type) : écart consigné dans `DEBTS.md`
-    (`fix(authentication)` à venir). Les messages de `VALIDATION_ERROR` et le champ nommé quand
-    plusieurs sont en échec sont fixés par la décision #85.
+    diagrammes alignés). **Le code y est conforme** depuis le `fix(authentication)` #206 (un champ
+    manquant ou vide avant un champ inconnu, un champ mal typé avant les deux), #208 (le `null`) et
+    #220 (le `405` avant le corps) ; l'écart relevé le 2026-11-22 est soldé. Les rangs 1 et 2 (limite
+    de débit, puis `405` ou `415`) sont prouvés sur le serveur assemblé (CA-13 et CA-16), les rangs
+    3 à 7 par les `describe` « decision #84 », « #85 » et « #86 » de `token-route.test.ts` (CA-6,
+    CA-9 et CA-10). Les messages de `VALIDATION_ERROR` et le champ nommé quand plusieurs sont en
+    échec sont fixés par la décision #85.
   - Le sous-système d'admission WebSocket (`AdmissionPolicy`, `JwtValidator`, résolveur,
     extracteurs) a ses propres fichiers de test dans `authentication/` ; il relève d'US-009 et n'a
     pas été relu par cette session.
@@ -724,30 +836,32 @@ comportement cassé en production réelle.
 > tenus par le code depuis le `fix(seed)` du 2026-11-21 : plus de dette sur ce point). La dette F l'était
 > déjà (réalignée avec US-001) ; une mention d'US-002 y est ajoutée.
 >
-> **Cellules d'US-003 des dettes C à H réalignées au HEAD `ed6bd31` (2026-11-22)**, avec la
-> section US-003 du §2 : D est soldée (`500` standard et log, #185 et #201), F l'est (variables
+> **Cellules d'US-003 des dettes C à H réalignées au HEAD `418aa13` (2026-11-25)** (réalignement
+> précédent : HEAD `ed6bd31`, 2026-11-22), avec la section US-003 du §2 : D est soldée (`500` standard et log, #185 et #201), F l'est (variables
 > d'environnement d'US-003 prouvées sur processus réel), G l'est pour US-003 (logs, `Retry-After`,
 > « par IP ») et reste, pour les thèmes, dans `DEBTS.md` (US-004 CA-34) ; C, E et H ne changent de
 > statut pour aucune US, seules leurs phrases sur les cellules d'US-003 « restent datées » sont
-> corrigées. Ce qui reste des dettes A, B, C, D, F et G est inscrit dans `DEBTS.md`, la ligne y
+> corrigées. Le réalignement du 2026-11-25 met à jour les phrases d'US-003 de C, D, F et G (preuves
+> ajoutées depuis, statuts inchangés). Ce qui reste des dettes A, B, C, D, F et G est inscrit dans `DEBTS.md`, la ligne y
 > renvoie ; E et H sont soldées, sans reste.
 
 **Motif transversal** : le cœur fonctionnel (auth, JWT, CRUD, WebSocket temps réel)
 est solide et bien testé. Les faiblesses qui restent se concentrent sur le plafond des connexions WebSocket et sur des
-vérifications (le `Retry-After` des thèmes, le `token_type` et le câblage du secret d'US-003),
-plus un écart au CDC d'US-003 : le temps de réponse constant du login. Les exigences
-transversales `405`, `500` de `/token`, `role` du JWT, logs de connexion et `Retry-After` des
-tokens, elles, sont corrigées et prouvées.
+vérifications (le `Retry-After` des thèmes), plus, pour US-003, la durée de réponse du login
+inconnu, qu'aucun test ne mesure (la comparaison factice est codée et prouvée par l'appel du
+hasher). Les exigences transversales `405`, `500` de `/token`, `role` du JWT, `token_type` et
+câblage du secret, logs de connexion et `Retry-After` des tokens, elles, sont corrigées et
+prouvées.
 
 | # | Dette | Gravité | Déclencheur de résorption |
 |---|-------|---------|---------------------------|
 | **A** | **Soldée dans le code, résidu de vérification.** Faux vert CA-30 / US-004 : `isUsedInQuestions()` renvoyait `false` en dur. Aujourd'hui `SqliteThemeRepository.isUsedInQuestions` interroge `T_QUESTION_QST` (`QST_THEME_ID = ?`) ; `sqlite-theme-repository.test.ts` le prouve avec le vrai repository de questions (vrai quand une question référence le thème, faux sinon). Sondé sur hub réel : `DELETE` d'un thème qui porte une question répond `409 THEME_HAS_QUESTIONS`, puis `204` une fois la question supprimée. **Résidu** : aucun test ne traverse route, service et repository réels (`server.test.ts` n'a pas de cas `409`), et le test du service simule `isUsedInQuestions` à `true` sans vérifier l'argument : un mutant qui lui passe `theme.name` au lieu de l'identifiant survit (155 verts sur `src/themes` et `server.test.ts`, 2026-11-20). La ligne et la section CA-30 d'US-004 restent datées (« faux vert ») : à réaligner avec la session US-004. Le résidu est inscrit dans `DEBTS.md` (`themes/`, « Suppression d'un thème utilisé (US-004 CA-30) : aucun test ne traverse route, service et repository réels »). | ~~🔴~~ 🟢 Vérification (résidu) | Résidu : `test(themes)` d'un `409` sur le serveur assemblé, vrai service et vrai repository. |
 | **B** | **Toujours vraie (fait constaté).** CA-12 / US-009 : le plafond mélange admin et buzzers. `ws-route.ts` refuse (`4005`, `Server is full.`) toute nouvelle entrée quand `registry.size >= config.maxConnections`, le registre contenant buzzers **et** admin ; `index.ts` donne `maxConnections: 10`. Sondé sur hub réel : dix buzzers s'authentifient, puis l'admin, onzième connexion, est refusé en `4005` : avec dix buzzers connectés, l'admin ne peut plus se connecter. Les tests ne forcent que `maxConnections = 1` avec un buzzer : la combinaison n'est exercée par aucun test. **Point que le CDC ne tranche pas** : US-009 CA-12 dit « maximum 10 buzzers simultanés », CA-16 « maximum 1 connexion admin », le tableau des codes dit `4005` quand « le registre a atteint sa capacité maximale (10 buzzers) », et le registre décrit contient aussi l'admin (rôle `buzzer` ou `admin`) : il ne dit pas si l'admin compte dans le plafond. La lecture « dix buzzers et un admin » est celle de l'audit initial, pas celle du CDC ; elle n'est pas tranchée ici. Inscrite dans `DEBTS.md` (`websocket/`, « Plafond de connexions WebSocket : l'admin compte parmi les 10, et le CDC ne dit pas si c'est voulu »). | 🟠 Comportemental | Une décision du CDC (l'admin compte-t-il dans le plafond ?), avant le premier jeu à 10 buzzers physiques. |
-| **C** | **Soldée.** 405 Method Not Allowed absent partout (CA-16/US-003, CA-35/US-004) : `feat(errors)` du 2026-11-11, décision #38 (`routes/not-found-route.ts`, `RouteCatalog`). Sondé sur hub réel : `GET /api/v1/token` répond `405` avec `Allow: POST` (route publique, corps standard `METHOD_NOT_ALLOWED`), `DELETE /api/v1/themes` avec un token admin répond `405` avec `Allow: GET, POST`. Testé sur le serveur assemblé (`server.test.ts`, deux `describe` portant `US-003/CA-16` et `US-004/CA-35` : route protégée, route publique) ; retirer la ligne qui pose `Allow` fait rougir 7 tests (2026-11-20). **Reste, dans `DEBTS.md`** : la couverture se limite aux ressources `/api/v1/` des tokens, thèmes et questions (dette « `405` : seules les ressources… »). La cellule CA-16 d'US-003 est réalignée (§2) ; la cellule CA-35 d'US-004 reste datée. | ~~🟡~~ soldée | Sans objet (voir `DEBTS.md` pour le périmètre). |
-| **D** | **Soldée.** Gestion 500 fragile (CA-17/US-003) : depuis le `fix(authentication)` #185 (2026-11-21), le `setErrorHandler` de `token-route.ts` répond `500` au corps standard à trois champs (`INTERNAL_SERVER_ERROR`, « An unexpected error occurred. Please try again later. ») sans le détail technique, que l'erreur vienne du service d'authentification ou du générateur de token ; depuis le `fix(authentication)` #201 (2026-11-22, décision #83), il journalise l'erreur au niveau `ERROR` avec son message et sa pile. `token-route.test.ts` le prouve (quatre tests du `500`, quatre du log ; mutants rejoués ici, voir §2). Le constat de l'audit initial (`500` au corps natif de Fastify, `message: "no such table: T_USER_USR"`) est périmé. Soldée aussi sur les thèmes (`US-004/CA-36`) et les questions (`US-005/CA-54`). **Reste, dans `DEBTS.md`** (`authentication/`) : trois points que les CDC ne fixent pas sur le `500` du token, et le contenu exact de la ligne de log (CA17-8 du smoke test). | ~~🟡~~ soldée | Sans objet (voir `DEBTS.md` pour les points non fixés). |
+| **C** | **Soldée.** 405 Method Not Allowed absent partout (CA-16/US-003, CA-35/US-004) : `feat(errors)` du 2026-11-11, décision #38 (`routes/not-found-route.ts`, `RouteCatalog`). Sondé sur hub réel : `GET /api/v1/token` répond `405` avec `Allow: POST` (route publique, corps standard `METHOD_NOT_ALLOWED`), `DELETE /api/v1/themes` avec un token admin répond `405` avec `Allow: GET, POST`. Testé sur le serveur assemblé (`server.test.ts`, deux `describe` portant `US-003/CA-16` et `US-004/CA-35` : route protégée, route publique ; le token répond aussi `405` à `PUT`, `DELETE`, `PATCH`, `OPTIONS` et `HEAD` quel que soit le corps, #220, #227 et #228) ; retirer la ligne qui pose `Allow` fait rougir 7 tests (2026-11-20). **Reste, dans `DEBTS.md`** : la couverture se limite aux ressources `/api/v1/` des tokens, thèmes et questions (dette « `405` : seules les ressources… »). La cellule CA-16 d'US-003 est réalignée (§2) ; la cellule CA-35 d'US-004 reste datée. | ~~🟡~~ soldée | Sans objet (voir `DEBTS.md` pour le périmètre). |
+| **D** | **Soldée.** Gestion 500 fragile (CA-17/US-003) : depuis le `fix(authentication)` #185 (2026-11-21), le `setErrorHandler` de `token-route.ts` répond `500` au corps standard à trois champs (`INTERNAL_SERVER_ERROR`, « An unexpected error occurred. Please try again later. ») sans le détail technique, que l'erreur vienne du service d'authentification ou du générateur de token ; depuis le `fix(authentication)` #201 (2026-11-22, décision #83), il journalise l'erreur au niveau `ERROR` avec son message et sa pile. `token-route.test.ts` le prouve (cinq tests du `500`, dont le `Content-Type`, #222 ; quatre du log ; mutants du 2026-11-22, voir §2). Le constat de l'audit initial (`500` au corps natif de Fastify, `message: "no such table: T_USER_USR"`) est périmé. Soldée aussi sur les thèmes (`US-004/CA-36`) et les questions (`US-005/CA-54`). **Reste, dans `DEBTS.md`** (`authentication/`) : le contenu exact de la ligne de log (CA17-8 du smoke test) ; le corps, le `Content-Type` et l'absence de détail technique du `500` du token sont fixés par la décision #91 et assertés. | ~~🟡~~ soldée | Sans objet (voir `DEBTS.md` pour les points non fixés). |
 | **E** | **Soldée.** `role` string vs enum dans le JWT REST (CA-3/US-003) : le `fix(authentication)` du 2026-11-10 écrit `toRoleLabel(user.role)` dans le token (`jwt-generator.ts`) ; `jwt-generator.test.ts` asserte `role: "buzzer"` pour un joueur et `role: "admin"` pour un administrateur. Sondé sur hub réel : le token de `/api/v1/token` porte `"admin"` pour `admin` et `"buzzer"` pour `quiz_buzzer_01`. Côté WebSocket, `auth_success` utilise aussi `toRoleLabel` : les deux canaux concordent. La cellule CA-3 d'US-003 est réalignée (§2). | ~~🟡~~ soldée | Sans objet. |
-| **F** | **Soldée.** Lecture d'environnement non testée de bout en bout (CA-2/US-002, CA-4/US-003, CA-13/US-003). US-001 n'est plus concernée : sa lecture d'environnement est réalignée au §2. US-002 non plus : le `.env` du seed (mots de passe, `BCRYPT_COST`, `SQLITE_DB_PATH`) est prouvé sur processus réel (§2). US-003 non plus : `JWT_SECRET` et `JWT_EXPIRATION` (CA-4, CA-19, CA-20) sont prouvés sur processus réel, environnement réel et `.env` (`index.test.ts`), ainsi que le défaut de 100 requêtes par minute (CA-13) ; ce que `ProcessEnvironment` ne prouve pas seul est tenu par ces tests (§2). **Reste, dans `DEBTS.md`** : une valeur explicite de `MAX_REQUESTS_PER_MINUTE` non prouvée sur le hub réel (ligne « Limite du `429` des tokens »). | ~~🟢~~ soldée | Sans objet. |
-| **G** | **Soldée pour US-003 ; toujours vraie pour les thèmes (US-004 CA-34), inscrite dans `DEBTS.md`.** Logs et headers non assertés. (1) **Logs CA-14 / CA-15 d'US-003** : soldés par le `test(authentication)` #187 (2026-11-21) : `token-route.test.ts` capture le logger et asserte, par le contenu et le niveau, une ligne INFO (30) avec le `username` et l'IP pour un succès, une ligne WARN (40) avec le `username` tenté et l'IP pour un échec (§2). (2) **`Retry-After`, CA-13 / US-003** : soldé (#188, #197) : `Retry-After: 60` au premier `429` et à +3 s dans la fenêtre, sur le plugin des tokens et sur processus réel. **CA-34 / US-004** : `theme-route.test.ts` n'asserte que le statut `429` ; le header est posé par un hook du middleware de limitation, testé au middleware ; renvoi à `DEBTS.md` : « `429` des thèmes non re-testé » et « `Retry-After` constant testé au middleware seul, pas par plugin ». (3) **« Par IP » (CA-13 / US-003)** : soldé (#188) : deux adresses (`remoteAddress`), l'une refusée, l'autre servie, chacune comptée pour elle. | 🟢 Vérification | Resserrage de tests (thèmes). |
+| **F** | **Soldée.** Lecture d'environnement non testée de bout en bout (CA-2/US-002, CA-4/US-003, CA-13/US-003). US-001 n'est plus concernée : sa lecture d'environnement est réalignée au §2. US-002 non plus : le `.env` du seed (mots de passe, `BCRYPT_COST`, `SQLITE_DB_PATH`) est prouvé sur processus réel (§2). US-003 non plus : `JWT_SECRET` et `JWT_EXPIRATION` (CA-2, CA-4, CA-19, CA-20) sont prouvés sur processus réel, environnement réel et `.env` (`index.test.ts`), ainsi que `MAX_REQUESTS_PER_MINUTE` (CA-13 : le défaut de 100, une valeur explicite dans l'environnement ou dans un `.env`, l'environnement réel l'emportant ; CA-21 : une valeur invalide refusée au démarrage) ; ce que `ProcessEnvironment` ne prouve pas seul est tenu par ces tests (§2). **Reste, dans `DEBTS.md`** : les guillemets, blancs et ` #` d'un `.env` pour `MAX_REQUESTS_PER_MINUTE`, non prouvés, le CDC étant muet (ligne « Limite du `429` des tokens »). | ~~🟢~~ soldée | Sans objet. |
+| **G** | **Soldée pour US-003 ; toujours vraie pour les thèmes (US-004 CA-34), inscrite dans `DEBTS.md`.** Logs et headers non assertés. (1) **Logs CA-14 / CA-15 d'US-003** : soldés par le `test(authentication)` #187 (2026-11-21) : `token-route.test.ts` capture le logger et asserte, par le contenu et le niveau, une ligne INFO (30) avec le `username` et l'IP pour un succès, une ligne WARN (40) avec le `username` tenté et l'IP pour un échec (§2). (2) **`Retry-After`, CA-13 / US-003** : soldé (#188, #197, #243) : `Retry-After: 60` au premier `429` sur processus réel et sur le serveur assemblé, à +3 s dans la fenêtre sur le serveur assemblé (le plugin des tokens n'a plus de compteur propre depuis #240) ; le `429` retardé sur le hub réel n'est pas prouvé (`DEBTS.md`). **CA-34 / US-004** : `theme-route.test.ts` n'asserte que le statut `429` ; le header est posé par un hook du middleware de limitation, testé au middleware ; renvoi à `DEBTS.md` : « `429` des thèmes non re-testé » et « `Retry-After` constant testé au middleware seul, pas par plugin ». (3) **« Par IP » (CA-13 / US-003)** : soldé (#188, #240) : deux adresses (`remoteAddress`), l'une refusée, l'autre servie, chacune comptée pour elle, sur le serveur assemblé ; l'adresse comptée est celle de la connexion (#97, #242). | 🟢 Vérification | Resserrage de tests (thèmes). |
 | **H** | **Soldée.** (a) Noms de comptes CA-1/US-002 : prouvés (§2 : l'ensemble des onze logins est comparé sur processus réel). (b) JSON malformé CA-11/US-003 : `token-route.test.ts` asserte `400 INVALID_JSON` pour un JSON tronqué et pour un corps vide. (c) État vide CA-19/US-004 : prouvé à la route (`200` et enveloppe vide, service simulé), au service (`total: 0`, `total_pages: 0`) et au repository (liste vide). La cellule CA-11 d'US-003 est réalignée (§2) ; la cellule CA-19 d'US-004 reste datée. (d) Bornes du jeu de caractères du mot de passe, CA-4/US-002 : U+007F et U+001F refusés, prouvés par `owasp-password-validator.test.ts`, les deux mutants tués (§2). Ce qui reste d'US-002 (`.env` non versionné et non testé ; constat du verrou d'écriture tenu par un autre processus, non asserté, décision #80) n'est pas de cette dette : renvoi à `DEBTS.md`. | ~~🟢~~ soldée | Sans objet. |
 
 ---
@@ -755,18 +869,18 @@ tokens, elles, sont corrigées et prouvées.
 ## 4. Ce que ça signifie pour la suite
 
 Le socle hub est **substantiel mais pas « fini »** au sens strict des specs :
-~90/105 CA solides (US-001 réalignée au HEAD `319d443` le 2026-11-23,
+~93/106 CA solides (US-001 réalignée au HEAD `319d443` le 2026-11-23,
 US-002 au HEAD `ef7a221` le 2026-11-20, puis CA-3 et CA-7 au HEAD `33823bf` le 2026-11-21,
-US-003 au HEAD `ed6bd31` le 2026-11-22, US-004 et US-009 au relevé daté ; décompte du §1), avec
-un angle mort sur le plafond des connexions WebSocket, sur le `Retry-After` des thèmes, sur deux
-preuves d'US-003 (le `token_type`, le câblage du secret) et un écart au CDC d'US-003 (le temps de
-réponse constant du login). **Aucun de ces trous n'empêche d'avancer vers le jeu** — à condition de les connaître pour ne pas s'appuyer
+US-003 au HEAD `418aa13` le 2026-11-25, US-004 et US-009 au relevé daté ; décompte du §1), avec
+un angle mort sur le plafond des connexions WebSocket, sur le `Retry-After` des thèmes et, pour
+US-003, sur la durée de réponse du login inconnu (la comparaison factice est codée, aucun test ne
+mesure la durée). **Aucun de ces trous n'empêche d'avancer vers le jeu** — à condition de les connaître pour ne pas s'appuyer
 dessus (notamment la dette B).
 
 Deux caps possibles pour la suite, à trancher :
 
 1. **Consolider le socle** — résorber ce qui reste des dettes (B, le `Retry-After` des thèmes (G),
-   le résidu de A et le temps de réponse constant du login d'US-003 ; D, E, F et H sont soldées, C
+   le résidu de A et le coût figé du hash bidon du login d'US-003 ; D, E, F et H sont soldées, C
    n'a qu'un reste de périmètre) pour un hub conforme avant d'ajouter des
    fonctionnalités. Petites sessions TDD ciblées, très « un commit par session ». La dette B
    demande d'abord une décision du CDC (l'admin compte-t-il dans le plafond ?).
@@ -776,7 +890,7 @@ Deux caps possibles pour la suite, à trancher :
    les messages de déroulé de partie).
 
 La dette B est **notée formellement** (ligne de `DEBTS.md`, `websocket/`, depuis le #168) et peut
-attendre son déclencheur naturel. La dette D est soldée ; l'écart du temps de réponse du login est inscrit dans `DEBTS.md`.
+attendre son déclencheur naturel. La dette D est soldée ; ce qui reste du temps de réponse du login (coût figé, durée non mesurée) est inscrit dans `DEBTS.md`.
 Rien n'est bloquant : si le plaisir est le moteur, **US-008 → jeu** reste le cap qui sort de
 « Connecté » affiché à l'écran.
 
