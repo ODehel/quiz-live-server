@@ -50,12 +50,27 @@
 > (CA-17) et le compteur de CA-13, devenu commun à toute l'API (décisions #96 et #97). Total :
 > 106 CA, ~93 solides. Six mutants (CA-1, CA-2, comparaison factice, `null`, `charset`, `OPTIONS`) ont été
 > rejoués par cette session puis annulés, tous tués ; aucun code ni test n'a changé.
-> Les parties **US-004 et US-009** (leurs lignes du §1 et leurs sections du §2)
-> **restent celles du relevé daté (HEAD `5407e38`) et ne sont pas réalignées par cette
-> session** : plusieurs de leurs cellules sont connues périmées (US-004 CA-19, CA-30 et CA-35 :
-> voir les dettes A, C et H, soldées). La ligne Total additionne les lignes telles qu'elles sont
-> écrites ; elle n'est donc pas un état du réel pour ces deux US. Réalignement des autres US :
-> une session par US.
+> **Réalignement du 2026-11-25 (`docs(specs)`, HEAD `4ff3ca7`)** : la partie **US-004** (§1, ligne
+> US-004 ; §2, section US-004) est réalignée sur le réel avec la méthode du fichier, avec la ligne
+> **Total**, les cellules d'US-004 des dettes A, C, G et H (§3), le §0 et le §4. US-004 : **40 CA**
+> (les CA-1 à CA-37, plus CA-12a, CA-19a et CA-31a), **20 solides, 12 partiels, 8 trous réels, aucun
+> faux vert** ; Total : 106 CA, ~82 solides. Le relevé daté (~31 solides) était périmé dans les
+> deux sens : CA-19 (état vide), CA-30 (le faux vert est soldé dans le code), CA-34 (`Retry-After`) et
+> CA-35 (le `405` est codé) sont corrigés, CA-12 et CA-12a sont figés par des tests, et la
+> confrontation CA par CA, sondes à l'appui, trouve des trous que ni le relevé daté ni
+> `DEBTS.md` ne disaient : le `DELETE` ignore mal le `Content-Type` (CA-31, CA-31a), un `POST` ou
+> un `PUT` sans `Content-Type` ni corps répond `500` natif (CA-8, CA-26), les `GET` répondent le
+> `500` natif de Fastify avec le message technique (CA-36), la page géante donne `500` (CA-18),
+> le préfixe `Bearer` n'est pas vérifié et l'expiration n'est prouvée par aucun test (CA-32), et
+> `PUT` et `DELETE` sur `/api/v1/themes/` répondent `404` au lieu de `400 INVALID_UUID` (CA-35).
+> Une cinquantaine de mutants ont été rejoués par cette session puis annulés ; aucun code ni test
+> n'a changé. Un handoff (`docs/sessions/2026-11-25-2121.md`) porte la matrice CA × couches
+> d'US-004.
+> La partie **US-009** (sa ligne du §1 et sa section du §2) **reste celle du relevé daté (HEAD
+> `5407e38`) et n'est pas réalignée par cette session** : plusieurs de ses cellules sont connues
+> périmées (CA-26 et la limite de `/ws` depuis #240). La ligne Total additionne les lignes telles
+> qu'elles sont écrites ; elle n'est donc pas un état du réel pour cette US. Réalignement des
+> autres US : une session par US.
 
 > **Méthode : audit par implémentation réelle, pas par étiquette de test.**
 > Chaque CA a été confronté à trois sources : la **spec** (`docs/specs`),
@@ -72,12 +87,13 @@
 
 ## 0. Portée et faits de départ
 
-- **HEAD hub audité** : `ef7a221` — `test(seed): prove BCRYPT_COST written in a .env file is read and checked on the real process (#166)` (`main`, 2026-11-20). Il vaut pour le §0, la partie US-002, les dettes A à E, G et H et le §4. **La partie US-003 et les cellules d'US-003 des dettes C à H sont au HEAD `418aa13`** — `test(errors): prove a delayed 429 still answers Retry-After 60 on the assembled server (#243)` (`main`, 2026-11-25). **La partie US-001 est au HEAD `319d443`** — `test(startup): prove the localhost fallback of the startup message on the real hub (#211)` (`main`, 2026-11-23) ; **seule sa limite dite du repli avec `PORT` absente (CA-4) est au HEAD `833c78b`** — `test(startup): prove the localhost fallback announces port 3000 when PORT is absent on the real process (#213)` (`main`, 2026-11-23). Les autres parties gardent leur date : US-004 et US-009 au HEAD `5407e38`.
+- **HEAD hub audité** : `ef7a221` — `test(seed): prove BCRYPT_COST written in a .env file is read and checked on the real process (#166)` (`main`, 2026-11-20). Il vaut pour le §0, la partie US-002, les dettes A à E, G et H et le §4. **La partie US-003 et les cellules d'US-003 des dettes C à H sont au HEAD `418aa13`** — `test(errors): prove a delayed 429 still answers Retry-After 60 on the assembled server (#243)` (`main`, 2026-11-25). **La partie US-001 est au HEAD `319d443`** — `test(startup): prove the localhost fallback of the startup message on the real hub (#211)` (`main`, 2026-11-23) ; **seule sa limite dite du repli avec `PORT` absente (CA-4) est au HEAD `833c78b`** — `test(startup): prove the localhost fallback announces port 3000 when PORT is absent on the real process (#213)` (`main`, 2026-11-23). **La partie US-004 et les cellules d'US-004 des dettes A, C, G et H sont au HEAD `4ff3ca7`** — `docs(specs): realign the state of play of US-003 on the real (#244)` (`main`, 2026-11-25 ; le code de production et les tests y sont ceux de `418aa13`, `4ff3ca7` ne change que des docs). La partie US-009 garde sa date : HEAD `5407e38`.
 - **Tests au vert** : à `ef7a221`, sous Node 26.13.1 et sous root, `npx vitest run` donne 40 fichiers, **1201 verts et 22 sautés** (les tests de permissions : 12 de `seed.test.ts` et 10 de `index.test.ts`, sautés en root et sous Windows) ; `npx tsc --noEmit` et `npm run lint` sans erreur (code 0) ; seuils de couverture respectés (94,68 % d'instructions, 97,52 % de branches). Le run de la CI sur ce HEAD (`ubuntu-latest`, hors root, run 44785880839) donne **1223 verts, aucun sauté**. Le relevé daté (184 tests, 24 fichiers) et le réalignement US-001 du 2026-11-18 (1026 tests, 39 fichiers) sont périmés.
   **À `ed6bd31`** (réalignement d'US-003, 2026-11-22), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : `npx vitest run` donne 42 fichiers, **1278 verts et 22 sautés** ; `npx tsc --noEmit` et `npm run lint` sortent en code 0 ; le run de la CI sur ce HEAD (run 45032891184, `push`) est au vert (`verify` : success) ; seuils de couverture : non exécutés par cette session.
   **À `319d443`** (réalignement d'US-001, 2026-11-23), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : `npx vitest run` donne 42 fichiers, **1320 verts et 22 sautés** ; `npx tsc --noEmit` et `npx eslint src` sortent en code 0 ; le run de la CI sur ce HEAD (run 45141148244, `push`) est au vert ; seuils de couverture : non exécutés par cette session.
   **À `833c78b`** (réalignement de la limite du repli avec `PORT` absente, 2026-11-23), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : `npm ci` échoue ici à la compilation de better-sqlite3, installé par `npm ci --ignore-scripts` ; `npx vitest run` donne 42 fichiers, **1321 verts et 22 sautés** (3000 libre ici : le test de #213 s'est exécuté) ; `npx tsc --noEmit` et `npx eslint src` sortent en code 0 ; le run de la CI sur ce HEAD (run 45147313264, `push`) est au vert ; seuils de couverture : non exécutés par cette session.
   **À `418aa13`** (réalignement d'US-003, 2026-11-25), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : better-sqlite3 installé par `npm ci --ignore-scripts` (pas de compilation ; le binaire prébuilt du paquet se charge, les tests qui lancent le hub réel s'exécutent) ; `npx vitest run` donne 43 fichiers, **1620 verts et 22 sautés** (10 dans `index.test.ts` et 12 dans `seed.test.ts`, les tests de permissions) ; `npx tsc --noEmit` et `npx eslint src` sortent en code 0 ; le run de la CI sur ce HEAD (run 45679666346, `push`, `main`) est au vert ; seuils de couverture : non exécutés par cette session.
+  **À `4ff3ca7`** (réalignement d'US-004, 2026-11-25), sous Node 22.23.5 (le projet exige Node >=26 <27) et sous root : better-sqlite3 installé par `npm ci --ignore-scripts` ; `npx vitest run` donne 43 fichiers, **1620 verts et 22 sautés** (inchangé depuis `418aa13`) ; `npx tsc --noEmit` et `npx eslint src` sortent en code 0 ; le run de la CI sur ce HEAD (run 45686987140, `push`, `main`) est au vert ; PowerShell et PlatformIO absents, `scripts/session-open.ps1` remplacé par `git status`, `git log -5` et la branche ; seuils de couverture : non exécutés par cette session.
 - **US auditées par ce fichier** : US-001, US-002, US-003, US-004, US-009 (les seules « prétendument faites » au relevé daté). Les US livrées depuis ne sont pas auditées ici.
 - **US-005 à US-008** : le relevé daté les disait « absentes du code ET du git log » (~148 CA jamais implémentés). **C'est faux aujourd'hui pour US-005 seule.**
   - **US-005 existe** : `POST`, `GET /`, `GET /:id`, `PUT` et `DELETE` de `/api/v1/questions` (`questions/question-route.ts`), son service et son repository ; au moins 48 des 55 CA de la spec ont un test dont le titre cite `US-005/CA-n` (comptage par déclaration ; il ne voit pas un second CA cité sans préfixe d'US, comme dans `CA-20 and CA-41`). **Elle n'est pas auditée par ce fichier** : aucune confrontation CA par CA, aucun jugement sur la solidité de ses assertions.
@@ -98,9 +114,9 @@
 | US-001 — server startup | 9  | 9   | —                                   | —                          | —      |
 | US-002 — seed users     | 8  | 8   | —                                   | —                          | —      |
 | US-003 — auth token     | 20 | 20  | —                                   | —                          | —      |
-| US-004 — themes CRUD    | 40 | ~31 | CA-12 / 12a / 19 / 34               | **CA-35 (405)**            | **CA-30** |
+| US-004 — themes CRUD    | 40 | 20  | CA-3 / 4 / 5 / 6 / 7 / 10 / 11 / 16 / 21 / 22 / 30 / 33 | **CA-8 / 18 / 26 / 31 / 31a / 32 / 35 / 36** | —      |
 | US-009 — websocket      | 29 | ~25 | CA-12, 22, 26                       | —                          | —      |
-| **Total** | **106** | **~93** | **~7** | **1** | **1** |
+| **Total** | **106** | **~82** | **~15** | **8** | **0** |
 
 Ligne US-001 réalignée sur le réel au HEAD `25d2388` (2026-11-18), puis mise à jour après le
 `test(startup)` des permissions et de `EACCES`, puis après le `test(startup)` de `JWT_SECRET`
@@ -122,12 +138,16 @@ au HEAD `418aa13` (2026-11-25)** : la spec compte 20 CA (CA-21, `MAX_REQUESTS_PE
 invalide, s'est ajouté le 2026-11-24, décision #94) ; les 20 sont solides : CA-1 et CA-2 le
 deviennent, le `test(authentication)` #210 (2026-11-23) prouvant sur le processus réel le
 `token_type` `Bearer` et un token signé avec le `JWT_SECRET` de l'environnement du hub, et CA-21
-est solide d'emblée (fonction, processus réel, `.env`). **Les lignes
-US-004 et US-009 sont celles du relevé daté (HEAD `5407e38`), non réalignées.** La ligne
-**Total** est recalculée à partir des lignes telles qu'elles sont écrites (106 CA ; solides
-9 + 8 + 20 + ~31 + ~25 ; partiels 0 + 0 + 0 + 4 + 3 ; trou réel 1 ; faux vert 1) : elle compte
-donc encore un trou réel (US-004 CA-35) et un faux vert (US-004 CA-30), alors que ce trou et ce
-faux vert sont corrigés dans le code (dettes C et A, §3).
+est solide d'emblée (fonction, processus réel, `.env`). Ligne US-004 réalignée sur le réel au HEAD
+`4ff3ca7` (2026-11-25) : la spec compte 40 CA (CA-1 à CA-37, plus CA-12a, CA-19a et CA-31a ; le
+CA de couverture CA-37 y est encore, compté solide au sens du seuil global) ; **20 solides**,
+**12 partiels** (CA-3, 4, 5, 6, 7, 10, 11, 16, 21, 22, 30, 33 : code conforme ou écart de CDC
+connu, mais une borne, un câblage ou une règle que rien ne prouve) et **8 trous réels** (CA-8,
+18, 26, 31, 31a, 32, 35, 36 : une phrase explicite du CDC que le code contredit, sondée) ;
+**aucun faux vert**. **La ligne US-009 est celle du relevé daté (HEAD `5407e38`), non
+réalignée.** La ligne **Total** est recalculée à partir des lignes telles qu'elles sont écrites
+(106 CA ; solides 9 + 8 + 20 + 20 + ~25 ; partiels 0 + 0 + 0 + 12 + 3 ; trous réels 8 ; faux
+vert 0) : elle n'est un état du réel que pour US-001 à US-004.
 
 Légende : *Solide* = comportement implémenté + vérifié par un test qui mord ·
 *Partiel* = implémenté mais vérification faible ou absente · *Trou réel* =
@@ -774,24 +794,311 @@ comportement cassé en production réelle.
 
 ### US-004 — CRUD des thèmes (40 CA)
 
-- **Solides (~31)** : création/lecture/liste/pagination/update/delete, validation
-  regex, normalisation trim+collapse, unicité `COLLATE NOCASE`, tri desc, bornes
-  de pagination, `ID_MISMATCH`, `UNKNOWN_FIELDS`, 415, 401 (CA-32), **403 rôle
-  (CA-33 — vérifié dans `authentication-middleware.test.ts`)**, 500 (CA-36).
-- **Partiels / non vérifiés** : CA-12 / 12a (body & content-type ignorés sur GET,
-  reposent sur le défaut Fastify, non figés par test), CA-19 (état vide via la
-  route non testé — code correct : `ceil(0/limit)=0`), CA-34 (429 oui, header
-  `Retry-After` non asserté).
-- **Trou réel** :
-  - **CA-35 (405 + header `Allow`)** : absent.
-- **Faux vert** :
-  - **CA-30 (delete d'un thème avec questions → 409)** : le service throw bien
-    `ThemeHasQuestionsError`, **mais** `SqliteThemeRepository.isUsedInQuestions()`
-    fait `return false;` (`// TODO: quand QuestionRepository sera disponible`).
-    Le test **mocke** ce retour à `true`. En production réelle, un thème lié à
-    des questions **serait supprimé quand même**. Vert en test, cassé en réel.
-    Cohérent avec l'ordre de dev (les questions n'existent pas encore), mais le
-    CA ne peut être déclaré « fait ». → **Dette A**.
+> **Section réalignée sur le réel au HEAD `4ff3ca7` (2026-11-25)**, avec la méthode du fichier
+> (spec, code de production, corps des tests), à partir du relevé daté (HEAD `5407e38`,
+> 2026-08-16), qui n'avait jamais été réaligné. Le code de production et les tests sont ceux de
+> `418aa13` (`4ff3ca7` ne change que des docs). La spec compte 40 CA : CA-1 à CA-37, plus CA-12a,
+> CA-19a et CA-31a. CA-37 (couverture) y est encore : il n'est pas retiré (`DEBTS.md`, « Les autres
+> US portent encore un CA de couverture »). Suite concernée : `themes/theme-route.test.ts` (plugin
+> des thèmes seul, `inject`, service simulé : 64 tests), `themes/default-theme-service.test.ts` (26,
+> repository simulé), `themes/sqlite-theme-repository.test.ts` (16, SQLite `:memory:`, dont deux
+> étiquetés `US-005/CA-48`), `authentication/authentication-middleware.test.ts` (9, token et
+> décodeur simulés) et `authentication/jwt-decoder.test.ts` (7) pour CA-32 et CA-33,
+> `infrastructure/uuidv7-validator.test.ts` (2) et `uuidv7-generator.test.ts` (1), `server.test.ts`
+> (serveur assemblé : trois `describe` étiquetés `US-004`, les blocs du `405` et ceux de la limite
+> de débit), `index.test.ts` (processus réel : six tests du `429` des thèmes). Run du 2026-11-25
+> (Node 22.23.5, root) : 43 fichiers, 1620 verts, 22 sautés (10 dans `index.test.ts` et 12 dans
+> `seed.test.ts`, les tests de permissions). Un CA n'est *solide* que si chacun de ses
+> comportements est prouvé par une assertion qui mord et si le code ne contredit pas ce que le CDC
+> en dit. **Deux outils ont confronté le fichier au réel.** (1) Des **sondes** : le serveur
+> assemblé (`QuizServer`) avec le vrai `DefaultThemeService`, le vrai `SqliteThemeRepository` sur
+> `:memory:` (avec la table des questions), les vrais `Uuidv7Generator`, `Uuidv7Validator`,
+> `JwtValidator`, `JwtDecoder` et `authenticationMiddleware`, des tokens signés par la sonde, une
+> requête `inject` par cas ; Node 22.23.5, Linux, root ; scripts hors dépôt, non committés ; **le
+> processus réel d'`index.ts` n'est pas sondé**, ni Windows ni Node 26. (2) Des **mutants**, une cinquantaine
+> de modifications de production rejouées sous les tests qui les visent puis annulées (`git status`
+> propre après chacune) : les tués et les survivants sont nommés CA par CA ; un seul est
+> équivalent (`HEAD` ajouté à la liste des méthodes du `405`, que le catalogue de routes filtre
+> déjà : même réponse). **Toute mention « mutants » d'une PR ou de `DEBTS.md` est dite telle et n'est
+> pas rejouée ici.** Les smoke tests d'Olivier (`smoke-themes.ps1`) et les sondes d'autres sessions
+> viennent des décisions et des handoffs, non rejoués. **Limite commune à tout le §2 d'US-004** :
+> aucun test de processus ne crée, lit, modifie ni supprime un thème sur le hub réel ; les seuls
+> tests du hub qui touchent les thèmes sont le `429` (six tests) et, sautés en root, la base en
+> lecture seule (`US-001/CA-9`) ; le câblage d'`index.ts` des thèmes (générateur d'identifiants,
+> validateur d'UUID, horloge du service, middleware d'authentification, validateur de token) n'est
+> donc pinné par aucun test : cinq mutants d'`index.ts` survivent aux 177 tests du fichier (CA-5,
+> CA-6, CA-11, CA-32, CA-33). Un CA dont la cellule dit « périmé » contredit le relevé daté.
+
+- **Solides (20)** :
+  - **CA-1** (`201`, thème créé, `last_updated_at: null`) : `theme-route.test.ts` (`CA-01`) asserte
+    le corps exact (`id`, `name`, `created_at`, `last_updated_at: null`) et l'appel du service avec
+    le nom ; `default-theme-service.test.ts` (`CA-001`, deux tests) : identifiant du générateur, nom,
+    `created_at` de l'horloge, `last_updated_at` `null`, `insert` appelé avec le thème ;
+    `sqlite-theme-repository.test.ts` crée la table et insère. Mutant rejoué, tué : `201` → `200`
+    (1 rouge). **Non prouvé par un test** : le `POST` à travers route, service et repository réels
+    (aucun test du serveur assemblé n'envoie de `POST`) ; sondé (`201`, thème relu par `GET`).
+  - **CA-2** (nom normalisé avant validation) : `default-theme-service.test.ts` (`CA-002`) :
+    `"  Test   Theme  With  Spaces  "` → `"Test Theme With Spaces"` ; au `PUT`, `CA-21` et `CA-22`
+    (noms égaux après normalisation). Mutants rejoués, tous tués (4 rouges chacun) : `trim()`
+    retiré, fusion retirée, fusion limitée aux doubles espaces. Nuance relevée (sonde) : la fusion
+    est `\s+`, donc une tabulation ou une espace insécable entre deux mots devient une espace ; le
+    CDC dit « espaces multiples » : non spécifié.
+  - **CA-9** (`200`, thème par son identifiant) : route (`CA-09`, statut ; le corps est asserté par
+    les tests de `CA-12`), service (deux tests), repository (`getById`, les quatre champs). Sondé
+    avec un identifiant v7 : `200` et le thème relu après `POST`. Voir CA-10 pour l'identifiant de
+    l'exemple de la spec.
+  - **CA-12 et CA-12a** (un corps, un `Content-Type` quelconques sur un `GET` ressource sont
+    ignorés) : **périmé : « reposent sur le défaut Fastify, non figés par test »**. `theme-route.test.ts`
+    les fige depuis le `test(themes)` #26 et #27 (2026-11-01) : `CA-12`, quatre tests (corps JSON
+    valide, JSON invalide, XML, texte brut : `200` et le thème du service, service appelé avec
+    l'identifiant), `CA-12a`, trois tests (`text/plain`, `application/x-www-form-urlencoded`,
+    `not a media type`, sans corps). Sondé sur le serveur assemblé : `200` avec `application/xml`
+    et corps, JSON invalide, JSON vide, `multipart/form-data`, valeur qui n'est pas un type de média.
+    Pas de mutant : les tests décrivent le comportement de Fastify, pas une ligne du code.
+  - **CA-13** (liste paginée, enveloppe `{ data, page, limit, total, total_pages }`) : service
+    (`CA-13`, `CA-18`, `CA-19` : l'enveloppe complète, `total` du `count`, `total_pages` arrondi à
+    l'entier supérieur) ; route (transmet `page` et `limit` en nombres, `getAll(2, 5)`, et rend
+    l'enveloppe du service telle quelle : `toEqual` dans `CA-18` et `CA-19`) ; repository (`LIMIT`
+    et `OFFSET`, pinnés par les tests de `CA-14` et `CA-18`). Mutant rejoué, tué : `Math.ceil` →
+    `Math.floor` dans `build-pagination.ts` (1 rouge, `CA-18` du service). Les deux tests `CA-13` de
+    la route n'assertent que le statut.
+  - **CA-14** (tri par date de création décroissante) : `sqlite-theme-repository.test.ts` (quatre
+    tests : l'ordre des dates croisé avec celui des ids, des noms et de l'insertion, départage par
+    identifiant décroissant à date égale, `fix(themes)` #21 et `test(themes)` #24, 2026-11-01) et
+    `server.test.ts` (`US-004/CA-14`, serveur assemblé, vrai service et vrai repository, #20).
+    Mutant rejoué, tué : `ORDER BY … DESC` → `ASC` (4 rouges).
+  - **CA-15** (`page=1`, `limit=20` par défaut) : route (`getAll(1, 20)`, trois tests le
+    pinnent). Mutant rejoué, tué : `limit` par défaut à 21 (3 rouges).
+  - **CA-17** (pagination invalide → `400 INVALID_PAGINATION`) : route, six tests (négatif, zéro,
+    non numérique, `page` et `limit`) et dix tests de la règle « chiffres seulement, sans zéro en
+    tête » (`007`, `1.5`, `1e1`, `0x10`, vide : corps standard, service jamais appelé), décision #13
+    (`fix(themes)` #13, 2026-10-31). Sondé : `?page=1&page=2` répond aussi `400`.
+  - **CA-19 et CA-19a** (liste vide ; `Content-Type` ignoré sur la liste) : **périmé : « état vide
+    via la route non testé »**. Les trois couches le prouvent depuis le `test(themes)` #23
+    (2026-11-01) : route (`200` et `{ data: [], page: 1, limit: 20, total: 0, total_pages: 0 }`,
+    service appelé avec `(1, 20)`), service (`total: 0`, `total_pages: 0`), repository (liste
+    vide). `CA-19a` : un `GET` de la liste avec `application/xml` répond `200` (un test) ;
+    sondé avec `multipart/form-data` et un corps.
+  - **CA-20** (`200`, thème mis à jour, `last_updated_at` renseigné) : service (nom et
+    `last_updated_at` de l'horloge, `NotFoundError` si le thème n'existe pas, rangé sous ce `describe`),
+    repository (`update` écrit nom et date), route (`200`, corps, service appelé avec
+    l'identifiant et le nom). Mutants rejoués, tués : `update` n'écrit pas `last_updated_at` (1
+    rouge), `PUT` qui refuse `id` (12 rouges). Sondé : `last_updated_at` renseigné, `created_at`
+    conservé.
+  - **CA-23** (`id` du body facultatif, sinon `400 ID_MISMATCH`) : route (un `id` différent :
+    `400`, corps standard ; un `id` égal : les tests de `CA-20` passent), serveur assemblé (le `PUT`
+    sans `id` du `describe` `CA-25` répond `404`, pas `ID_MISMATCH`). Mutants rejoués, tués : la
+    comparaison retirée (1 rouge), l'`id` exigé (1 rouge, `server.test.ts`). **Limite** : un `id`
+    de body mal formé, `null` ou qui n'est pas une chaîne répond `ID_MISMATCH` (sondé) ; l'ordre
+    des contrôles du `PUT` n'est pas décidé pour les thèmes : voir « Hors CA ».
+  - **CA-24** (nom déjà pris par un autre thème → `409 THEME_ALREADY_EXISTS`) : service (conflit
+    quand `getByName` rend un thème) et route (`409`, corps standard). Mutant rejoué, tué :
+    contrôle d'unicité retiré du `PUT` (1 rouge). L'unicité elle-même est celle de CA-4.
+  - **CA-25** (identifiant inexistant au `PUT` → `404 NOT_FOUND`) : service, route (corps), serveur
+    assemblé avec le vrai service et le vrai repository (`test(themes)` #41, 2026-11-07).
+  - **CA-27** (le `PUT` ne porte que `name` et, facultatif, `id`) : route, trois tests
+    (`nem`, `active`, tous les champs nommés `active, size` ; service jamais appelé, #42). Mutant
+    rejoué, tué : `id` refusé dans la liste blanche (12 rouges).
+  - **CA-28** (`204`, thème sans questions supprimé) : route (quatre tests : `204`, avec un corps
+    JSON, avec `Content-Type` JSON sans corps, avec `text/plain` et un corps), service (`delete`
+    appelé), repository (le thème disparaît). Mutants rejoués, tués : `204` → `200` (4 rouges),
+    parseur JSON du plugin retiré (1 rouge). **Limite** : voir CA-31a pour les autres
+    `Content-Type`.
+  - **CA-29** (identifiant inexistant à la suppression → `404`) : service, route (corps), serveur
+    assemblé (#41). Mutant rejoué, tué : le `404` retiré (2 rouges).
+  - **CA-34** (`429 RATE_LIMIT_EXCEEDED`, `Retry-After: 60`) : **périmé : « 429 oui, header non
+    asserté »**, et le test de `theme-route.test.ts` qui n'assertait que le statut n'existe plus
+    (retiré par le `feat(errors)` #240, le compteur étant devenu commun à toute l'API,
+    décisions #96 et #97). Serveur assemblé (`server.test.ts`, blocs `US-003/CA-13 - CA-RateLimit`,
+    décisions #96, #97 et #36) : un thème compte dans le compteur commun, le `429` passe avant
+    `401`, `403`, `404` et `405`, `Retry-After: 60` et le corps standard, `Retry-After: 60` et non
+    57 à +3 s sur `GET /api/v1/themes`. **Processus réel** (`index.test.ts`, bloc
+    `hub themes rate limit`, `test(authentication)` #237, 2026-11-25) : chacune des cinq routes des
+    thèmes laisse passer 3 requêtes d'une même adresse puis refuse la 4ᵉ avec `Retry-After: 60` et le
+    corps standard quand `MAX_REQUESTS_PER_MINUTE` vaut 3, et `GET /api/v1/themes` laisse passer 100
+    requêtes puis refuse la 101ᵉ sans la variable. Mutants rejoués par cette session, tués :
+    `Retry-After` à 59 et limite + 1 (31 rouges chacun sur `server.test.ts` et
+    `rate-limit-middleware.test.ts`). Les mutants de #237 sont ceux de la PR, non rejoués.
+    Le `429` retardé sur le hub réel n'est pas prouvé (`DEBTS.md`).
+  - **CA-37** (couverture ≥ 90 %) : CA de couverture, compté solide au sens du seuil global
+    (décision #67, appliqué par la CI) ; non exécuté par cette session. Dernier chiffre relevé :
+    94,68 % d'instructions et 97,52 % de branches à `ef7a221` (§0).
+- **Partiels (12)** :
+  - **CA-3** (regex : 3 à 40 caractères, majuscule initiale, finit par une lettre ou un chiffre) :
+    le code est conforme (sondé : `Ab` refusé, `Abc` accepté, 40 caractères acceptés, 41 refusés,
+    minuscule, chiffre, tiret, apostrophe ou souligné en tête ou en fin refusés, `Écoles` et
+    `Top 10` acceptés) mais **les bornes ne sont prouvées par aucun test** : le service ne teste
+    qu'`"Invalid@Name!"` (refus et message) et `"Jean-Pierre"` (accepté). Huit mutants de la regex
+    **survivent** à `src/themes` et `server.test.ts` (331 verts) : 41 caractères acceptés, 39
+    refusés, 2 caractères acceptés, minuscule en tête acceptée, tiret, apostrophe ou espace en
+    fin acceptés, apostrophe refusée dans le corps, chiffre refusé dans le corps, chiffre accepté
+    en tête. Témoin tué (regex toujours vraie : 3 rouges). La route traduit `ValidationError` en
+    `400 VALIDATION_ERROR` (corps standard, #34) ; le message de la règle est asserté
+    (`6388f80`, 2026-10-01).
+  - **CA-4** (unicité insensible à la casse) : repository (`getByName`, `"ThEmE tEsT"`), service
+    (`ConflictError`), route (`409`, corps) ; mutants rejoués, tués : `COLLATE NOCASE` retiré (1
+    rouge), contrôle retiré du `POST` (1 rouge). **Écart sondé** : `COLLATE NOCASE` ne replie que
+    la casse ASCII. `Café` puis `CAFÉ` créent deux thèmes (`201` et `201`), `Géographie` puis
+    `GÉOGRAPHIE` aussi ; `Œuvres` puis `ŒUVRES` donnent `409` (seules les lettres ASCII
+    diffèrent). Le CDC écrit « insensible à la casse » et prescrit `COLLATE NOCASE` : il ne dit pas
+    ce que valent les lettres accentuées. Non tranché ici (voir « Hors CA »).
+  - **CA-5** (UUIDv7 généré côté Node.js) : `uuidv7-generator.test.ts` (un test, format v7) ;
+    service (l'identifiant est celui du générateur injecté). **Câblage non prouvé** : `index.ts`
+    donne un `Uuidv7Generator` au service ; le mutant « générateur qui rend `not-a-uuid` » survit
+    aux 177 tests d'`index.test.ts` (10 sautés en root : ils envoient un token, ils ne verraient
+    rien), et les tests du serveur assemblé passent un générateur simulé. Sondé avec le vrai
+    générateur : version `7`.
+  - **CA-6** (horodatages ISO 8601 UTC générés côté Node.js) : service (`created_at` =
+    `clock.now().toISOString()`, `last_updated_at` `null` à la création, l'horloge à la
+    mise à jour). **Câblage non prouvé** : l'horloge du hub est celle de l'annonce de démarrage
+    (mutant « horloge figée » : tué par deux tests d'`US-001/CA-2`), mais le mutant « le service des
+    thèmes reçoit une autre horloge » survit aux 177 tests. Sondé : `…Z`, millisecondes.
+  - **CA-7** (le `POST` ne porte que `name`) : route, trois tests (`nem`, `color`, tous les champs
+    nommés ; service jamais appelé). **Survivant** : `id` ajouté à la liste blanche du `POST`
+    (331 verts) ; le code refuse `id` (sondé : `400 UNKNOWN_FIELDS`, `Unknown field(s): id.`), aucun
+    test ne le fige, alors que `id` est justement le champ que le `PUT` accepte.
+  - **CA-10** (identifiant inexistant → `404`) : route (corps standard) et service. **Écart avec
+    l'exemple de la spec** : le `curl` de CA-10 vise `018e4f5a-0000-0000-0000-000000000000`
+    (version `0`), que `Uuidv7Validator` refuse : `GET` répond `400 INVALID_UUID`, pas `404`
+    (sondé). Le `PUT` et le `DELETE` du même identifiant (CA-25, CA-29) répondent `404`, faute de
+    contrôle de forme. Connu et non tranché : la décision #1 a laissé la question ouverte pour
+    les thèmes (`DEBTS.md`, « Validateur d'UUID : les thèmes exigent la version 7… »).
+  - **CA-11** (`400 INVALID_UUID`) : route (statut et corps standard, service jamais appelé,
+    validateur simulé). `uuidv7-validator.test.ts` ne prouve qu'un identifiant valide et `"1"`. **Quatre
+    mutants du validateur survivent** (342 verts sur `src/infrastructure`, `src/themes` et
+    `server.test.ts`) : ancre `^` retirée, ancre `$` retirée, version quelconque acceptée, casse
+    refusée. Câblage d'`index.ts` non prouvé : le validateur remplacé par `() => true` survit aux 177
+    tests du processus.
+  - **CA-16** (`limit` plafonné à 100) : route, un test (`limit=101` → `400`). **Survivant** :
+    `> 100` devenu `>= 100` (331 verts) : `limit=100` n'est accepté par aucun test (le code
+    l'accepte, sondé). `> 101` est tué (1 rouge).
+  - **CA-21** (mêmes règles de validation et de normalisation qu'au `POST`) : service (trois
+    tests : fusion et rognage, `ValidationError` pour `"A"`, `ConflictError`). La garde est la
+    même que celle de CA-3 : **mêmes survivants** (les huit mutants de la regex).
+  - **CA-22** (nom identique, insensible à la casse : `200`, thème inchangé, `last_updated_at`
+    non modifié) : service (cinq tests : le même nom, la casse, les blancs, avec ou sans
+    `getByName` qui rend le thème lui-même) et route. Mutant rejoué, tué : comparaison stricte (2
+    rouges). **Écart sondé** : la comparaison est `localeCompare(…, { sensitivity: 'base' })`, qui ignore
+    **aussi les accents** : renommer `Cafe` en `Café` répond `200` avec le thème inchangé, sans
+    renommage ; `Géographie` → `GÉOGRAPHIE` aussi, alors que le `POST` de `GÉOGRAPHIE` crée un second
+    thème (CA-4). Le mutant `sensitivity: 'accent'` **survit** (331 verts) : aucun test ne fige la
+    règle. Ligne `DEBTS.md` « Comparaison de `updateTheme` insensible aux accents » : désormais
+    sondée.
+  - **CA-30** (thème avec questions → `409 THEME_HAS_QUESTIONS`) : **périmé : « faux vert, le
+    repository renvoie `false` »**. `isUsedInQuestions` interroge `T_QUESTION_QST` depuis le
+    `feat(themes)` du 2026-09-25 (`96568b4`, le corps du `409` : `e445c73`). Sondé sur le serveur
+    assemblé, vrais service et repository, base `:memory:` : `DELETE` d'un thème qui porte une
+    question répond `409 THEME_HAS_QUESTIONS` (corps standard), puis `204` une fois la question
+    supprimée, puis `404`. Tests : repository (vrai puis faux, avec le vrai repository de
+    questions, deux tests étiquetés `US-005/CA-48`), service (`ThemeHasQuestionsError`), route
+    (`409` et corps). **Reste faible, deux survivants** : (1) le service qui passe `theme.name` au
+    lieu de l'identifiant (331 verts, et 508 verts avec `index.test.ts`) : celui que `DEBTS.md` cite ;
+    (2) **nouveau** : le repository dont la condition `QST_THEME_ID = ?` est remplacée par une
+    condition vraie pour toute question (331 verts) : le test « faux » du repository n'a **aucune**
+    question en base, donc un thème sans question n'est jamais comparé à une question d'un autre
+    thème ; avec ce mutant, tout thème serait indélébile dès qu'une question existe. Aucun test
+    ne traverse route, service et repository réels (`server.test.ts` n'a pas de cas `409`).
+    Tués : garde retirée (1 rouge), `count > 0` → `count > 1` (1 rouge).
+  - **CA-33** (rôle non administrateur → `403 FORBIDDEN`) : `authentication-middleware.test.ts`
+    (quatre tests : rôle joueur et token non décodable, statut et corps standard), `jwt-decoder.test.ts`
+    (sept tests, tokens signés pour de vrai, rôle `admin` et `buzzer`, ancien rôle numérique et
+    libellé inconnu refusés), serveur assemblé (le `403` d'un `buzzer` en écriture, `PATCH`,
+    `PUT`, `DELETE`, `POST`, décodeur simulé). Sondé avec le vrai décodeur : `403` pour un
+    `buzzer`, `GET` compris. **Câblage non prouvé** : le middleware d'`index.ts` remplacé par une
+    fonction vide (les thèmes sans authentification ni rôle) survit aux 177 tests du processus.
+- **Trous réels (8)** (le code contredit une phrase explicite du CDC ; sondé sur le serveur
+  assemblé, sauf mention) :
+  - **CA-8 et CA-26** (`Content-Type` autre que JSON → `415`) : les tests (xml et `text/plain`,
+    `POST` et `PUT`, mutant `text/plain` rendu tué : 2 rouges) sont justes. **Écarts** : (1) un `POST`
+    ou un `PUT` **sans `Content-Type` et sans corps** répond `500` au corps natif de Fastify avec
+    le message technique (`{"statusCode":500,…,"message":"Cannot convert undefined or null to
+    object"}`) au lieu du `415` de la décision #82 (« absent : `415`, que le corps soit vide ou
+    non ») : `findUnknownFields` lit `request.body` hors du `try`. Avec un corps et sans en-tête :
+    `415`, conforme. (2) un `charset` autre qu'`utf-8` (`charset=latin1`) est accepté : `POST` `201`
+    (le thème est créé), contre le `415` de la décision #89 ; connu (`DEBTS.md`, « Le refus d'un
+    `charset` n'existe que sur `POST /api/v1/token` »), sondé aussi sur le `PUT`. Conformes : `Application/JSON`,
+    `charset=UTF-8`, un paramètre inconnu (`201`).
+  - **CA-18** (page au-delà du total → `200`, `data: []`) : route, service et repository prouvent
+    la page 999 (`200`, enveloppe, total réel). **Écart** : une `page` écrite en chiffres au-delà de
+    ce que SQLite lit comme entier (`9223372036854775808`, `99999999999999999999`) répond `500` au
+    corps natif avec `{"statusCode":500,"code":"SQLITE_MISMATCH",…,"message":"datatype
+    mismatch"}` ; jusqu'à `9007199254740993` (`page` renvoyée arrondie : 9007199254740992) la réponse est
+    `200`. La règle « chiffres seulement » (#13) laisse passer ces valeurs et ni la route ni le
+    service ne les bornent (`DEBTS.md`, « `getAll` du repository ne contrôle ni `page` ni `limit` »).
+  - **CA-31 et CA-31a** (un corps, un `Content-Type` quelconques sur un `DELETE` sont ignorés) :
+    les tests prouvent le corps JSON (avec ou sans corps) et `text/plain`. **Écart** : le plugin
+    du `DELETE` ne remplace que le parseur `application/json` ; `application/xml`,
+    `application/x-www-form-urlencoded`, `application/octet-stream`, une valeur qui n'est pas un type
+    de média, avec ou sans corps, et un corps sans `Content-Type` répondent `415` au corps natif, alors que
+    l'annexe (« les routes sans corps (GET, DELETE) ignorent le `Content-Type`, quelle que soit sa
+    valeur ») et la décision #82 (« `GET` et `DELETE` ignorent toujours le `Content-Type` ») disent
+    `204`. L'exemple de la spec (`text/plain`, sans corps) répond `204`. Le `GET` n'a pas le défaut
+    (CA-12 et CA-12a). Un `DELETE` avec un corps JSON invalide répond `204` (conforme).
+  - **CA-32** (token absent, invalide ou expiré → `401`) : prouvé pour l'absence et l'invalidité
+    (middleware : validateur simulé qui refuse ; route : un `401` avec le vrai middleware ; serveur
+    assemblé : `401` sans token et avec un token refusé, `PATCH` compris ; sondé avec le vrai
+    validateur : `401` sans en-tête, avec un token expiré, avec `Bearer  <token>` à deux espaces).
+    **Écarts** : (1) le middleware lit le token par `authorization?.substring(7)` sans vérifier le
+    préfixe : `Authorization: XXXXXXX<token valide>` répond `200` (sondé), alors que l'annexe exige
+    `Authorization: Bearer <token>` et traite un « format incorrect » en `401` ; `bearer <token>` (casse)
+    est accepté, `Basic <token>` refusé par hasard (le décalage mange le premier caractère). Mutant rejoué,
+    tué : lecture sans saut du préfixe (9 rouges). (2) **L'expiration n'est prouvée par aucun test** : `jwt-validator.test.ts`
+    simule `jwt.verify`, et le mutant `ignoreExpiration: true` survit (827 verts sur `authentication/`,
+    `server.test.ts`, `themes/` et `questions/`, puis 177 sur `index.test.ts`) ; la signature
+    l'est (mutant « décoder sans vérifier » : 1 rouge). (3) Le câblage d'`index.ts`
+    (middleware vide) survit (voir CA-33).
+  - **CA-35** (`405 METHOD_NOT_ALLOWED`, `Allow` adapté) : **périmé : « trou réel, absent »**.
+    Codé par le `feat(errors)` #89 (2026-11-11, décision #38) puis resserré par #225, #227 et #228
+    (décisions #92 et #93). `routes/not-found-route.ts` répond `405` avec `Allow: GET, POST` sur
+    `/api/v1/themes` et `Allow: GET, PUT, DELETE` sur `/api/v1/themes/:id` ; `401` puis `403` puis
+    `405` ; le corps jamais jugé ; `HEAD` et `OPTIONS` en `405`, sans `HEAD` dans `Allow`.
+    Prouvé sur le serveur assemblé : un bloc de 17 tests, un de 3 (route publique), un de 109 dont 48
+    sur les deux URL des thèmes (`PATCH` et `OPTIONS`, trois corps, quatre contrôles), les
+    méthodes d'une autre URL (`POST` sur `/:id`, `PUT` et `DELETE` sur la collection) avec un
+    corps invalide. Mutants rejoués, tués : `Allow` non envoyé (86 rouges), motif du catalogue
+    `[^/]*` → `[^/]+` (1 rouge). Le mutant « `HEAD` ajouté à la liste des méthodes » est équivalent.
+    **Écart** : la décision #93 écrit qu'un segment vide est un `:id` vide jugé comme un `:id` mal
+    formé : `400 INVALID_UUID` sur une méthode supportée par la route `/:id`. `GET /api/v1/themes/`
+    répond bien `400` ; **`PUT /api/v1/themes/` et `DELETE /api/v1/themes/` répondent `404 NOT_FOUND`**
+    (sondé ; `DEBTS.md` les disait « non sondés »). Même cause que l'absence de contrôle de forme au
+    `PUT` et au `DELETE` : un `:id` mal formé (`not-a-uuid`) répond `404` alors que le diagramme
+    d'US-004 et `error-codes.md` (« ID mal formé dans l'URL ») disent `400 INVALID_UUID`.
+  - **CA-36** (`500` sans détail technique) : prouvé sur `PUT` (corps standard, ligne de log au
+    niveau 50 avec l'erreur, pas de log pour un `409` ; mutant « log retiré » tué : 1 rouge), sondé sur
+    `POST`, `PUT` et `DELETE` (corps standard). **Écart** : les deux `GET` n'ont ni `try` ni
+    `sendError` : sur une erreur inattendue, `GET /api/v1/themes` et `GET /api/v1/themes/:id`
+    répondent le corps natif de Fastify avec le message technique (table supprimée sous le
+    serveur : `{"statusCode":500,"code":"SQLITE_ERROR","error":"Internal Server Error","message":"no
+    such table: T_THEME_THM"}`), contre la décision #34 et l'annexe (« pas de message SQL »). La ligne
+    `DEBTS.md` « `500` des thèmes : … la branche de `sendError` est partagée par les quatre routes
+    (`POST`, `GET /:id`, `PUT`, `DELETE`) » est fausse pour les `GET`. Mêmes fuites : `page` géante
+    (CA-18) et corps `null` ou absent sans `Content-Type` (CA-8). Le `500` sur le hub réel (écriture
+    sur base en lecture seule, `US-001/CA-9`) est asserté par `index.test.ts`, **sauté en root**.
+- **Faux verts : aucun.** Le faux vert de CA-30 du relevé daté est soldé dans le code depuis le
+  2026-09-25 ; ce qui reste de CA-30 est un résidu de vérification (partiel, plus haut).
+- **Hors CA (relevé par cette session)** :
+  - **Corps non objet, `name` absent ou mal typé** (`error-codes.md` : `VALIDATION_ERROR` pour un
+    « champ manquant, vide, format invalide » ; `INVALID_BODY` pour un JSON valide qui n'est pas
+    un objet, « toutes » les routes) : sondé, le `POST` et le `PUT` répondent `500` au corps standard
+    pour `{}`, `{"name":null}`, `{"name":42}`, `{"name":["Abc"]}`, `[]` et `42` (le service appelle
+    `name.trim()` sur autre chose qu'une chaîne ; un `PUT` `{"id":…}` seul aussi), `400 UNKNOWN_FIELDS`
+    pour `"x"` (clé `0`), et `500` au corps natif pour `null`. `""` et `"   "` répondent bien
+    `400 VALIDATION_ERROR`. Aucun test ne les vise. Un JSON invalide répond le `400` natif
+    (`FST_ERR_CTP_INVALID_JSON_BODY`) et non `INVALID_JSON` (connu, `DEBTS.md`).
+  - **Ordre des contrôles du `PUT`** : le diagramme d'US-004 met le `404` avant le `Content-Type`,
+    le JSON, les champs inconnus et `ID_MISMATCH` ; le code répond `415` (Fastify) puis
+    `UNKNOWN_FIELDS` puis `ID_MISMATCH` avant le `404` du service. La décision #30 a tranché
+    l'ordre pour les questions et laissé « une session par US » : **non décidé pour les thèmes**.
+  - **Schéma de la table** (CDC : `THM_NAME TEXT NOT NULL UNIQUE COLLATE NOCASE`) : le code crée
+    `THM_NAME TEXT NOT NULL`, sans `UNIQUE` ni `COLLATE` (sonde : `sqlite_master`) ; l'unicité n'est tenue
+    que par `getByName` au service. Pas de course possible dans un seul processus synchrone ;
+    le CDC (« points de vigilance ») veut aussi la contrainte en base.
+  - **Cohérence UUIDv7 et `created_at`** (CDC, « points de vigilance », recommandé) : l'identifiant
+    vient d'`uuidv7()` (sa propre horloge) et `created_at` de l'horloge du service : deux lectures.
+    Recommandation, non vérifiée par un test.
+  - **Couplage à `T_QUESTION_QST`** : `isUsedInQuestions` suppose la table créée par le repository
+    des questions ; sans lui, `DELETE` d'un thème existant répond `500` (confirmé à la sonde ;
+    `index.ts` construit les deux repositories). Inscrit dans `DEBTS.md`.
 
 ### US-009 — Connexion WebSocket (29 CA)
 
@@ -844,10 +1151,16 @@ comportement cassé en production réelle.
 > corrigées. Le réalignement du 2026-11-25 met à jour les phrases d'US-003 de C, D, F et G (preuves
 > ajoutées depuis, statuts inchangés). Ce qui reste des dettes A, B, C, D, F et G est inscrit dans `DEBTS.md`, la ligne y
 > renvoie ; E et H sont soldées, sans reste.
+>
+> **Cellules d'US-004 des dettes A, C, G et H réalignées au HEAD `4ff3ca7` (2026-11-25)**, avec
+> la section US-004 du §2 : A reste « soldée dans le code, résidu de vérification » (le résidu
+> change : deux mutants survivent, voir A) ; C est soldée, avec un reste pour le segment vide en
+> `PUT` et `DELETE` ; G est soldée pour US-004 (CA-34) ; la cellule CA-19 de H est réalignée.
+> Ce qui reste est inscrit dans `DEBTS.md`.
 
 **Motif transversal** : le cœur fonctionnel (auth, JWT, CRUD, WebSocket temps réel)
 est solide et bien testé. Les faiblesses qui restent se concentrent sur le plafond des connexions WebSocket et sur des
-vérifications (le `Retry-After` des thèmes), plus, pour US-003, la durée de réponse du login
+vérifications (les bornes de la regex des thèmes, le câblage d'`index.ts` des thèmes, l'expiration du token), plus, pour US-003, la durée de réponse du login
 inconnu, qu'aucun test ne mesure (la comparaison factice est codée et prouvée par l'appel du
 hasher). Les exigences transversales `405`, `500` de `/token`, `role` du JWT, `token_type` et
 câblage du secret, logs de connexion et `Retry-After` des tokens, elles, sont corrigées et
@@ -855,33 +1168,33 @@ prouvées.
 
 | # | Dette | Gravité | Déclencheur de résorption |
 |---|-------|---------|---------------------------|
-| **A** | **Soldée dans le code, résidu de vérification.** Faux vert CA-30 / US-004 : `isUsedInQuestions()` renvoyait `false` en dur. Aujourd'hui `SqliteThemeRepository.isUsedInQuestions` interroge `T_QUESTION_QST` (`QST_THEME_ID = ?`) ; `sqlite-theme-repository.test.ts` le prouve avec le vrai repository de questions (vrai quand une question référence le thème, faux sinon). Sondé sur hub réel : `DELETE` d'un thème qui porte une question répond `409 THEME_HAS_QUESTIONS`, puis `204` une fois la question supprimée. **Résidu** : aucun test ne traverse route, service et repository réels (`server.test.ts` n'a pas de cas `409`), et le test du service simule `isUsedInQuestions` à `true` sans vérifier l'argument : un mutant qui lui passe `theme.name` au lieu de l'identifiant survit (155 verts sur `src/themes` et `server.test.ts`, 2026-11-20). La ligne et la section CA-30 d'US-004 restent datées (« faux vert ») : à réaligner avec la session US-004. Le résidu est inscrit dans `DEBTS.md` (`themes/`, « Suppression d'un thème utilisé (US-004 CA-30) : aucun test ne traverse route, service et repository réels »). | ~~🔴~~ 🟢 Vérification (résidu) | Résidu : `test(themes)` d'un `409` sur le serveur assemblé, vrai service et vrai repository. |
+| **A** | **Soldée dans le code, résidu de vérification.** Faux vert CA-30 / US-004 : `isUsedInQuestions()` renvoyait `false` en dur. Aujourd'hui `SqliteThemeRepository.isUsedInQuestions` interroge `T_QUESTION_QST` (`QST_THEME_ID = ?`) ; `sqlite-theme-repository.test.ts` le prouve avec le vrai repository de questions (vrai quand une question référence le thème, faux sinon). Sondé sur hub réel : `DELETE` d'un thème qui porte une question répond `409 THEME_HAS_QUESTIONS`, puis `204` une fois la question supprimée. **Résidu** (réaligné au HEAD `4ff3ca7`, mutants rejoués) : aucun test ne traverse route, service et repository réels (`server.test.ts` n'a pas de cas `409`), et **deux mutants survivent** : celui qui passe `theme.name` au lieu de l'identifiant à `isUsedInQuestions` (331 verts sur `src/themes` et `server.test.ts`, 508 avec `index.test.ts`), et, nouveau, celui qui remplace `QST_THEME_ID = ?` par une condition vraie pour toute question (le test « faux » du repository n'a aucune question en base : tout thème deviendrait indélébile dès qu'une question existe). La ligne et la section CA-30 d'US-004 sont réalignées (partiel, §2). Le résidu est inscrit dans `DEBTS.md` (`themes/`, « Suppression d'un thème utilisé (US-004 CA-30) : aucun test ne traverse route, service et repository réels »). | ~~🔴~~ 🟢 Vérification (résidu) | Résidu : `test(themes)` d'un `409` sur le serveur assemblé, vrai service et vrai repository. |
 | **B** | **Toujours vraie (fait constaté).** CA-12 / US-009 : le plafond mélange admin et buzzers. `ws-route.ts` refuse (`4005`, `Server is full.`) toute nouvelle entrée quand `registry.size >= config.maxConnections`, le registre contenant buzzers **et** admin ; `index.ts` donne `maxConnections: 10`. Sondé sur hub réel : dix buzzers s'authentifient, puis l'admin, onzième connexion, est refusé en `4005` : avec dix buzzers connectés, l'admin ne peut plus se connecter. Les tests ne forcent que `maxConnections = 1` avec un buzzer : la combinaison n'est exercée par aucun test. **Point que le CDC ne tranche pas** : US-009 CA-12 dit « maximum 10 buzzers simultanés », CA-16 « maximum 1 connexion admin », le tableau des codes dit `4005` quand « le registre a atteint sa capacité maximale (10 buzzers) », et le registre décrit contient aussi l'admin (rôle `buzzer` ou `admin`) : il ne dit pas si l'admin compte dans le plafond. La lecture « dix buzzers et un admin » est celle de l'audit initial, pas celle du CDC ; elle n'est pas tranchée ici. Inscrite dans `DEBTS.md` (`websocket/`, « Plafond de connexions WebSocket : l'admin compte parmi les 10, et le CDC ne dit pas si c'est voulu »). | 🟠 Comportemental | Une décision du CDC (l'admin compte-t-il dans le plafond ?), avant le premier jeu à 10 buzzers physiques. |
-| **C** | **Soldée.** 405 Method Not Allowed absent partout (CA-16/US-003, CA-35/US-004) : `feat(errors)` du 2026-11-11, décision #38 (`routes/not-found-route.ts`, `RouteCatalog`). Sondé sur hub réel : `GET /api/v1/token` répond `405` avec `Allow: POST` (route publique, corps standard `METHOD_NOT_ALLOWED`), `DELETE /api/v1/themes` avec un token admin répond `405` avec `Allow: GET, POST`. Testé sur le serveur assemblé (`server.test.ts`, deux `describe` portant `US-003/CA-16` et `US-004/CA-35` : route protégée, route publique ; le token répond aussi `405` à `PUT`, `DELETE`, `PATCH`, `OPTIONS` et `HEAD` quel que soit le corps, #220, #227 et #228) ; retirer la ligne qui pose `Allow` fait rougir 7 tests (2026-11-20). **Reste, dans `DEBTS.md`** : la couverture se limite aux ressources `/api/v1/` des tokens, thèmes et questions (dette « `405` : seules les ressources… »). La cellule CA-16 d'US-003 est réalignée (§2) ; la cellule CA-35 d'US-004 reste datée. | ~~🟡~~ soldée | Sans objet (voir `DEBTS.md` pour le périmètre). |
+| **C** | **Soldée.** 405 Method Not Allowed absent partout (CA-16/US-003, CA-35/US-004) : `feat(errors)` du 2026-11-11, décision #38 (`routes/not-found-route.ts`, `RouteCatalog`). Sondé sur hub réel : `GET /api/v1/token` répond `405` avec `Allow: POST` (route publique, corps standard `METHOD_NOT_ALLOWED`), `DELETE /api/v1/themes` avec un token admin répond `405` avec `Allow: GET, POST`. Testé sur le serveur assemblé (`server.test.ts`, deux `describe` portant `US-003/CA-16` et `US-004/CA-35` : route protégée, route publique ; le token répond aussi `405` à `PUT`, `DELETE`, `PATCH`, `OPTIONS` et `HEAD` quel que soit le corps, #220, #227 et #228) ; retirer la ligne qui pose `Allow` fait rougir 7 tests (2026-11-20). **Reste, dans `DEBTS.md`** : la couverture se limite aux ressources `/api/v1/` des tokens, thèmes et questions (dette « `405` : seules les ressources… »). Les cellules CA-16 d'US-003 et CA-35 d'US-004 sont réalignées (§2). **Reste pour US-004** (inscrit dans `DEBTS.md`) : `PUT` et `DELETE` sur `/api/v1/themes/` (segment vide) répondent `404` au lieu de `400 INVALID_UUID` (décision #93), sondé le 2026-11-25. | ~~🟡~~ soldée | Sans objet (voir `DEBTS.md` pour le périmètre). |
 | **D** | **Soldée.** Gestion 500 fragile (CA-17/US-003) : depuis le `fix(authentication)` #185 (2026-11-21), le `setErrorHandler` de `token-route.ts` répond `500` au corps standard à trois champs (`INTERNAL_SERVER_ERROR`, « An unexpected error occurred. Please try again later. ») sans le détail technique, que l'erreur vienne du service d'authentification ou du générateur de token ; depuis le `fix(authentication)` #201 (2026-11-22, décision #83), il journalise l'erreur au niveau `ERROR` avec son message et sa pile. `token-route.test.ts` le prouve (cinq tests du `500`, dont le `Content-Type`, #222 ; quatre du log ; mutants du 2026-11-22, voir §2). Le constat de l'audit initial (`500` au corps natif de Fastify, `message: "no such table: T_USER_USR"`) est périmé. Soldée aussi sur les thèmes (`US-004/CA-36`) et les questions (`US-005/CA-54`). **Reste, dans `DEBTS.md`** (`authentication/`) : le contenu exact de la ligne de log (CA17-8 du smoke test) ; le corps, le `Content-Type` et l'absence de détail technique du `500` du token sont fixés par la décision #91 et assertés. | ~~🟡~~ soldée | Sans objet (voir `DEBTS.md` pour les points non fixés). |
 | **E** | **Soldée.** `role` string vs enum dans le JWT REST (CA-3/US-003) : le `fix(authentication)` du 2026-11-10 écrit `toRoleLabel(user.role)` dans le token (`jwt-generator.ts`) ; `jwt-generator.test.ts` asserte `role: "buzzer"` pour un joueur et `role: "admin"` pour un administrateur. Sondé sur hub réel : le token de `/api/v1/token` porte `"admin"` pour `admin` et `"buzzer"` pour `quiz_buzzer_01`. Côté WebSocket, `auth_success` utilise aussi `toRoleLabel` : les deux canaux concordent. La cellule CA-3 d'US-003 est réalignée (§2). | ~~🟡~~ soldée | Sans objet. |
 | **F** | **Soldée.** Lecture d'environnement non testée de bout en bout (CA-2/US-002, CA-4/US-003, CA-13/US-003). US-001 n'est plus concernée : sa lecture d'environnement est réalignée au §2. US-002 non plus : le `.env` du seed (mots de passe, `BCRYPT_COST`, `SQLITE_DB_PATH`) est prouvé sur processus réel (§2). US-003 non plus : `JWT_SECRET` et `JWT_EXPIRATION` (CA-2, CA-4, CA-19, CA-20) sont prouvés sur processus réel, environnement réel et `.env` (`index.test.ts`), ainsi que `MAX_REQUESTS_PER_MINUTE` (CA-13 : le défaut de 100, une valeur explicite dans l'environnement ou dans un `.env`, l'environnement réel l'emportant ; CA-21 : une valeur invalide refusée au démarrage) ; ce que `ProcessEnvironment` ne prouve pas seul est tenu par ces tests (§2). **Reste, dans `DEBTS.md`** : les guillemets, blancs et ` #` d'un `.env` pour `MAX_REQUESTS_PER_MINUTE`, non prouvés, le CDC étant muet (ligne « Limite du `429` des tokens »). | ~~🟢~~ soldée | Sans objet. |
-| **G** | **Soldée pour US-003 ; toujours vraie pour les thèmes (US-004 CA-34), inscrite dans `DEBTS.md`.** Logs et headers non assertés. (1) **Logs CA-14 / CA-15 d'US-003** : soldés par le `test(authentication)` #187 (2026-11-21) : `token-route.test.ts` capture le logger et asserte, par le contenu et le niveau, une ligne INFO (30) avec le `username` et l'IP pour un succès, une ligne WARN (40) avec le `username` tenté et l'IP pour un échec (§2). (2) **`Retry-After`, CA-13 / US-003** : soldé (#188, #197, #243) : `Retry-After: 60` au premier `429` sur processus réel et sur le serveur assemblé, à +3 s dans la fenêtre sur le serveur assemblé (le plugin des tokens n'a plus de compteur propre depuis #240) ; le `429` retardé sur le hub réel n'est pas prouvé (`DEBTS.md`). **CA-34 / US-004** : `theme-route.test.ts` n'asserte que le statut `429` ; le header est posé par un hook du middleware de limitation, testé au middleware ; renvoi à `DEBTS.md` : « `429` des thèmes non re-testé » et « `Retry-After` constant testé au middleware seul, pas par plugin ». (3) **« Par IP » (CA-13 / US-003)** : soldé (#188, #240) : deux adresses (`remoteAddress`), l'une refusée, l'autre servie, chacune comptée pour elle, sur le serveur assemblé ; l'adresse comptée est celle de la connexion (#97, #242). | 🟢 Vérification | Resserrage de tests (thèmes). |
-| **H** | **Soldée.** (a) Noms de comptes CA-1/US-002 : prouvés (§2 : l'ensemble des onze logins est comparé sur processus réel). (b) JSON malformé CA-11/US-003 : `token-route.test.ts` asserte `400 INVALID_JSON` pour un JSON tronqué et pour un corps vide. (c) État vide CA-19/US-004 : prouvé à la route (`200` et enveloppe vide, service simulé), au service (`total: 0`, `total_pages: 0`) et au repository (liste vide). La cellule CA-11 d'US-003 est réalignée (§2) ; la cellule CA-19 d'US-004 reste datée. (d) Bornes du jeu de caractères du mot de passe, CA-4/US-002 : U+007F et U+001F refusés, prouvés par `owasp-password-validator.test.ts`, les deux mutants tués (§2). Ce qui reste d'US-002 (`.env` non versionné et non testé ; constat du verrou d'écriture tenu par un autre processus, non asserté, décision #80) n'est pas de cette dette : renvoi à `DEBTS.md`. | ~~🟢~~ soldée | Sans objet. |
+| **G** | **Soldée (US-003 et US-004 CA-34).** Logs et headers non assertés. (1) **Logs CA-14 / CA-15 d'US-003** : soldés par le `test(authentication)` #187 (2026-11-21) : `token-route.test.ts` capture le logger et asserte, par le contenu et le niveau, une ligne INFO (30) avec le `username` et l'IP pour un succès, une ligne WARN (40) avec le `username` tenté et l'IP pour un échec (§2). (2) **`Retry-After`, CA-13 / US-003** : soldé (#188, #197, #243) : `Retry-After: 60` au premier `429` sur processus réel et sur le serveur assemblé, à +3 s dans la fenêtre sur le serveur assemblé (le plugin des tokens n'a plus de compteur propre depuis #240) ; le `429` retardé sur le hub réel n'est pas prouvé (`DEBTS.md`). **CA-34 / US-004** : soldé. Le test de `theme-route.test.ts` qui n'assertait que le statut est retiré depuis #240 ; le `429` des thèmes est prouvé sur le serveur assemblé (compteur commun, `Retry-After: 60`, corps standard) et, route par route, sur le hub réel (`index.test.ts`, bloc `hub themes rate limit`, #237) ; mutants `Retry-After` à 59 et limite + 1 rejoués le 2026-11-25, tués. (3) **« Par IP » (CA-13 / US-003)** : soldé (#188, #240) : deux adresses (`remoteAddress`), l'une refusée, l'autre servie, chacune comptée pour elle, sur le serveur assemblé ; l'adresse comptée est celle de la connexion (#97, #242). | ~~🟢~~ soldée | Sans objet. |
+| **H** | **Soldée.** (a) Noms de comptes CA-1/US-002 : prouvés (§2 : l'ensemble des onze logins est comparé sur processus réel). (b) JSON malformé CA-11/US-003 : `token-route.test.ts` asserte `400 INVALID_JSON` pour un JSON tronqué et pour un corps vide. (c) État vide CA-19/US-004 : prouvé à la route (`200` et enveloppe vide, service simulé), au service (`total: 0`, `total_pages: 0`) et au repository (liste vide). Les cellules CA-11 d'US-003 et CA-19 d'US-004 sont réalignées (§2). (d) Bornes du jeu de caractères du mot de passe, CA-4/US-002 : U+007F et U+001F refusés, prouvés par `owasp-password-validator.test.ts`, les deux mutants tués (§2). Ce qui reste d'US-002 (`.env` non versionné et non testé ; constat du verrou d'écriture tenu par un autre processus, non asserté, décision #80) n'est pas de cette dette : renvoi à `DEBTS.md`. | ~~🟢~~ soldée | Sans objet. |
 
 ---
 
 ## 4. Ce que ça signifie pour la suite
 
 Le socle hub est **substantiel mais pas « fini »** au sens strict des specs :
-~93/106 CA solides (US-001 réalignée au HEAD `319d443` le 2026-11-23,
+~82/106 CA solides (US-001 réalignée au HEAD `319d443` le 2026-11-23,
 US-002 au HEAD `ef7a221` le 2026-11-20, puis CA-3 et CA-7 au HEAD `33823bf` le 2026-11-21,
-US-003 au HEAD `418aa13` le 2026-11-25, US-004 et US-009 au relevé daté ; décompte du §1), avec
-un angle mort sur le plafond des connexions WebSocket, sur le `Retry-After` des thèmes et, pour
+US-003 au HEAD `418aa13` et US-004 au HEAD `4ff3ca7` le 2026-11-25, US-009 au relevé daté ; décompte du §1), avec
+un angle mort sur le plafond des connexions WebSocket, sur les thèmes (huit trous réels, douze partiels : `Content-Type` du `DELETE`, `500` natif des `GET`, préfixe `Bearer`, expiration du token non prouvée, bornes de la regex) et, pour
 US-003, sur la durée de réponse du login inconnu (la comparaison factice est codée, aucun test ne
 mesure la durée). **Aucun de ces trous n'empêche d'avancer vers le jeu** — à condition de les connaître pour ne pas s'appuyer
 dessus (notamment la dette B).
 
 Deux caps possibles pour la suite, à trancher :
 
-1. **Consolider le socle** — résorber ce qui reste des dettes (B, le `Retry-After` des thèmes (G),
+1. **Consolider le socle** — résorber ce qui reste des dettes (B, les trous et partiels des thèmes (US-004, `DEBTS.md`),
    le résidu de A et le coût figé du hash bidon du login d'US-003 ; D, E, F et H sont soldées, C
-   n'a qu'un reste de périmètre) pour un hub conforme avant d'ajouter des
+   n'a qu'un reste de périmètre ; G est soldée) pour un hub conforme avant d'ajouter des
    fonctionnalités. Petites sessions TDD ciblées, très « un commit par session ». La dette B
    demande d'abord une décision du CDC (l'admin compte-t-il dans le plafond ?).
 2. **Avancer vers le jeu** — attaquer US-008 (quiz) → US-010 → US-011, US-005 (questions)
