@@ -1,14 +1,17 @@
 import { FastifyInstance, FastifyReply } from "fastify";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
-import { ID_MISMATCH, INTERNAL_SERVER_ERROR, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
+import { ID_MISMATCH, INTERNAL_SERVER_ERROR, INVALID_BODY, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
 import { NotFoundError } from "../common/not-found-error";
 import { ThemeHasQuestionsError } from "./theme-has-questions-error";
 import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
 import { ThemeRouteConfiguration } from "./theme-route-configuration.interface";
+import { UuidFormatValidator } from "../infrastructure/uuid-format-validator";
 
 export default async function themeRoute(app: FastifyInstance, options: ThemeRouteConfiguration) {
     const { themeService, uuidValidator, tokenValidator, tokenDecoder, middleware } = options;
+
+    const uuidFormatValidator = new UuidFormatValidator();
 
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 
@@ -65,24 +68,51 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         });
 
         instance.put('/api/v1/themes/:id', async (request, reply) => {
-            const unknownFields = findUnknownFields(request.body as object, ['id', 'name']);
+            const { id: idFromParams } = request.params as { id: string };
+            if (!uuidFormatValidator.validate(idFromParams)) {
+                reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
+                return;
+            }
+
+            const body = request.body;
+            if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+                reply.status(400).send({ status: 400, error: INVALID_BODY, message: 'Request body must be a JSON object.' });
+                return;
+            }
+
+            if ('id' in body) {
+                const idFromBody: unknown = body.id;
+                if (typeof idFromBody !== 'string' || !uuidFormatValidator.validate(idFromBody)) {
+                    reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
+                    return;
+                }
+                if (idFromBody !== idFromParams) {
+                    reply.status(400).send({ status: 400, error: ID_MISMATCH, message: 'The ID in the request body does not match the URL parameter.' });
+                    return;
+                }
+            }
+
+            const name: unknown = 'name' in body ? body.name : undefined;
+            if (name !== undefined && name !== null && typeof name !== 'string') {
+                reply.status(400).send({ status: 400, error: VALIDATION_ERROR, message: 'Theme name must be a string.' });
+                return;
+            }
+            if (name === undefined || name === null) {
+                reply.status(400).send({ status: 400, error: VALIDATION_ERROR, message: 'Theme name is required.' });
+                return;
+            }
+
+            const unknownFields = findUnknownFields(body, ['id', 'name']);
             if (unknownFields.length > 0) {
                 reply.status(400).send({ status: 400, error: UNKNOWN_FIELDS, message: `Unknown field(s): ${unknownFields.join(', ')}.` });
+                return;
             }
-            else {
-                try {
-                    const { id: idFromParams } = request.params as { id: string };
-                    const { id: idFromBody, name } = request.body as { id?: string, name: string };
 
-                    if (idFromBody !== undefined && idFromParams !== idFromBody) {
-                        reply.status(400).send({ status: 400, error: ID_MISMATCH, message: 'The ID in the request body does not match the URL parameter.' });
-                        return;
-                    }
-                    const updatedTheme = themeService.updateTheme(idFromParams, name);
-                    reply.status(200).send(updatedTheme);
-                } catch (error) {
-                    sendError(error, reply);
-                }
+            try {
+                const updatedTheme = themeService.updateTheme(idFromParams, name);
+                reply.status(200).send(updatedTheme);
+            } catch (error) {
+                sendError(error, reply);
             }
         });
     });

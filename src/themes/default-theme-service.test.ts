@@ -203,6 +203,18 @@ describe("US-004/CA-21 - Update a formatted theme", () => {
     });
 });
 
+describe("US-004/CA-21 and CA-25 - The form of the name is judged before the existence of the theme (decision #99)", () => {
+    beforeEach(() => {
+        themeRepository.getById = vi.fn().mockReturnValue(undefined);
+    });
+    it("should throw a validation error, not a NotFoundError, for a malformed name on an unknown id", () => {
+        expect(() => defaultThemeService.updateTheme("019d6cdd-30db-7437-ac57-5826c0695222", "m")).toThrow(ValidationError);
+    });
+    it("should still throw a NotFoundError for a well formed name on an unknown id", () => {
+        expect(() => defaultThemeService.updateTheme("019d6cdd-30db-7437-ac57-5826c0695222", "Inconnu")).toThrow(NotFoundError);
+    });
+});
+
 describe("US-004/CA-22 - Update a theme with the same name", () => {
     let theme: Theme;
     let updated_theme: Theme;
