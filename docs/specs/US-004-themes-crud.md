@@ -38,8 +38,8 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | # | Critère | Résultat attendu |
 |---|---|---|
 | CA-9 | Récupérer un thème par son ID | `200 OK` avec le thème (id, name, created_at, last_updated_at) |
-| CA-10 | ID inexistant | `404 NOT_FOUND` |
-| CA-11 | ID mal formé (pas un UUID valide) | `400 INVALID_UUID` |
+| CA-10 | ID inexistant (UUID bien formé ; seule la forme est contrôlée, pas la version, décision #98) | `404 NOT_FOUND` |
+| CA-11 | ID mal formé (pas un UUID valide : forme `8-4-4-4-12` hexadécimale, toute version, décision #98) | `400 INVALID_UUID` |
 | CA-12 | Un body éventuel est ignoré silencieusement | Aucune erreur |
 | CA-12a | Le `Content-Type` est ignoré sur les requêtes GET | Aucune validation, quelle que soit sa valeur |
 
@@ -66,6 +66,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-23 | L'ID peut être présent dans le body ; s'il l'est, il doit correspondre à l'URL | Sinon → `400 ID_MISMATCH` |
 | CA-24 | Le nom est déjà pris par un autre thème | `409 THEME_ALREADY_EXISTS` |
 | CA-25 | ID inexistant | `404 NOT_FOUND` |
+| CA-25a | `:id` de l'URL mal formé (décision #98) | `400 INVALID_UUID` |
 | CA-26 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 | CA-27 | Le body ne doit contenir que les champs `name` (et optionnellement `id`) | Champs inconnus → `400 UNKNOWN_FIELDS` |
 
@@ -75,6 +76,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 |---|---|---|
 | CA-28 | Supprimer un thème existant sans questions liées | `204 No Content` sans body |
 | CA-29 | ID inexistant | `404 NOT_FOUND` |
+| CA-29a | `:id` de l'URL mal formé (décision #98) | `400 INVALID_UUID` |
 | CA-30 | Le thème a des questions associées | `409 THEME_HAS_QUESTIONS` |
 | CA-31 | Un body éventuel est ignoré silencieusement | Aucune erreur |
 | CA-31a | Le `Content-Type` est ignoré sur les requêtes DELETE | Aucune validation, quelle que soit sa valeur |
@@ -188,7 +190,7 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X GET "$BASE_URL/api/v1/themes/$THEME_ID
 **CA-10** — ID inexistant → `404 NOT_FOUND`
 
 ```bash
-curl -s -w "\n→ HTTP %{http_code}\n" -X GET "$BASE_URL/api/v1/themes/018e4f5a-0000-0000-0000-000000000000" \
+curl -s -w "\n→ HTTP %{http_code}\n" -X GET "$BASE_URL/api/v1/themes/018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -257,13 +259,22 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/themes/$THEME_ID
 curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/themes/$THEME_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"id": "018e4f5a-0000-0000-0000-000000000000", "name": "Musique classique"}'
+  -d '{"id": "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a", "name": "Musique classique"}'
+```
+
+**CA-25a** — `:id` mal formé → `400 INVALID_UUID`
+
+```bash
+curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/themes/not-a-uuid" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Musique classique"}'
 ```
 
 **CA-25** — ID inexistant → `404 NOT_FOUND`
 
 ```bash
-curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/themes/018e4f5a-0000-0000-0000-000000000000" \
+curl -s -w "\n→ HTTP %{http_code}\n" -X PUT "$BASE_URL/api/v1/themes/018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "Inexistant"}'
@@ -278,10 +289,17 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X DELETE "$BASE_URL/api/v1/themes/$THEME
   -H "Authorization: Bearer $TOKEN"
 ```
 
+**CA-29a** — `:id` mal formé → `400 INVALID_UUID`
+
+```bash
+curl -s -w "\n→ HTTP %{http_code}\n" -X DELETE "$BASE_URL/api/v1/themes/not-a-uuid" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 **CA-29** — ID inexistant → `404 NOT_FOUND`
 
 ```bash
-curl -s -w "\n→ HTTP %{http_code}\n" -X DELETE "$BASE_URL/api/v1/themes/018e4f5a-0000-0000-0000-000000000000" \
+curl -s -w "\n→ HTTP %{http_code}\n" -X DELETE "$BASE_URL/api/v1/themes/018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
