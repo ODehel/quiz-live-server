@@ -40,20 +40,27 @@ sequenceDiagram
 
     Note over C,DB: Modification — PUT /api/v1/themes/:id
     C->>S: PUT /api/v1/themes/:id<br/>Authorization: Bearer TOKEN<br/>{ "name": "Nouveau nom" }
-    S->>S: Authentification + Autorisation (admin)
-    S->>S: Valider et normaliser le nom
+    S->>S: Limite de débit, authentification + autorisation (admin)
+    S->>S: Content-Type (415), JSON valide (400)
+    S->>S: :id du chemin (400 INVALID_UUID)
+    S->>S: Body = objet (400 INVALID_BODY)
+    S->>S: id du body : forme (400 INVALID_UUID), puis égalité à l'URL (400 ID_MISMATCH)
+    S->>S: name mal typé, puis manquant (400 VALIDATION_ERROR), puis champ inconnu (400 UNKNOWN_FIELDS)
+    S->>S: Valider et normaliser le nom (trim, collapse, regex) (400 VALIDATION_ERROR)
     S->>DB: SELECT * FROM T_THEME_THM WHERE id = ?
     alt Thème introuvable
         S-->>C: 404 NOT_FOUND
     else Thème trouvé
-        S->>DB: Vérifier unicité du nom (case-insensitive)
-        alt Nom déjà pris
-            S-->>C: 409 THEME_ALREADY_EXISTS
-        else Données identiques
+        alt Nom identique à l'existant (insensible à la casse)
             S-->>C: 200 OK (inchangé, last_updated_at non modifié)
-        else Données modifiées
-            S->>DB: UPDATE T_THEME_THM SET name = ?, last_updated_at = ?
-            S-->>C: 200 OK { id, name, created_at, last_updated_at }
+        else Nom différent
+            S->>DB: Vérifier unicité du nom (case-insensitive)
+            alt Nom déjà pris
+                S-->>C: 409 THEME_ALREADY_EXISTS
+            else Nom libre
+                S->>DB: UPDATE T_THEME_THM SET name = ?, last_updated_at = ?
+                S-->>C: 200 OK { id, name, created_at, last_updated_at }
+            end
         end
     end
 
