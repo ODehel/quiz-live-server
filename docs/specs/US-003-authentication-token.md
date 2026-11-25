@@ -79,7 +79,7 @@ Le corps est le corps standard à trois champs (`status`, `error`, `message`). E
 
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-13 | Le endpoint `/token` est limité à 100 requêtes par minute **par adresse IP** | Dépassement → `429 RATE_LIMIT_EXCEEDED` avec header `Retry-After: 60`. Le plafond est la variable `MAX_REQUESTS_PER_MINUTE`, `100` quand elle est absente ; définie mais invalide, le hub refuse de démarrer (CA-21) |
+| CA-13 | Le endpoint `/token` est limité à 100 requêtes par minute **par adresse IP** | Dépassement → `429 RATE_LIMIT_EXCEEDED` avec header `Retry-After: 60`. Le plafond est la variable `MAX_REQUESTS_PER_MINUTE`, `100` quand elle est absente ; définie mais invalide, le hub refuse de démarrer (CA-21). Le compteur est celui de toute l'API, commun à toutes les routes (annexe CA-RateLimit, décision #96) : les requêtes vers `/token` s'y comptent avec les autres |
 
 ### Logging
 
@@ -362,7 +362,7 @@ Le fichier `.env` contient des mots de passe en clair et le secret JWT. Il **ne 
 
 ### Rate limiting par IP sur `/token`
 
-Le rate limiting de 100 req/min est **par adresse IP**. Cela permet à plusieurs clients de s'authentifier simultanément (ex : 10 buzzers + 1 admin au démarrage d'une partie) tout en limitant les tentatives de brute force depuis une même IP.
+Le rate limiting de 100 req/min est **par adresse IP**. Cela permet à plusieurs clients de s'authentifier simultanément (ex : 10 buzzers + 1 admin au démarrage d'une partie) tout en limitant les tentatives de brute force depuis une même IP. Le compteur de cette adresse est commun à toute l'API (annexe CA-RateLimit, décision #96) : ce n'est pas un compteur propre à `/token`.
 
 ### Middlewares réutilisables (DRY / SOLID)
 
