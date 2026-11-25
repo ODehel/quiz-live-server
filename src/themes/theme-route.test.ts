@@ -13,7 +13,6 @@ import { TokenValidator } from '../authentication/token-validator.interface';
 import authenticationMiddleware from '../authentication/authentication-middleware';
 import { TokenDecoder } from '../authentication/token-decoder.interface';
 import { UserRole } from '../users/user-role';
-import rateLimitMiddleware from '../infrastructure/rate-limit-middleware';
 
 const anyString: unknown = expect.any(String);
 const sqliteBusyError: unknown = expect.objectContaining({ message: 'SQLITE_BUSY: database is locked' });
@@ -24,7 +23,6 @@ let mockUuidValidator: UuidValidator;
 let mockTokenValidator: TokenValidator;
 let mockTokenDecoder: TokenDecoder;
 let mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void>;
-let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
 beforeEach(() => {
     mockThemeService = {
         createTheme: vi.fn().mockReturnValue({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Culture générale', created_at: new Date().toISOString(), last_updated_at: null }),
@@ -67,9 +65,8 @@ beforeEach(() => {
         decode: vi.fn().mockReturnValue({ role: UserRole.ADMIN })
     };
     mockMiddleware = async () => { };
-    mockRateLimitMiddleware = async () => { };
     app = Fastify();
-    app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, rateLimitMiddleware: mockRateLimitMiddleware });
+    app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware });
 });
 
 describe('US-004/CA-01 - Create Theme', () => {
@@ -717,7 +714,7 @@ describe("US-004/CA-30 - Delete theme with questions", () => {
 describe("US-004/CA-32 - Request without authorization", () => {
     beforeEach(() => {
         app = Fastify();
-        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware, rateLimitMiddleware: mockRateLimitMiddleware });
+        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
     });
     it("should return a 401 error", async () => {
         const response = await app.inject({
@@ -726,32 +723,6 @@ describe("US-004/CA-32 - Request without authorization", () => {
             headers: { 'content-type': 'application/json' }
         });
         expect(response.statusCode).toBe(401);
-    });
-});
-
-describe('US-004/CA-34: When rate limit is exceeded', () => {
-    let lowRateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
-    beforeEach(() => {
-        app = Fastify();
-        lowRateLimitMiddleware = (app) => rateLimitMiddleware(app, { maxRequestsPerMinute: 5 });
-        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, rateLimitMiddleware: lowRateLimitMiddleware });
-    });
-    it('should return 429', async () => {
-        for (let i = 0; i < 5; i++) {
-            await app.inject({
-                method: 'POST',
-                url: '/api/v1/themes',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: 'Culture générale ' + i.toString() })
-            });
-        }
-        const response = await app.inject({
-            method: 'POST',
-            url: '/api/v1/themes',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: 'Culture générale 6' })
-        });
-        expect(response.statusCode).toBe(429);
     });
 });
 
@@ -784,7 +755,7 @@ describe("US-004/CA-36 - Log the technical details of an unexpected error", () =
                 stream: { write: (line: string) => { logLines.push(line); } }
             }
         });
-        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware, rateLimitMiddleware: mockRateLimitMiddleware });
+        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware });
     });
 
     it("should log the unexpected error with its technical message at error level", async () => {

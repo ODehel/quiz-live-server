@@ -11,15 +11,13 @@ const SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const ANSWERED_BEFORE_BODY = [...SUPPORTED_METHODS, 'OPTIONS'];
 
 interface NotFoundRouteOptions {
-    rateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
     routeCatalog: RouteCatalog;
     tokenValidator: TokenValidator;
     tokenDecoder: TokenDecoder;
     publicUrls: string[];
 }
 
-export default async function notFoundRoute(app: FastifyInstance, options: NotFoundRouteOptions) {
-    await options.rateLimitMiddleware(app);
+export default function notFoundRoute(app: FastifyInstance, options: NotFoundRouteOptions) {
     app.addHook('onRequest', async (request, reply) => {
         const path = pathOf(request);
         const isPublic = options.publicUrls.includes(path);
@@ -30,7 +28,6 @@ export default async function notFoundRoute(app: FastifyInstance, options: NotFo
         if (allowedMethods.length === 0 || allowedMethods.includes(request.method)) {
             return;
         }
-        await app.rateLimit().call(app, request, reply);
         const refusal = isPublic ? undefined : refuseAccess(request, options);
         if (refusal) {
             sendErrorBody(reply, refusal);
@@ -39,7 +36,7 @@ export default async function notFoundRoute(app: FastifyInstance, options: NotFo
         }
         return reply;
     });
-    app.setNotFoundHandler({ preHandler: app.rateLimit() }, (request, reply) => {
+    app.setNotFoundHandler((request, reply) => {
         const path = pathOf(request);
         const allowedMethods = allowedMethodsFor(options.routeCatalog, path);
         if (allowedMethods.length === 0) {

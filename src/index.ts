@@ -65,16 +65,14 @@ function createServer(): QuizServer {
     const hasher = new BcryptHasher();
     const tokenRouteConfiguration: TokenRouteConfiguration = {
         authenticationService: new JwtAuthenticationService(userRepository, hasher),
-        tokenGenerator: new JwtGenerator(jwtSettings.secret, jwtSettings.expiration),
-        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute }) }
+        tokenGenerator: new JwtGenerator(jwtSettings.secret, jwtSettings.expiration)
     };
     const themeRouteConfiguration: ThemeRouteConfiguration = {
         themeService: new DefaultThemeService(clock, new Uuidv7Generator(), themeRepository),
         uuidValidator: new Uuidv7Validator(),
         tokenValidator: new JwtValidator(jwtSettings.secret),
         tokenDecoder: new JwtDecoder(),
-        middleware: authenticationMiddleware,
-        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute }) }
+        middleware: authenticationMiddleware
     };
     const wsRouteConfiguration: WsRouteConfiguration = {
         tokenValidator: new JwtValidator(jwtSettings.secret),
@@ -91,8 +89,7 @@ function createServer(): QuizServer {
         tokenDecoder: new JwtDecoder(),
         tokenValidator: new JwtValidator(jwtSettings.secret),
         questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), questionRepository, new ThemeRepositoryExistenceChecker(themeRepository), new UuidFormatValidator()),
-        middleware: authenticationMiddleware,
-        rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute }) }
+        middleware: authenticationMiddleware
     };
     return new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration, questionRouteConfiguration);
 }

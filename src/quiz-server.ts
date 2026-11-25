@@ -59,10 +59,15 @@ export class QuizServer {
         this.app.register(fastifyWebsocket);
         this.app.register(healthRoute);
         this.app.register(wsRoute, this.wsRouteConfiguration);
-        this.app.register(tokenRoute, this.tokenRouteConfiguration);
-        this.app.register(themeRoute, this.themeRouteConfiguration);
-        this.app.register(questionRoute, this.questionRouteConfiguration);
-        this.app.register(notFoundRoute, { rateLimitMiddleware: this.configuration.rateLimitMiddleware, routeCatalog: this.routeCatalog, tokenValidator: this.themeRouteConfiguration.tokenValidator, tokenDecoder: this.themeRouteConfiguration.tokenDecoder, publicUrls: ['/api/v1/token'] });
+        // /health et /ws sont enregistrés avant le compteur : ils n'en héritent pas (#96 (a), laissé ouvert).
+        // Le compteur est posé avant tout autre plugin de l'API : son hook `onRequest` passe avant l'authentification, le rôle, le 405 et le 404.
+        this.app.register(async (api) => {
+            await this.configuration.rateLimitMiddleware(api);
+            api.register(tokenRoute, this.tokenRouteConfiguration);
+            api.register(themeRoute, this.themeRouteConfiguration);
+            api.register(questionRoute, this.questionRouteConfiguration);
+            api.register(notFoundRoute, { routeCatalog: this.routeCatalog, tokenValidator: this.themeRouteConfiguration.tokenValidator, tokenDecoder: this.themeRouteConfiguration.tokenDecoder, publicUrls: ['/api/v1/token'] });
+        });
     }
 
     private formatDateNow() {

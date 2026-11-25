@@ -114,12 +114,10 @@ const mockWsEventReporter: WsEventReporter = {
 	rateLimited: vi.fn()
 };
 const mockMiddleware: (app: FastifyInstance, options: { tokenValidator: TokenValidator }) => Promise<void> = async () => { };
-const mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void> = async () => { };
 
 const mockTokenRouteConfiguration: TokenRouteConfiguration = {
 	authenticationService: mockAuthenticationService,
-	tokenGenerator: mockTokenGenerator,
-	rateLimitMiddleware: mockRateLimitMiddleware
+	tokenGenerator: mockTokenGenerator
 };
 
 const mockThemeRouteConfiguration: ThemeRouteConfiguration = {
@@ -127,8 +125,7 @@ const mockThemeRouteConfiguration: ThemeRouteConfiguration = {
 	uuidValidator: mockUuidValidator,
 	tokenValidator: mockTokenValidator,
 	tokenDecoder: mockTokenDecoder,
-	middleware: mockMiddleware,
-	rateLimitMiddleware: mockRateLimitMiddleware
+	middleware: mockMiddleware
 };
 
 const mockWsRouteConfiguration: WsRouteConfiguration = {
@@ -147,8 +144,7 @@ const mockQuestionRouteConfiguration: QuestionRouteConfiguration = {
 	tokenValidator: mockTokenValidator,
 	tokenDecoder: mockTokenDecoder,
 	questionService: mockQuestionService,
-	middleware: mockMiddleware,
-	rateLimitMiddleware: mockRateLimitMiddleware
+	middleware: mockMiddleware
 }
 
 async function reserveFreePort(): Promise<number> {
@@ -320,8 +316,7 @@ describe('US-005/CA-1 - Question creation reachable on the assembled server', ()
 			questionService: creationQuestionService,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,
-			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
-			rateLimitMiddleware: mockRateLimitMiddleware
+			middleware: mockMiddleware // no-op : l'authentification n'est pas l'objet de ce test
 		};
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, creationRouteConfiguration);
 	});
@@ -377,8 +372,7 @@ describe('US-005/CA-27 - The question list is ordered most recent first on the a
 			questionService: listingQuestionService,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,
-			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
-			rateLimitMiddleware: mockRateLimitMiddleware
+			middleware: mockMiddleware // no-op : l'authentification n'est pas l'objet de ce test
 		};
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, listingRouteConfiguration)
 	})
@@ -424,8 +418,7 @@ describe('US-005/CA-8 - A malformed theme_id is refused with INVALID_UUID on the
 			questionService: realQuestionService,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,
-			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
-			rateLimitMiddleware: mockRateLimitMiddleware
+			middleware: mockMiddleware // no-op : l'authentification n'est pas l'objet de ce test
 		};
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, realRouteConfiguration)
 	})
@@ -476,8 +469,7 @@ describe('US-005/CA-35 - An unknown theme_id is refused with INVALID_THEME on PU
 			questionService: realQuestionService,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,
-			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
-			rateLimitMiddleware: mockRateLimitMiddleware
+			middleware: mockMiddleware // no-op : l'authentification n'est pas l'objet de ce test
 		};
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, realRouteConfiguration)
 	})
@@ -528,8 +520,7 @@ describe('US-005/CA-37 - A PUT carrying the stored data leaves the question unto
 			questionService: realQuestionService,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,
-			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
-			rateLimitMiddleware: mockRateLimitMiddleware
+			middleware: mockMiddleware // no-op : l'authentification n'est pas l'objet de ce test
 		};
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, mockThemeRouteConfiguration, mockWsRouteConfiguration, realRouteConfiguration)
 	})
@@ -575,8 +566,7 @@ describe('US-004/CA-14- The theme list is ordered most recent first on the assem
 			uuidValidator: mockUuidValidator,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,
-			middleware: mockMiddleware, // no-op : l'authentification n'est pas l'objet de ce test
-			rateLimitMiddleware: mockRateLimitMiddleware
+			middleware: mockMiddleware // no-op : l'authentification n'est pas l'objet de ce test
 		};
 		server = new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, listingRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
 	})
@@ -603,8 +593,7 @@ const assembledServerWithRealThemeService = (database: Database): QuizServer => 
 		uuidValidator: { validate: () => true },
 		tokenValidator: mockTokenValidator,
 		tokenDecoder: mockTokenDecoder,
-		middleware: mockMiddleware,
-		rateLimitMiddleware: mockRateLimitMiddleware
+		middleware: mockMiddleware
 	}
 	return new QuizServer(mockQuizServerConfiguration, mockTokenRouteConfiguration, themeRouteConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
 }
@@ -731,6 +720,122 @@ describe('CA-UnknownRoute (decision #35) - An unknown route is rate limited on t
 	})
 	afterEach(async () => {
 		await server.stop()
+	})
+});
+
+describe('US-003/CA-13 - CA-RateLimit (decision #96) - One counter per address is shared by the whole API on the assembled server', () => {
+	const rateLimitedBody = { status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' }
+	let server: QuizServer
+	beforeEach(() => {
+		const tokenValidator: TokenValidator = { validateToken: vi.fn((token: string) => token !== 'invalid'), inspectToken: vi.fn() }
+		const tokenDecoder: TokenDecoder = { decode: vi.fn((token: string) => ({ role: token === 'admin' ? UserRole.ADMIN : UserRole.PLAYER })) }
+		const protectedThemeConfiguration: ThemeRouteConfiguration = { ...mockThemeRouteConfiguration, tokenValidator, tokenDecoder, middleware: authenticationMiddleware }
+		const protectedQuestionConfiguration: QuestionRouteConfiguration = { ...mockQuestionRouteConfiguration, tokenValidator, tokenDecoder, middleware: authenticationMiddleware }
+		const limitedConfiguration: QuizServerConfiguration = {
+			...mockQuizServerConfiguration,
+			rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: 3 }) }
+		}
+		server = new QuizServer(limitedConfiguration, mockTokenRouteConfiguration, protectedThemeConfiguration, mockWsRouteConfiguration, protectedQuestionConfiguration)
+	})
+	afterEach(async () => {
+		await server.stop()
+	})
+	const postToken = (remoteAddress?: string) => server.inject({ method: 'POST', url: '/api/v1/token', remoteAddress, payload: { username: 'user', password: 'secret' } })
+	const getThemes = (remoteAddress?: string) => server.inject({ method: 'GET', url: '/api/v1/themes', remoteAddress, headers: { authorization: 'Bearer admin' } })
+	const getUnknown = (remoteAddress?: string) => server.inject({ method: 'GET', url: '/api/v1/does-not-exist', remoteAddress })
+	const expectRefused = (response: { statusCode: number, headers: Record<string, unknown>, json: () => unknown }) => {
+		expect(response.statusCode).toBe(429)
+		expect(response.headers['retry-after']).toBe('60')
+		expect(response.json()).toEqual(rateLimitedBody)
+	}
+	it.each([
+		['a token request', postToken],
+		['a themes request', getThemes],
+		['a request to an unknown route', getUnknown]
+	])('refuses %s once one request of each family has been counted', async (_family, fourthRequest) => {
+		await server.start()
+		const first = await postToken()
+		const second = await getThemes()
+		const third = await getUnknown()
+		expect([first.statusCode, second.statusCode, third.statusCode]).toEqual([200, 200, 404])
+		expectRefused(await fourthRequest())
+	})
+	it.each([
+		['401', () => server.inject({ method: 'GET', url: '/api/v1/themes' })],
+		['400', () => server.inject({ method: 'GET', url: '/api/v1/themes/not-a-uuid', headers: { authorization: 'Bearer admin' } })],
+		['403', () => server.inject({ method: 'GET', url: '/api/v1/themes', headers: { authorization: 'Bearer buzzer' } })],
+		['404', getUnknown]
+	])('counts every %s and answers the fourth request with 429 instead', async (status, send) => {
+		await server.start()
+		const answered = [await send(), await send(), await send()]
+		expect(answered.map(response => response.statusCode)).toEqual([Number(status), Number(status), Number(status)])
+		expectRefused(await send())
+	})
+	it('counts three 405 of GET on the token route and refuses the following POST', async () => {
+		await server.start()
+		const methodNotAllowed = () => server.inject({ method: 'GET', url: '/api/v1/token' })
+		const answered = [await methodNotAllowed(), await methodNotAllowed(), await methodNotAllowed()]
+		expect(answered.map(response => response.statusCode)).toEqual([405, 405, 405])
+		expectRefused(await postToken())
+	})
+	it('keeps a separate counter for another address', async () => {
+		await server.start()
+		await postToken('10.0.0.1')
+		await getThemes('10.0.0.1')
+		await getUnknown('10.0.0.1')
+		expectRefused(await getThemes('10.0.0.1'))
+		const otherAddress = [await postToken('10.0.0.2'), await getThemes('10.0.0.2'), await getUnknown('10.0.0.2')]
+		expect(otherAddress.map(response => response.statusCode)).toEqual([200, 200, 404])
+		expectRefused(await getUnknown('10.0.0.2'))
+	})
+	it.each([
+		['a 405 on a known URL', () => server.inject({ method: 'GET', url: '/api/v1/token' })],
+		['a 404 on an unknown URL', getUnknown],
+		['a 401 on a protected URL', () => server.inject({ method: 'PATCH', url: '/api/v1/themes' })]
+	])('uses a single unit of the limit for %s', async (_case, send) => {
+		await server.start()
+		const answered = [await send(), await send(), await send()]
+		expect(answered.map(response => response.statusCode)).not.toContain(429)
+		expectRefused(await send())
+	})
+	it('does not refuse /health once the limit is passed', async () => {
+		await server.start()
+		await getUnknown()
+		await getUnknown()
+		await getUnknown()
+		expectRefused(await getUnknown())
+		const health = await server.inject({ method: 'GET', url: '/health' })
+		expect(health.statusCode).toBe(200)
+		expect(health.json()).toEqual({ status: 'ok' })
+	})
+	it('does not count /health in the limit', async () => {
+		await server.start()
+		for (let attempt = 0; attempt < 5; attempt++) {
+			expect((await server.inject({ method: 'GET', url: '/health' })).statusCode).toBe(200)
+		}
+		const answered = [await getUnknown(), await getUnknown(), await getUnknown()]
+		expect(answered.map(response => response.statusCode)).toEqual([404, 404, 404])
+		expectRefused(await getUnknown())
+	})
+	it('does not refuse /ws once the limit is passed', async () => {
+		await server.start()
+		await getUnknown()
+		await getUnknown()
+		await getUnknown()
+		expectRefused(await getUnknown())
+		const withoutLimit = await server.inject({ method: 'GET', url: '/ws' })
+		const withLimitOnly = await getUnknown()
+		expect(withoutLimit.statusCode).not.toBe(429)
+		expect(withLimitOnly.statusCode).toBe(429)
+	})
+	it('does not count /ws in the limit', async () => {
+		await server.start()
+		for (let attempt = 0; attempt < 5; attempt++) {
+			expect((await server.inject({ method: 'GET', url: '/ws' })).statusCode).not.toBe(429)
+		}
+		const answered = [await getUnknown(), await getUnknown(), await getUnknown()]
+		expect(answered.map(response => response.statusCode)).toEqual([404, 404, 404])
+		expectRefused(await getUnknown())
 	})
 });
 

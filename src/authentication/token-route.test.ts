@@ -1,16 +1,14 @@
 import Fastify, { FastifyInstance } from "fastify";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthenticationService } from "./authentication-service.interface";
 import { TokenGenerator } from "./token-generator.interface";
 import { UserRole } from "../users/user-role";
 import { Token } from "./token.interface";
 import tokenRoute from "../authentication/token-route";
-import rateLimitMiddleware from "../infrastructure/rate-limit-middleware";
 
 let app: FastifyInstance;
 let mockAuthenticationService: AuthenticationService;
 let mockTokenGenerator: TokenGenerator;
-let mockRateLimitMiddleware: (app: FastifyInstance) => Promise<void>;
 beforeEach(async () => {
     mockAuthenticationService = {
         authenticate: vi.fn().mockResolvedValue({ id: 'user-id', username: 'User Name', password: 'user-password', role: UserRole.PLAYER })
@@ -21,9 +19,8 @@ beforeEach(async () => {
             return token;
         }
     };
-    mockRateLimitMiddleware = async () => { };
     app = Fastify();
-    await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, rateLimitMiddleware: mockRateLimitMiddleware });
+    await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator });
 });
 
 describe('US-003/CA-01: With valid credentials', () => {
@@ -464,82 +461,6 @@ describe('US-003/CA-11: Without body', () => {
     });
 });
 
-describe('US-003/CA-13: When rate limit is exceeded', () => {
-    const limit = 5;
-    const firstAddress = '203.0.113.7';
-    const secondAddress = '198.51.100.42';
-    const requestFrom = (remoteAddress: string) => app.inject({
-        method: 'POST',
-        url: '/api/v1/token',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'User Name', password: 'user-password' }),
-        remoteAddress
-    });
-    const exhaustTheLimit = async (remoteAddress: string, count = limit) => {
-        const statusCodes: number[] = [];
-        for (let i = 0; i < count; i++) { statusCodes.push((await requestFrom(remoteAddress)).statusCode); }
-        return statusCodes;
-    };
-    const mountWithLimit = async (maxRequestsPerMinute: number) => {
-        app = Fastify();
-        await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, rateLimitMiddleware: (app) => rateLimitMiddleware(app, { maxRequestsPerMinute }) });
-    };
-    beforeEach(async () => {
-        await mountWithLimit(limit);
-    });
-    afterEach(() => {
-        vi.useRealTimers();
-    });
-    it('should return 429', async () => {
-        await exhaustTheLimit(firstAddress);
-        const response = await requestFrom(firstAddress);
-        expect(response.statusCode).toBe(429);
-    });
-    it('should tell the client to retry after 60 seconds', async () => {
-        await exhaustTheLimit(firstAddress);
-        const response = await requestFrom(firstAddress);
-        expect(response.headers['retry-after']).toBe('60');
-    });
-    it('should still tell the client to retry after 60 seconds when refused later in the same window', async () => {
-        vi.useFakeTimers({ toFake: ['Date'] });
-        await exhaustTheLimit(firstAddress);
-        vi.advanceTimersByTime(3000);
-        const response = await requestFrom(firstAddress);
-        expect(response.statusCode).toBe(429);
-        expect(response.headers['retry-after']).toBe('60');
-    });
-    it('should explain the refusal with the standard error body', async () => {
-        await exhaustTheLimit(firstAddress);
-        const response = await requestFrom(firstAddress);
-        expect(response.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' });
-    });
-    it('should still answer another IP address once the first one is refused', async () => {
-        const statusCodes = await exhaustTheLimit(firstAddress);
-        const refused = await requestFrom(firstAddress);
-        const other = await requestFrom(secondAddress);
-        expect(statusCodes).not.toContain(429);
-        expect(refused.statusCode).toBe(429);
-        expect(other.statusCode).toBe(200);
-    });
-    it('should count the requests of each IP address on its own', async () => {
-        await exhaustTheLimit(firstAddress, limit - 1);
-        await exhaustTheLimit(secondAddress, limit - 1);
-        const first = await requestFrom(firstAddress);
-        const second = await requestFrom(secondAddress);
-        expect(first.statusCode).toBe(200);
-        expect(second.statusCode).toBe(200);
-        expect((await requestFrom(firstAddress)).statusCode).toBe(429);
-        expect((await requestFrom(secondAddress)).statusCode).toBe(429);
-    });
-    it('should accept 100 requests per minute from an IP address and refuse the 101st', async () => {
-        await mountWithLimit(100);
-        const statusCodes = await exhaustTheLimit(firstAddress, 100);
-        const response = await requestFrom(firstAddress);
-        expect(statusCodes.every((statusCode) => statusCode === 200)).toBe(true);
-        expect(response.statusCode).toBe(429);
-    });
-});
-
 describe('US-003/CA-17: When an unexpected error occurs', () => {
     const standardBody = {
         status: 500,
@@ -605,7 +526,7 @@ describe('US-003/CA-14, US-003/CA-15 and US-003/CA-17: The server log', () => {
                 stream: { write: (line: string) => { logs.push(JSON.parse(line) as Record<string, unknown>); } }
             }
         });
-        await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator, rateLimitMiddleware: mockRateLimitMiddleware });
+        await app.register(tokenRoute, { authenticationService: mockAuthenticationService, tokenGenerator: mockTokenGenerator });
     });
 
     async function login(username: string, password: string) {

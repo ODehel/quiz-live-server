@@ -17,9 +17,7 @@ import Ajv from "ajv";
 type SchemaViolation = { keyword: string, instancePath: string, params: { missingProperty?: string, additionalProperty?: string } };
 
 export default async function questionRoute(app: FastifyInstance, options: QuestionRouteConfiguration) {
-    const { questionService, tokenValidator, tokenDecoder, middleware, rateLimitMiddleware } = options;
-
-    await rateLimitMiddleware(app);
+    const { questionService, tokenValidator, tokenDecoder, middleware } = options;
 
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 
