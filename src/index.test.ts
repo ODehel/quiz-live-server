@@ -1625,3 +1625,45 @@ describe('hub themes rate limit (MAX_REQUESTS_PER_MINUTE)', () => {
         await expectRefusedAfter(100, await startHubRequestingAsAdmin({ MAX_REQUESTS_PER_MINUTE: undefined }, ROUTES[1]))
     }, TEST_TIMEOUT_MS)
 })
+
+// US-003/CA-13 and CA-RateLimit (SECURITE-TRANSVERSALE, decisions #35, #36, #37 and #96 point 1) on the real process: an unknown URL is under the
+// limit of requests of a minute. Under it, it answers the standard 404 NOT_FOUND of CA-UnknownRoute; the next request from the same address is
+// refused with the standard 429, Retry-After 60, which comes before the 404. The rule is proved on the assembled server by server.test.ts (CA-UnknownRoute, rate limited) with a low limit injected;
+// here we prove that index.ts wires the limit of the environment of the hub to the unknown route (3 when MAX_REQUESTS_PER_MINUTE is 3, 100 when it
+// is absent). Each test sends requests to the unknown URL only, on a fresh hub, with no token (an unknown URL needs none), so that the refusal can
+// only come from the counter of the unknown route.
+// Out of scope: /health, /ws, the known routes, a fixed or sliding window, trustProxy, and whether the plugins share one counter (decision #96
+// points 2 and 3, not coded yet: see DEBTS.md); no test here depends on it.
+describe('hub unknown route rate limit (MAX_REQUESTS_PER_MINUTE)', () => {
+    const UNKNOWN_URL = '/nope'
+
+    async function startUnknownRouteHub(overrides: Record<string, string | undefined>): Promise<() => Promise<Response>> {
+        const port = await freePort()
+        const hub = startHub(String(port), overrides)
+        await waitUntilListening(hub, port)
+        return () => fetch('http://127.0.0.1:' + port + UNKNOWN_URL)
+    }
+
+    // Under the limit every answer is the standard 404 (status and body asserted on each one); the next one is the standard 429.
+    async function expectNotFoundThenRefusedAfter(limit: number, request: () => Promise<Response>): Promise<void> {
+        for (let i = 1; i <= limit; i++) {
+            const answer = await request()
+
+            expect(answer.status, 'request ' + i + ' of ' + limit).toBe(404)
+            expect(await answer.json(), 'request ' + i + ' of ' + limit).toEqual({ status: 404, error: 'NOT_FOUND', message: 'The requested resource was not found.' })
+        }
+        const refused = await request()
+
+        expect(refused.status).toBe(429)
+        expect(refused.headers.get('retry-after')).toBe('60')
+        expect(await refused.json()).toEqual({ status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' })
+    }
+
+    it('US-003/CA-13 answers 404 NOT_FOUND to the 3 first GET of an unknown URL of a minute from the same address, then the 4th with 429 RATE_LIMIT_EXCEEDED and Retry-After 60, when MAX_REQUESTS_PER_MINUTE is 3', async () => {
+        await expectNotFoundThenRefusedAfter(3, await startUnknownRouteHub({ MAX_REQUESTS_PER_MINUTE: '3' }))
+    }, TEST_TIMEOUT_MS)
+
+    it('US-003/CA-13 answers 404 NOT_FOUND to the 100 first GET of an unknown URL of a minute from the same address, then the 101st with 429 RATE_LIMIT_EXCEEDED and Retry-After 60, when MAX_REQUESTS_PER_MINUTE is absent', async () => {
+        await expectNotFoundThenRefusedAfter(100, await startUnknownRouteHub({ MAX_REQUESTS_PER_MINUTE: undefined }))
+    }, TEST_TIMEOUT_MS)
+})
