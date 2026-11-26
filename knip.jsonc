@@ -1,0 +1,13 @@
+{
+    "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+    "entry": [
+        // Spawned as a child process by src/seed-all-or-none.test.ts (holds the database write lock).
+        "src/test-support/lock-holder.mjs",
+        // Preloaded with --import into the hub process started by src/index.test.ts.
+        "src/test-support/loopback-only-network.mjs",
+        // Preloaded with --import into the seed processes started by src/seed-all-or-none.test.ts.
+        "src/test-support/seed-probe.mjs",
+        // Run with node by docs/specs/scripts/generate-all.sh.
+        "docs/specs/scripts/generate-covers.mjs"
+    ]
+}

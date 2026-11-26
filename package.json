@@ -2,7 +2,6 @@
   "name": "quiz-live-server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
     "start": "tsx src/index.ts",
@@ -10,7 +9,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "knip": "knip"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +27,7 @@
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.1.12",
     "eslint": "^10.13.0",
+    "knip": "^6.48.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.72.0",
