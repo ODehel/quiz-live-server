@@ -6,8 +6,11 @@ sequenceDiagram
 
     Note over C,DB: Création — POST /api/v1/themes
     C->>S: POST /api/v1/themes<br/>Authorization: Bearer TOKEN<br/>{ "name": "Sciences" }
-    S->>S: Authentification + Autorisation (admin)
-    S->>S: Valider et normaliser le nom (trim, collapse, regex 3-40 car.)
+    S->>S: Limite de débit, authentification + autorisation (admin)
+    S->>S: Content-Type (415), JSON valide (400)
+    S->>S: Body = objet (400 INVALID_BODY)
+    S->>S: name mal typé, puis manquant ou null (400 VALIDATION_ERROR), puis champ inconnu (400 UNKNOWN_FIELDS)
+    S->>S: Valider et normaliser le nom (trim, collapse, regex 3-40 car.) (400 VALIDATION_ERROR)
     S->>DB: SELECT … WHERE LOWER(name) = LOWER(?)
     alt Nom déjà existant
         DB-->>S: Thème trouvé

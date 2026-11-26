@@ -1,14 +1,14 @@
 %%{init: {"theme": "forest", "flowchart": {"curve": "basis"}}}%%
 flowchart TD
-    REQ(["Requête HTTP"]) --> MW_AUTH["Middleware : authenticate\nVérifier le JWT dans Authorization: Bearer"]
+    REQ(["Requête HTTP"]) --> MW_RL{"> 100 req/min\npar IP ?"}
+    MW_RL -->|"Oui"| E429["429 RATE_LIMIT_EXCEEDED\nRetry-After: 60"]
+    MW_RL -->|"Non"| MW_AUTH["Middleware : authenticate\nVérifier le JWT dans Authorization: Bearer"]
     MW_AUTH --> AUTH_OK{"Token JWT\nvalide ?"}
     AUTH_OK -->|"Non"| E401["401 UNAUTHORIZED"]
     AUTH_OK -->|"Oui"| MW_ROLE["Middleware : authorize admin\nVérifier le rôle JWT"]
     MW_ROLE --> ROLE_OK{"Rôle\n= admin ?"}
     ROLE_OK -->|"Non"| E403["403 FORBIDDEN"]
-    ROLE_OK -->|"Oui"| MW_RL{"> 100 req/min\npar IP ?"}
-    MW_RL -->|"Oui"| E429["429 RATE_LIMIT_EXCEEDED\nRetry-After: 60"]
-    MW_RL -->|"Non"| ROUTE{"Méthode + Route"}
+    ROLE_OK -->|"Oui"| ROUTE{"Méthode + Route"}
     ROUTE -->|"Méthode non supportée"| E405["405 METHOD_NOT_ALLOWED\nAllow: GET, POST\nou GET, PUT, DELETE"]
     ROUTE -->|"POST /themes"| POST_CT
     ROUTE -->|"GET /themes"| LIST_PG
@@ -22,7 +22,13 @@ flowchart TD
         POST_CT -->|"Non"| PE415["415 FST_ERR_CTP_INVALID_MEDIA_TYPE"]
         POST_CT -->|"Oui"| POST_JSON{"JSON valide ?"}
         POST_JSON -->|"Non"| PE400a["400 INVALID_JSON"]
-        POST_JSON -->|"Oui"| POST_UF{"Champs inconnus\n(hors name) ?"}
+        POST_JSON -->|"Oui"| POST_OBJ{"Body = objet JSON ?"}
+        POST_OBJ -->|"Non"| PE400o["400 INVALID_BODY"]
+        POST_OBJ -->|"Oui"| POST_TYP{"name présent, non null\net pas une chaîne ?"}
+        POST_TYP -->|"Oui"| PE400t["400 VALIDATION_ERROR"]
+        POST_TYP -->|"Non"| POST_MIS{"name manquant ou null ?"}
+        POST_MIS -->|"Oui"| PE400m["400 VALIDATION_ERROR"]
+        POST_MIS -->|"Non"| POST_UF{"Champs inconnus\n(hors name) ?"}
         POST_UF -->|"Oui"| PE400b["400 UNKNOWN_FIELDS"]
         POST_UF -->|"Non"| POST_NORM["Trim + Collapse du nom"]
         POST_NORM --> POST_REGEX{"Regex valide ?\n3–40 car., majuscule,\nlettre/chiffre à la fin"}
@@ -97,7 +103,7 @@ flowchart TD
     classDef error fill:#f8d7da,stroke:#dc3545,color:#721c24
     classDef success fill:#d4edda,stroke:#28a745,color:#155724
     class E401,E403,E405,E429 error
-    class PE415,PE400a,PE400b,PE400c,PE409 error
+    class PE415,PE400a,PE400b,PE400c,PE409,PE400o,PE400t,PE400m error
     class LE400 error
     class RE400,RE404 error
     class PUE400a,PUE404,PUE415,PUE400b,PUE400c,PUE400d,PUE400e,PUE409,PUE400o,PUE400i,PUE400t,PUE400m error

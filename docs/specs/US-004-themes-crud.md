@@ -26,12 +26,47 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 |---|---|---|
 | CA-1 | Créer un thème avec un nom valide | `201 Created` avec le thème créé (id, name, created_at, last_updated_at: null) |
 | CA-2 | Le nom est normalisé avant validation (trim + collapse des espaces multiples) | `"  Science   fiction  " → "Science fiction"` |
-| CA-3 | Le nom doit respecter la regex `/^[\p{Lu}][\p{L}\p{N} '\-]{1,38}[\p{L}\p{N}]$/u` | Entre 3 et 40 caractères, commence par une majuscule, finit par une lettre ou un chiffre |
+| CA-3 | Le nom doit respecter la regex `/^[\p{Lu}][\p{L}\p{N} '\-]{1,38}[\p{L}\p{N}]$/u`. Jugé après `name` mal typé, manquant ou `null` et après les champs inconnus (CA-7), avant le `409` (CA-4) ; le message est normatif (décision #101, section « Messages de `VALIDATION_ERROR` du `POST` ») | Entre 3 et 40 caractères, commence par une majuscule, finit par une lettre ou un chiffre |
 | CA-4 | L'unicité du nom est insensible à la casse | `"Musique"` existe → `"MUSIQUE"` retourne `409 Conflict` |
 | CA-5 | L'ID est un UUIDv7 généré côté Node.js | Format UUID standard (8-4-4-4-12) |
 | CA-6 | Les horodatages sont en ISO 8601 UTC, générés côté Node.js | `created_at` rempli, `last_updated_at` à `null` |
-| CA-7 | Le body ne doit contenir que le champ `name` | Champs inconnus → `400 UNKNOWN_FIELDS` |
-| CA-8 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
+| CA-7 | Le body ne doit contenir que le champ `name`. Jugé après `name` mal typé, manquant ou `null`, avant la forme du nom (décision #101, comme #9 et #10) | Champs inconnus → `400 UNKNOWN_FIELDS` |
+| CA-8 | Le `Content-Type` doit être `application/json` (absent et vide compris). Jugé après la limite de débit, l'authentification et le rôle, avant le JSON et le corps (décisions #82 et #101) | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
+
+### Ordre des contrôles du `POST`
+
+Une requête `POST /api/v1/themes` est jugée dans cet ordre ; le premier contrôle en échec fixe la réponse, les suivants ne sont pas évalués (décision #101). C'est l'ordre du `PUT` (décision #99) sans les rangs propres au chemin : `:id` du chemin, `id` du corps, `404` et nom identique. Les diagrammes de flux et de séquence suivent le même ordre.
+
+| Ordre | Contrôle | Réponse si échec | CA |
+|---|---|---|---|
+| 1 | Limite de débit (décision #96), puis authentification et rôle (annexe, CA-Bearer et CA-Forbidden) | `429 RATE_LIMIT_EXCEEDED`, `401 UNAUTHORIZED`, `403 FORBIDDEN` | CA-32, CA-33, CA-34 |
+| 2 | `Content-Type` autre que `application/json` (absent et vide compris) | `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` | CA-8 |
+| 3 | Corps qui n'est pas du JSON | `400` (le code de l'erreur n'est pas décidé ici, voir `DEBTS.md`) | — |
+| 4 | Corps JSON qui n'est pas un objet (`null`, tableau, chaîne, nombre, booléen) | `400 INVALID_BODY` (`error-codes.md`) | — |
+| 5 | `name` présent, non `null`, mais qui n'est pas une chaîne | `400 VALIDATION_ERROR`, `Theme name must be a string.` | CA-3 |
+| 6 | `name` manquant ou `null` | `400 VALIDATION_ERROR`, `Theme name is required.` | CA-3 |
+| 7 | Champ inconnu dans le body | `400 UNKNOWN_FIELDS` | CA-7 |
+| 8 | Forme du `name` après normalisation (trim, collapse, regex) | `400 VALIDATION_ERROR`, `Theme name must be 3 to 40 characters, start with an uppercase letter, end with a letter or digit, and contain only letters, digits, spaces, apostrophes and hyphens.` | CA-2, CA-3 |
+| 9 | Nom déjà pris par un thème existant (insensible à la casse) | `409 THEME_ALREADY_EXISTS` | CA-4 |
+
+Précisions (décision #101) :
+- Le rang 1 reprend les décisions existantes : le `429` passe avant l'authentification (#96), l'authentification et le rôle avant tout jugement du corps (#31, #92 ; annexe `SECURITE-TRANSVERSALE.md`). Elles ne sont pas redécidées ici.
+- Les rangs 2 et 3 sont ceux de Fastify, avant la route (#82, #84, #11) ; le rang 3 ne se rend que sur une méthode supportée (#92).
+- Le rang 4 est le code que `error-codes.md` donne à un JSON valide qui n'est pas un objet (`INVALID_BODY`, message du catalogue : « Request body must be a JSON object. »). L'exception de ce catalogue ne vise que `POST /api/v1/token` (#85, #86).
+- Les rangs 5 et 6 ne portent que sur `name`. Un `name` à `null` compte comme manquant (rang 6, comme au `PUT`, #100, et comme #22 pour les questions et #86 pour le token). Les messages sont normatifs (section ci-dessous).
+- Le rang 8 juge le nom normalisé (CA-2) ; le `409` du rang 9 compare le nom normalisé.
+- Un corps invalide ne révèle pas si un thème de ce nom existe : les rangs 3 à 8 passent avant le `409`.
+- Aucun CA n'est ajouté, retiré ni renuméroté.
+
+### Messages de `VALIDATION_ERROR` du `POST`
+
+Le message de chaque `400 VALIDATION_ERROR` du `POST` est **normatif, mot à mot** (décision #101), au corps standard à trois champs (`status`, `error`, `message`), identique à celui du `PUT` pour le même contrôle. Une réponse ne nomme qu'un contrôle : le premier en échec de l'ordre ci-dessus.
+
+| Ordre | Cas | Message |
+|---|---|---|
+| 5 | `name` présent, non `null`, mais qui n'est pas une chaîne (nombre, booléen, tableau, objet) | `Theme name must be a string.` |
+| 6 | `name` manquant ou `null` | `Theme name is required.` |
+| 8 | `name` qui, après trim et collapse, ne respecte pas la regex de CA-3 (vide, trop court ou trop long, majuscule initiale absente, fin interdite, caractère interdit) | `Theme name must be 3 to 40 characters, start with an uppercase letter, end with a letter or digit, and contain only letters, digits, spaces, apostrophes and hyphens.` |
 
 ### Lecture d'un thème — `GET /api/v1/themes/:id`
 
@@ -61,7 +96,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | # | Critère | Résultat attendu |
 |---|---|---|
 | CA-20 | Modifier le nom d'un thème existant | `200 OK` avec le thème mis à jour, `last_updated_at` mis à jour |
-| CA-21 | Les mêmes règles de validation et normalisation que le POST s'appliquent. La forme du nom (trim, collapse, regex) est jugée avant le `404` (CA-25), même sur un id inconnu ; l'unicité (CA-24) après lui (décision #99). Un `name` absent, `null` ou qui n'est pas une chaîne répond `400 VALIDATION_ERROR`, avant les champs inconnus (CA-27) ; les messages sont normatifs (section « Messages de `VALIDATION_ERROR` du `PUT` », décision #100) | Trim, collapse, regex, unicité |
+| CA-21 | Les mêmes règles de validation et normalisation que le POST s'appliquent (même ordre, sans les rangs propres au chemin, décision #101). La forme du nom (trim, collapse, regex) est jugée avant le `404` (CA-25), même sur un id inconnu ; l'unicité (CA-24) après lui (décision #99). Un `name` absent, `null` ou qui n'est pas une chaîne répond `400 VALIDATION_ERROR`, avant les champs inconnus (CA-27) ; les messages sont normatifs (section « Messages de `VALIDATION_ERROR` du `PUT` », décision #100) | Trim, collapse, regex, unicité |
 | CA-22 | Le nom envoyé est identique à l'existant (comparaison insensible à la casse). Jugé après la forme du nom et le `404`, avant le `409` (décision #99) | `200 OK` avec le thème inchangé, `last_updated_at` **non modifié** |
 | CA-23 | L'ID peut être présent dans le body ; s'il l'est, il doit correspondre à l'URL. Il est jugé juste après le `:id` du chemin, avant le reste du corps (décision #99, comme #30) : mal formé ou non chaîne (`null`, nombre…), même s'il diffère de l'URL → `400 INVALID_UUID` ; bien formé mais différent → `400 ID_MISMATCH` | Sinon → `400 ID_MISMATCH` |
 | CA-24 | Le nom est déjà pris par un autre thème. Jugé après le `404` (CA-25) et après CA-22 (décision #99) | `409 THEME_ALREADY_EXISTS` |
@@ -109,7 +144,7 @@ Le message de chaque `400 VALIDATION_ERROR` du `PUT` est **normatif, mot à mot*
 | 8 | `name` manquant ou `null` | `Theme name is required.` |
 | 10 | `name` qui, après trim et collapse, ne respecte pas la regex de CA-3 (vide, trop court ou trop long, majuscule initiale absente, fin interdite, caractère interdit) | `Theme name must be 3 to 40 characters, start with an uppercase letter, end with a letter or digit, and contain only letters, digits, spaces, apostrophes and hyphens.` |
 
-Les messages du `POST` ne sont pas fixés ici : celui de la forme du nom est aujourd'hui identique, mais l'ordre des contrôles du `POST` n'est pas tranché (voir `DEBTS.md`).
+Les messages du `POST` sont les mêmes, rang pour rang (section « Messages de `VALIDATION_ERROR` du `POST` », décision #101).
 
 ### Suppression — `DELETE /api/v1/themes/:id`
 
@@ -191,6 +226,15 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/themes" \
   -d '{"name": "m"}'
 ```
 
+**CA-3** — `name` manquant → `400 VALIDATION_ERROR`, `Theme name is required.` (décision #101)
+
+```bash
+curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/themes" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
 **CA-4** — Doublon de nom (insensible à la casse) → `409 THEME_ALREADY_EXISTS`
 
 ```bash
@@ -208,6 +252,15 @@ curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/themes" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "Sport", "couleur": "rouge"}'
+```
+
+**CA-7** — Champ inconnu et nom de forme invalide → `400 UNKNOWN_FIELDS`, pas `VALIDATION_ERROR` (décision #101)
+
+```bash
+curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE_URL/api/v1/themes" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "m", "couleur": "rouge"}'
 ```
 
 **CA-8** — Content-Type incorrect → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`
