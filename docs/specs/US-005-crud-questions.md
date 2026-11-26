@@ -47,6 +47,17 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-19 | Le body ne doit contenir que les champs autorisés selon le type | Champs inconnus → `400 UNKNOWN_FIELDS` |
 | CA-20 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 
+**Ordre des contrôles du `POST`** (décisions #102, #101, #96) :
+
+| Rang | Contrôle | Réponse |
+|---|---|---|
+| 1 | Limite de débit, authentification, rôle (CA-50 à CA-52) | `429`, `401`, `403` |
+| 2 | `Content-Type` non conforme (CA-20) | `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
+| 3 | JSON invalide | `400` |
+| 4 | Corps non objet | `400 INVALID_BODY` |
+| 5 et suivants | Contrôles du corps dans l'ordre déjà décidé (décisions #8, #9, #10, #25) | inchangé |
+
+
 ### Lecture d'une question — `GET /api/v1/questions/:id`
 
 | # | Critère | Résultat attendu |
@@ -84,6 +95,19 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-41 | Le `Content-Type` doit être `application/json` | Sinon → `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
 | CA-42 | Le body ne doit contenir que les champs autorisés (tous les champs métier requis, `id` optionnel ; **`image_path` et `audio_path` ne sont pas gérés par ce endpoint**) | Champs inconnus (dont `image_path`/`audio_path`) → `400 UNKNOWN_FIELDS` |
 | CA-43 | Le PUT exige tous les champs métier : `type`, `theme_id`, `title`, `correct_answer`, `level`, `time_limit`, `points` (+ `choices` si MCQ). **Les champs médias `image_path` et `audio_path` ne sont ni créés, ni modifiés, ni réinitialisés par ce PUT et conservent leur valeur actuelle**. | Champ métier manquant → `400 VALIDATION_ERROR` |
+
+**Ordre des contrôles du `PUT`** (décisions #102, #30, #96) : une requête peut cumuler plusieurs erreurs, une réponse ne porte qu'un code.
+
+| Rang | Contrôle | Réponse |
+|---|---|---|
+| 1 | Limite de débit, authentification, rôle (CA-50 à CA-52) | `429`, `401`, `403` |
+| 2 | `Content-Type` non conforme (CA-41) | `415 FST_ERR_CTP_INVALID_MEDIA_TYPE` |
+| 3 | JSON invalide | `400` |
+| 4 | `:id` du chemin mal formé (CA-38) | `400 INVALID_UUID` |
+| 5 | Corps non objet | `400 INVALID_BODY` |
+| 6 | `id` du corps mal formé, puis différent de l'URL (CA-38) | `400 INVALID_UUID`, puis `400 ID_MISMATCH` |
+| 7 et suivants | Contrôles du corps dans l'ordre déjà décidé (décisions #19 à #29) | inchangé |
+
 
 ### Suppression — `DELETE /api/v1/questions/:id`
 
