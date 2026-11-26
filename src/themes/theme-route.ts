@@ -6,12 +6,9 @@ import { NotFoundError } from "../common/not-found-error";
 import { ThemeHasQuestionsError } from "./theme-has-questions-error";
 import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
 import { ThemeRouteConfiguration } from "./theme-route-configuration.interface";
-import { UuidFormatValidator } from "../infrastructure/uuid-format-validator";
 
 export default async function themeRoute(app: FastifyInstance, options: ThemeRouteConfiguration) {
     const { themeService, uuidValidator, tokenValidator, tokenDecoder, middleware } = options;
-
-    const uuidFormatValidator = new UuidFormatValidator();
 
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 
@@ -69,7 +66,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
 
         instance.put('/api/v1/themes/:id', async (request, reply) => {
             const { id: idFromParams } = request.params as { id: string };
-            if (!uuidFormatValidator.validate(idFromParams)) {
+            if (!uuidValidator.validate(idFromParams)) {
                 reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
                 return;
             }
@@ -82,7 +79,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
 
             if ('id' in body) {
                 const idFromBody: unknown = body.id;
-                if (typeof idFromBody !== 'string' || !uuidFormatValidator.validate(idFromBody)) {
+                if (typeof idFromBody !== 'string' || !uuidValidator.validate(idFromBody)) {
                     reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
                     return;
                 }
@@ -118,11 +115,19 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
     });
 
     app.register((instance) => {
-        instance.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, _body, done) => {
+        instance.addHook('onRequest', (request, _reply, done) => {
+            delete request.headers['content-type'];
+            done();
+        });
+        instance.addContentTypeParser('*', { parseAs: 'string' }, (_req, _body, done) => {
             done(null, null);
         });
         instance.delete('/api/v1/themes/:id', async (request, reply) => {
             const { id } = request.params as { id: string };
+            if (!uuidValidator.validate(id)) {
+                reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
+                return;
+            }
 
             try {
                 themeService.deleteTheme(id);

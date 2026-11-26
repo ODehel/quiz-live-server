@@ -12,7 +12,6 @@ import { ThemeRouteConfiguration } from './themes/theme-route-configuration.inte
 import { DefaultThemeService } from './themes/default-theme-service';
 import { Uuidv7Generator } from './infrastructure/uuidv7-generator';
 import { SqliteThemeRepository } from './themes/sqlite-theme-repository';
-import { Uuidv7Validator } from './infrastructure/uuidv7-validator';
 import { UuidFormatValidator } from './infrastructure/uuid-format-validator';
 import { JwtValidator } from './authentication/jwt-validator';
 import authenticationMiddleware from './authentication/authentication-middleware';
@@ -69,7 +68,7 @@ function createServer(): QuizServer {
     };
     const themeRouteConfiguration: ThemeRouteConfiguration = {
         themeService: new DefaultThemeService(clock, new Uuidv7Generator(), themeRepository),
-        uuidValidator: new Uuidv7Validator(),
+        uuidValidator: new UuidFormatValidator(),
         tokenValidator: new JwtValidator(jwtSettings.secret),
         tokenDecoder: new JwtDecoder(),
         middleware: authenticationMiddleware

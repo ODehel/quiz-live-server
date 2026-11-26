@@ -644,19 +644,22 @@ const invalidUuidBody = { status: 400, error: 'INVALID_UUID', message: 'The prov
 const putTheme = (url: string, payload: string) => app.inject({ method: 'PUT', url, headers: { 'content-type': 'application/json' }, payload });
 
 describe("US-004/CA-25a - A malformed id in the path of a PUT is refused (decisions #98 and #99)", () => {
-    it.each(['not-a-uuid', '12345', '019d92d2-e1f6-7d05-9803-3948dbc4c41', '019d92d2-e1f6-7d05-9803-3948dbc4c416-', 'g19d92d2-e1f6-7d05-9803-3948dbc4c416'])("should answer 400 INVALID_UUID for %s without calling the service", async (id) => {
-        const response = await putTheme(`/api/v1/themes/${id}`, JSON.stringify({ name: 'Culture générale 2' }));
+    it("should answer 400 INVALID_UUID without calling the service when the injected validator refuses the id of the path", async () => {
+        mockUuidValidator.validate = vi.fn().mockReturnValue(false);
+        const response = await putTheme('/api/v1/themes/not-a-uuid', JSON.stringify({ name: 'Culture générale 2' }));
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual(invalidUuidBody);
+        expect(mockUuidValidator.validate).toHaveBeenCalledWith('not-a-uuid');
         expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
     });
-    it("should judge the form only, with its own validator: a well formed id of another version than 7 reaches the service", async () => {
-        mockUuidValidator.validate = vi.fn().mockReturnValue(false);
+    it("should let the injected validator judge the id of the path: an id it accepts reaches the service", async () => {
+        mockUuidValidator.validate = vi.fn().mockReturnValue(true);
         const response = await putTheme('/api/v1/themes/018e4f5a-0000-0000-0000-000000000000', JSON.stringify({ name: 'Culture générale 2' }));
         expect(response.statusCode).toBe(200);
         expect(mockThemeService.updateTheme).toHaveBeenCalledWith('018e4f5a-0000-0000-0000-000000000000', 'Culture générale 2');
     });
     it("should judge the path before the body", async () => {
+        mockUuidValidator.validate = vi.fn().mockReturnValue(false);
         const response = await putTheme('/api/v1/themes/not-a-uuid', 'null');
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual(invalidUuidBody);
@@ -673,6 +676,9 @@ describe("US-004/rank 5 - A body that is not a JSON object is refused with INVAL
 });
 
 describe("US-004/CA-23 - The id of the body is judged after the path and before the rest of the body (decision #99)", () => {
+    beforeEach(() => {
+        mockUuidValidator.validate = vi.fn((id: string) => id !== 'not-a-uuid');
+    });
     it.each([
         ['a malformed string', '"not-a-uuid"'],
         ['null', 'null'],
@@ -684,6 +690,15 @@ describe("US-004/CA-23 - The id of the body is judged after the path and before 
         const response = await putTheme(themeUrl, `{"id":${id}}`);
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual(invalidUuidBody);
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
+    });
+    it("should let the injected validator judge the id of the body, not only the one of the path", async () => {
+        const idOfBody = '019da051-e379-74e7-b446-65518f88cc3a';
+        mockUuidValidator.validate = vi.fn((id: string) => id !== idOfBody);
+        const response = await putTheme(themeUrl, JSON.stringify({ id: idOfBody, name: 'Culture générale 2' }));
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual(invalidUuidBody);
+        expect(mockUuidValidator.validate).toHaveBeenCalledWith(idOfBody);
         expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
     });
     it("should answer INVALID_UUID, not ID_MISMATCH, for a malformed id that differs from the path", async () => {
@@ -769,6 +784,57 @@ describe("US-004/CA-28 - Delete route", () => {
         });
         expect(response.statusCode).toBe(204);
         expect(mockThemeService.deleteTheme).toHaveBeenCalled();
+    });
+});
+
+describe("US-004/CA-31a - The content type of a DELETE is ignored whatever its value (decision #82)", () => {
+    it.each([
+        ['application/xml', { 'content-type': 'application/xml' }, '<ignored/>'],
+        ['application/x-www-form-urlencoded', { 'content-type': 'application/x-www-form-urlencoded' }, 'ignored=1'],
+        ['application/octet-stream', { 'content-type': 'application/octet-stream' }, 'ignored'],
+        ['a value that is not a media type', { 'content-type': 'not a media type' }, 'ignored'],
+        ['an empty value', { 'content-type': '' }, 'ignored'],
+        ['no content type at all, with a body', {}, 'ignored']
+    ])("should answer 204 and delete the theme for %s", async (_label, headers, payload) => {
+        const response = await app.inject({ method: 'DELETE', url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416', headers, payload });
+        expect(response.statusCode).toBe(204);
+        expect(mockThemeService.deleteTheme).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416');
+    });
+    it("should answer 204 for a content type of any kind without a body", async () => {
+        const response = await app.inject({ method: 'DELETE', url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416', headers: { 'content-type': 'application/xml' } });
+        expect(response.statusCode).toBe(204);
+        expect(mockThemeService.deleteTheme).toHaveBeenCalledWith('019d92d2-e1f6-7d05-9803-3948dbc4c416');
+    });
+    it("should refuse a malformed id whatever the content type, still without calling the service", async () => {
+        mockUuidValidator.validate = vi.fn().mockReturnValue(false);
+        const response = await app.inject({ method: 'DELETE', url: '/api/v1/themes/not-a-uuid', headers: { 'content-type': 'application/xml' }, payload: '<ignored/>' });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual(invalidUuidBody);
+        expect(mockThemeService.deleteTheme).not.toHaveBeenCalled();
+    });
+});
+
+describe("US-004/CA-29a - A malformed id in the path of a DELETE is refused (decision #98)", () => {
+    it("should answer 400 INVALID_UUID without calling the service when the injected validator refuses the id", async () => {
+        mockUuidValidator.validate = vi.fn().mockReturnValue(false);
+        const response = await app.inject({ method: 'DELETE', url: '/api/v1/themes/not-a-uuid' });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual(invalidUuidBody);
+        expect(mockUuidValidator.validate).toHaveBeenCalledWith('not-a-uuid');
+        expect(mockThemeService.deleteTheme).not.toHaveBeenCalled();
+    });
+    it("should refuse the id whatever the content type and the body, which are ignored", async () => {
+        mockUuidValidator.validate = vi.fn().mockReturnValue(false);
+        const response = await app.inject({ method: 'DELETE', url: '/api/v1/themes/not-a-uuid', headers: { 'content-type': 'text/plain' }, body: 'ignored' });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual(invalidUuidBody);
+        expect(mockThemeService.deleteTheme).not.toHaveBeenCalled();
+    });
+    it("should let the injected validator judge the id: an id it accepts reaches the service", async () => {
+        mockUuidValidator.validate = vi.fn().mockReturnValue(true);
+        const response = await app.inject({ method: 'DELETE', url: '/api/v1/themes/018e4f5a-0000-0000-0000-000000000000' });
+        expect(response.statusCode).toBe(204);
+        expect(mockThemeService.deleteTheme).toHaveBeenCalledWith('018e4f5a-0000-0000-0000-000000000000');
     });
 });
 

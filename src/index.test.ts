@@ -1626,6 +1626,78 @@ describe('hub themes rate limit (MAX_REQUESTS_PER_MINUTE)', () => {
     }, TEST_TIMEOUT_MS)
 })
 
+// US-004/CA-10, CA-11, CA-25a and CA-29a (decision #98) on the real process: the three routes of a theme by id judge the form of the id,
+// not its version. The rule is proved by theme-route.test.ts with an injected validator that refuses everything; here we prove that index.ts
+// gives the routes the validator of the form (a well formed id of another version than 7, the id of the example of CA-10, is not refused,
+// a malformed one is). The requests carry a valid admin token signed with the JWT_SECRET of the hub. A theme is created by the real POST
+// only for CA-31a (the content type of a DELETE is ignored, a text/plain DELETE of an existing theme answers 204).
+// Out of scope: the other checks of the PUT (decisions #99 and #100), the rate limit (block above).
+describe('hub themes by id: the form of the id is judged, not its version (decision #98)', () => {
+    const NOT_V7_ID = '018e4f5a-0000-0000-0000-000000000000'
+    const MALFORMED_IDS = ['not-a-uuid', '12345', '018e4f5a-0000-0000-0000-00000000000', '018e4f5a-0000-0000-0000-0000000000000', 'g18e4f5a-0000-0000-0000-000000000000']
+    const INVALID_UUID = { status: 400, error: 'INVALID_UUID', message: 'The provided ID is not a valid UUID.' }
+    const NOT_FOUND = { status: 404, error: 'NOT_FOUND', message: 'The requested theme was not found.' }
+
+    async function startThemesHub(): Promise<(method: string, path: string, init?: { contentType?: string, body?: string }) => Promise<Response>> {
+        const port = await freePort()
+        const hub = startHub(String(port))
+        await waitUntilListening(hub, port)
+        const token = jwt.sign({ sub: 'an-admin', role: 'admin' }, JWT_SECRET, { algorithm: 'HS256', expiresIn: 3600 })
+        return (method, path, init = {}) => fetch('http://127.0.0.1:' + port + path, {
+            method,
+            headers: { Authorization: 'Bearer ' + token, ...(init.contentType === undefined ? {} : { 'Content-Type': init.contentType }) },
+            body: init.body
+        })
+    }
+
+    it('US-004/CA-10 answers 404 NOT_FOUND to a GET of a well formed id of another version than 7', async () => {
+        const request = await startThemesHub()
+
+        const response = await request('GET', '/api/v1/themes/' + NOT_V7_ID)
+
+        expect(response.status).toBe(404)
+        expect(await response.json()).toEqual(NOT_FOUND)
+    }, TEST_TIMEOUT_MS)
+
+    it('US-004/CA-11, CA-25a and CA-29a answers 400 INVALID_UUID to a malformed id on GET, PUT and DELETE', async () => {
+        const request = await startThemesHub()
+
+        for (const id of MALFORMED_IDS) {
+            const answers = [
+                await request('GET', '/api/v1/themes/' + id),
+                await request('PUT', '/api/v1/themes/' + id, { contentType: 'application/json', body: JSON.stringify({ name: 'Musique' }) }),
+                await request('DELETE', '/api/v1/themes/' + id)
+            ]
+            for (const answer of answers) {
+                expect([id, answer.status, await answer.json()]).toEqual([id, 400, INVALID_UUID])
+            }
+        }
+    }, TEST_TIMEOUT_MS)
+
+    it('US-004/CA-25 and CA-29 answers 404 NOT_FOUND to a PUT and to a DELETE of a well formed id of another version than 7', async () => {
+        const request = await startThemesHub()
+
+        const put = await request('PUT', '/api/v1/themes/' + NOT_V7_ID, { contentType: 'application/json', body: JSON.stringify({ name: 'Musique' }) })
+        const remove = await request('DELETE', '/api/v1/themes/' + NOT_V7_ID)
+
+        expect([put.status, await put.json()]).toEqual([404, NOT_FOUND])
+        expect([remove.status, await remove.json()]).toEqual([404, NOT_FOUND])
+    }, TEST_TIMEOUT_MS)
+
+    it('US-004/CA-31a answers 204 to a DELETE of an existing theme sent with a text/plain content type, then 404 to a GET of it', async () => {
+        const request = await startThemesHub()
+        const created = await request('POST', '/api/v1/themes', { contentType: 'application/json', body: JSON.stringify({ name: 'Musique' }) })
+        const { id } = await created.json() as { id: string }
+
+        const remove = await request('DELETE', '/api/v1/themes/' + id, { contentType: 'text/plain', body: 'ignored' })
+        const read = await request('GET', '/api/v1/themes/' + id)
+
+        expect(created.status).toBe(201)
+        expect(remove.status).toBe(204)
+        expect(read.status).toBe(404)
+    }, TEST_TIMEOUT_MS)
+})
+
 // US-003/CA-13 and CA-RateLimit (SECURITE-TRANSVERSALE, decisions #35, #36, #37 and #96 point 1) on the real process: an unknown URL is under the
 // limit of requests of a minute. Under it, it answers the standard 404 NOT_FOUND of CA-UnknownRoute; the next request from the same address is
 // refused with the standard 429, Retry-After 60, which comes before the 404. The rule is proved on the assembled server by server.test.ts (CA-UnknownRoute, rate limited) with a low limit injected;
