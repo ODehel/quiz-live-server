@@ -11,6 +11,7 @@ import { UnknownFieldsError } from "./unknown-fields-error";
 import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
 import { NotFoundError } from "../common/not-found-error";
 import { sendErrorBody } from "../common/send-error-body";
+import { rejectUnsupportedContentType } from "../common/reject-unsupported-content-type";
 import { UuidFormatValidator } from "../infrastructure/uuid-format-validator";
 import Ajv from "ajv";
 
@@ -29,6 +30,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     app.setValidatorCompiler(({ schema }) => ajv.compile(schema));
 
     app.post('/api/v1/questions', {
+        onRequest: rejectUnsupportedContentType,
         attachValidation: true,
         schema: {
             body: {
@@ -128,7 +130,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
         }
     });
 
-    app.put('/api/v1/questions/:id', async (request, reply) => {
+    app.put('/api/v1/questions/:id', { onRequest: rejectUnsupportedContentType }, async (request, reply) => {
         const { id } = request.params as { id: string };
         const input = request.body as CreateMcqInput | CreateSpeedInput;
         const idFromBody = (request.body as { id?: unknown }).id;
