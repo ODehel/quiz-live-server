@@ -13,7 +13,8 @@ Branche `session/<titre-du-commit>`, sans parenthèses (ex. `session/test-questi
 ## Ouverture
 `git status` et `git log -5`. Arbre non propre ou branche autre que `main` : stop et le dire.
 Puis branche de session. Script : `scripts/session-open.ps1` (lecture seule).
-Agent (espace Linux) : `sh scripts/prepare-agent-workspace.sh` depuis la racine, avant toute commande npm.
+Agent (espace Linux) : `sh scripts/prepare-agent-workspace.sh` depuis la racine, avant toute commande npm ; il active le hook pre-commit du clone.
+Le `PATH` qu'il affiche se préfixe à CHAQUE commande : le shell d'un agent ne garde pas l'environnement d'une commande à l'autre.
 
 ## Les deux temps de validation
 - **Porte 1 (cadrage)** : proposée par Claude, ≤ 10 lignes. Rien d'écrit avant l'accord.
