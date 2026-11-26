@@ -1,6 +1,7 @@
 import Ajv from "ajv";
-import { errorCodes, FastifyError, FastifyInstance, FastifyReply, FastifyRequest, HookHandlerDoneFunction } from "fastify";
+import { FastifyError, FastifyInstance } from "fastify";
 import { INTERNAL_SERVER_ERROR, INVALID_CREDENTIALS, INVALID_JSON, VALIDATION_ERROR } from "../common/error-codes";
+import { rejectUnsupportedContentType } from "../common/reject-unsupported-content-type";
 import { TokenRouteConfiguration } from "./token-route-configuration.interface";
 
 interface SchemaViolation {
@@ -17,23 +18,6 @@ const fields = [
 const notAnObjectMessage = 'Request body must be a JSON object.';
 
 const invalidJsonBodyCodes = ['FST_ERR_CTP_INVALID_JSON_BODY', 'FST_ERR_CTP_EMPTY_JSON_BODY'];
-
-const declaredCharset = (contentType: string) => contentType
-    .split(';')
-    .find(parameter => /^\s*charset\s*(=|$)/i.test(parameter))
-    ?.split('=').slice(1).join('=').trim().replace(/^"(.*)"$/, '$1').toLowerCase();
-
-const rejectUnsupportedContentType = (request: FastifyRequest, _reply: FastifyReply, done: HookHandlerDoneFunction) => {
-    const contentType = request.headers['content-type'];
-    if (!contentType) {
-        return done(new errorCodes.FST_ERR_CTP_INVALID_MEDIA_TYPE());
-    }
-    const charset = declaredCharset(contentType);
-    if (charset !== undefined && charset !== 'utf-8') {
-        return done(new errorCodes.FST_ERR_CTP_INVALID_MEDIA_TYPE());
-    }
-    done();
-};
 
 export default function tokenRoute(app: FastifyInstance, options: TokenRouteConfiguration) {
     const { authenticationService, tokenGenerator } = options;
