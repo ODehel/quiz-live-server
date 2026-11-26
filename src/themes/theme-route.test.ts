@@ -223,6 +223,55 @@ describe("US-004/CA-08 - Wrong content-type", () => {
     });
 });
 
+const unsupportedMediaType = { code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 };
+const writeThemeId = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+
+describe("US-004/CA-08 and CA-26 - A write without content-type and without body is refused with 415 (decisions #82 and #11)", () => {
+    const writes = [
+        ['POST', '/api/v1/themes'],
+        ['PUT', `/api/v1/themes/${writeThemeId}`]
+    ] as const;
+    it.each(writes)("answers the native 415 to a %s %s without content-type and without body", async (method, url) => {
+        const response = await app.inject({ method, url });
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual(unsupportedMediaType);
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
+    });
+    it("judges the content type of a PUT before its malformed path id", async () => {
+        vi.mocked(mockUuidValidator.validate).mockReturnValue(false);
+        const response = await app.inject({ method: 'PUT', url: '/api/v1/themes/not-a-uuid' });
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual(unsupportedMediaType);
+    });
+});
+
+describe("US-004/CA-08 and CA-26 - The content type is judged after the authentication and the role (decisions #82, #99 and #101)", () => {
+    const writes = [
+        ['POST', '/api/v1/themes'],
+        ['PUT', `/api/v1/themes/${writeThemeId}`]
+    ] as const;
+    beforeEach(() => {
+        app = Fastify();
+        app.register(themeRoute, { themeService: mockThemeService, uuidValidator: mockUuidValidator, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
+    });
+    it.each(writes)("keeps the 401 of a %s %s without token and without content type", async (method, url) => {
+        vi.mocked(mockTokenValidator.validateToken).mockReturnValue(false);
+        const response = await app.inject({ method, url });
+        expect(response.statusCode).toBe(401);
+    });
+    it.each(writes)("keeps the 403 of a %s %s from a non admin without content type", async (method, url) => {
+        vi.mocked(mockTokenDecoder.decode).mockReturnValue({ role: UserRole.PLAYER });
+        const response = await app.inject({ method, url, headers: { authorization: 'Bearer player' } });
+        expect(response.statusCode).toBe(403);
+    });
+    it.each(writes)("answers the 415 of a %s %s from an admin without content type", async (method, url) => {
+        const response = await app.inject({ method, url, headers: { authorization: 'Bearer admin' } });
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual(unsupportedMediaType);
+    });
+});
+
 describe("US-004/CA-09 - Retrieve a theme by its ID", () => {
     it("should return a 200 HTML code", async () => {
         const response = await app.inject({
