@@ -587,11 +587,11 @@ const unknownThemeId = '019d92d2-e1f6-7d05-9803-3948dbc4c416'
 const existingThemeId = '019da051-e379-74e7-b446-65518f88cc3a'
 const unknownThemeBody = { status: 404, error: 'NOT_FOUND', message: 'The requested theme was not found.' }
 
-// Vrai service, vrai repository SQLite : seule l'authentification, la validation d'UUID et le rate limit sont neutralisés.
+// Vrai service, vrai repository SQLite, vrai UuidFormatValidator (celui que index.ts donne à la route des thèmes) : seuls l'authentification et le rate limit sont neutralisés.
 const assembledServerWithRealThemeService = (database: Database): QuizServer => {
 	const themeRouteConfiguration: ThemeRouteConfiguration = {
 		themeService: new DefaultThemeService(mockClock, { generate: vi.fn() }, new SqliteThemeRepository(database)),
-		uuidValidator: { validate: () => true },
+		uuidValidator: new UuidFormatValidator(),
 		tokenValidator: mockTokenValidator,
 		tokenDecoder: mockTokenDecoder,
 		middleware: mockMiddleware
