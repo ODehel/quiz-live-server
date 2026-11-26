@@ -1701,3 +1701,28 @@ Laissés ouverts volontairement, non décidés ici : (a) `GET /health` (US-020) 
 - **Non décidé ici** : le code de l'erreur du JSON invalide sur `themes/` (`INVALID_JSON` du catalogue ou corps natif de Fastify ; dette « `INVALID_JSON` propre au plugin des tokens », inchangée).
 - Condition de réouverture : un client qui voudrait `409` avant la forme du nom, `null` distingué de l'absence, ou la migration des thèmes et des questions vers un ordre commun.
 - À challenger : (a) le rang 4 en `INVALID_BODY` n'a pas été soumis à Olivier : je me suis appuyé sur le catalogue, comme #99 pour le `PUT` ; (b) le rang 3 reste un `400` sans code (le nœud du diagramme dit `400 INVALID_JSON`, comme celui du `PUT`) ; (c) le `409` (rang 9) passe après la forme du nom, comme #23 pour les questions : un nom de forme invalide n'avertit pas qu'un thème de ce nom existe (il ne peut pas exister, la forme est la même à la création) ; (d) l'en-tête du diagramme de flux est réordonné (`429` d'abord) : c'est le seul changement de diagramme hors du `POST`, aligné sur #96, sans changement de réponse ; (e) les PNG sont relus à l'œil seulement ; (f) l'état du code est lu, non rejoué (Node 22, tests non exécutés).
+
+---
+
+## #102 — Les écritures de questions jugent une requête dans un ordre fixe : `415`, JSON, `:id` du chemin (`PUT`), corps non objet, `id` du corps (`PUT`), puis les contrôles du corps déjà décidés
+
+*`docs(specs): specify the order of checks for question writes` — US-005 (CA-20, CA-38, CA-41, tableaux « Ordre des contrôles » du `POST` et du `PUT`). Solde le rang du `415`, du JSON invalide et du corps non objet sur `POST /api/v1/questions` et `PUT /api/v1/questions/:id`, que #18, #30 et #82 laissaient ouvert ; applique #84, #99 et #101 aux questions. Les décisions #1 à #101 ne sont pas modifiées.*
+
+**Contexte.** CA-20 et CA-41 disent « Content-Type `application/json`, sinon `415` » sans rang. #30 place la forme des ID « avant tout autre contrôle du `PUT` » sans dire si le `415` natif de Fastify passe avant. Aucun texte ne fixait le rang du corps non objet (`INVALID_BODY`, `error-codes.md`) sur les questions. Pour les thèmes, #99 et #101 ont fixé cet ordre.
+
+**Décision.** Toutes sur choix d'Olivier (2026-11-26), chaque fois l'option recommandée :
+1. **Le `:id` du chemin passe après le `415` et le JSON invalide** (`PUT`). « Avant tout autre contrôle du `PUT` » (#30) se lit « avant les contrôles du corps » : le `415` et le JSON sont natifs de Fastify (#11, #84). Écartées : `:id` avant le `415` (demande un hook) ; `:id` entre le `415` et le JSON.
+2. **Le corps non objet** (`400 INVALID_BODY`) **passe après le `:id` du chemin et avant l'`id` du corps** (`PUT`), car l'`id` d'un corps qui n'est pas un objet ne se lit pas. Écartée : avant le `:id` du chemin.
+3. **`POST` : `415`, JSON invalide, corps non objet**, puis les contrôles du corps déjà décidés. Même rang que #101.
+
+**Ordre complet.**
+- `POST /api/v1/questions` : 1 limite de débit, authentification et rôle (#96, #92, CA-35 de US-004 ; non redécidé) ; 2 `Content-Type` (`415`) ; 3 JSON invalide (`400`) ; 4 corps non objet (`400 INVALID_BODY`) ; 5 et suivants : contrôles du corps dans l'ordre déjà décidé (#8, #9, #10, #25), non redécidés.
+- `PUT /api/v1/questions/:id` : 1 comme ci-dessus ; 2 `415` ; 3 JSON invalide ; 4 `:id` du chemin (`400 INVALID_UUID`) ; 5 corps non objet (`400 INVALID_BODY`) ; 6 `id` du corps (`400 INVALID_UUID`, puis `400 ID_MISMATCH`, #30) ; 7 et suivants : contrôles du corps dans l'ordre déjà décidé (#19 à #29), non redécidés.
+
+**Conséquences.**
+- **Rien n'est codé, aucun test n'est écrit** : documentation seule. Le code lu (non rejoué, Node 22, `better-sqlite3` non installable) diverge au moins sur un point : au `PUT`, un corps `null` lève une `TypeError` à la lecture de `id` (réponse `500` attendue), au lieu de `400 INVALID_BODY`.
+- **Spec** : US-005, deux tableaux « Ordre des contrôles » ; **aucun CA n'est ajouté, retiré ni renuméroté**. Les diagrammes `.mmd` et `.png` d'US-005 ne sont pas modifiés (dette).
+- **`DEBTS.md`** : trois lignes ajoutées (code du `PUT` sur corps non objet, `INVALID_BODY` au `POST` non sondé, diagrammes d'US-005).
+- **Non décidé ici** : le contrôle du `charset` sur les questions (le `fix(questions)` suivant s'appuie sur ce rang 2) ; le code de l'erreur du JSON invalide ; `PATCH` (US-007) ; `GET` et `DELETE`.
+- Condition de réouverture : un client qui voudrait le `:id` avant le `415`, ou la migration des écritures vers un ordre commun.
+- À challenger : (a) le rang 1 est renvoyé à #96, #92 et CA-35 sans être redécidé (non écrit mot à mot pour les questions) ; (b) le code du JSON invalide reste non tranché ; (c) l'état du code est lu, non rejoué ; (d) les rangs 5 et suivants renvoient aux décisions existantes sans les relire une à une avec Olivier.
