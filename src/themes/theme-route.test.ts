@@ -246,6 +246,72 @@ describe("US-004/CA-08 and CA-26 - A write without content-type and without body
     });
 });
 
+describe("US-004/CA-08 and CA-26 - A charset other than utf-8 is refused with 415 (decision #89)", () => {
+    const writes = [
+        ['POST', '/api/v1/themes'],
+        ['PUT', `/api/v1/themes/${writeThemeId}`]
+    ] as const;
+    const refusedContentTypes = [
+        'application/json; charset=latin1',
+        'application/json; charset=utf-16',
+        'Application/JSON; CHARSET=ISO-8859-1',
+        'application/json; foo=bar; charset=latin1'
+    ];
+    const acceptedContentTypes = [
+        'application/json; charset=utf-8',
+        'application/json; charset=UTF-8',
+        'APPLICATION/JSON; CHARSET=UTF-8',
+        'application/json; charset="utf-8"',
+        'Application/JSON',
+        'application/json; foo=bar',
+        'application/json; foo=bar; charset=utf-8'
+    ];
+    const send = (method: 'POST' | 'PUT', url: string, contentType: string, payload = JSON.stringify({ name: 'Musique' })) =>
+        app.inject({ method, url, headers: { 'content-type': contentType }, payload });
+    describe.each(writes)("%s %s", (method, url) => {
+        it.each(refusedContentTypes)("answers the native 415 to the content type %s", async (contentType) => {
+            const response = await send(method, url, contentType);
+            expect(response.statusCode).toBe(415);
+            expect(response.json()).toEqual(unsupportedMediaType);
+            expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+            expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
+        });
+        it.each(acceptedContentTypes)("accepts the content type %s", async (contentType) => {
+            const response = await send(method, url, contentType);
+            expect(response.statusCode).toBe(method === 'POST' ? 201 : 200);
+        });
+        it("judges the charset before the JSON of the body", async () => {
+            const response = await send(method, url, 'application/json; charset=latin1', '{bad');
+            expect(response.statusCode).toBe(415);
+        });
+        it("judges the charset before the body object, the unknown fields and the conflict", async () => {
+            vi.mocked(mockThemeService.createTheme).mockImplementation(() => { throw new ConflictError(); });
+            vi.mocked(mockThemeService.updateTheme).mockImplementation(() => { throw new ConflictError(); });
+            const response = await send(method, url, 'application/json; charset=latin1', JSON.stringify({ name: 'Musique', extra: 1 }));
+            expect(response.statusCode).toBe(415);
+        });
+    });
+    it("judges the charset of a PUT before its malformed path id", async () => {
+        vi.mocked(mockUuidValidator.validate).mockReturnValue(false);
+        const response = await send('PUT', '/api/v1/themes/not-a-uuid', 'application/json; charset=latin1');
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual(unsupportedMediaType);
+    });
+    it("judges the charset of a PUT before the not found theme", async () => {
+        vi.mocked(mockThemeService.updateTheme).mockImplementation(() => { throw new NotFoundError('missing'); });
+        const response = await send('PUT', `/api/v1/themes/${writeThemeId}`, 'application/json; charset=latin1');
+        expect(response.statusCode).toBe(415);
+    });
+    it.each([
+        ['GET', `/api/v1/themes/${writeThemeId}`, 200],
+        ['GET', '/api/v1/themes', 200],
+        ['DELETE', `/api/v1/themes/${writeThemeId}`, 204]
+    ] as const)("still ignores the content type of a %s %s with charset=latin1", async (method, url, status) => {
+        const response = await app.inject({ method, url, headers: { 'content-type': 'application/json; charset=latin1' } });
+        expect(response.statusCode).toBe(status);
+    });
+});
+
 describe("US-004/CA-08 and CA-26 - The content type is judged after the authentication and the role (decisions #82, #99 and #101)", () => {
     const writes = [
         ['POST', '/api/v1/themes'],
