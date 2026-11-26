@@ -1862,6 +1862,233 @@ describe('US-005/CA-20 and CA-41 - Write a question with a content type that is 
     });
 });
 
+describe('US-005/CA-20 and CA-41 - A question write without content-type is refused with 415 (decisions #82 and #11)', () => {
+    const unsupportedMediaType = { code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 };
+    const questionId = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+    const validBody = JSON.stringify({
+        type: 'SPEED',
+        theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+        title: 'Quel est le plus grand océan du monde ?',
+        correct_answer: 'Pacifique',
+        level: 3,
+        time_limit: 20,
+        points: 25
+    });
+    const writes = [
+        ['POST', '/api/v1/questions'],
+        ['PUT', `/api/v1/questions/${questionId}`]
+    ] as const;
+
+    it.each(writes)('should reply the native 415 to a %s %s without content-type and without body', async (method, url) => {
+        const response = await app.inject({ method, url });
+
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual(unsupportedMediaType);
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+        expect(mockQuestionService.updateQuestion).not.toHaveBeenCalled();
+    });
+
+    it.each(writes)('should reply the native 415 to a %s %s without content-type and with a body', async (method, url) => {
+        const response = await app.inject({ method, url, payload: validBody });
+
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual(unsupportedMediaType);
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+        expect(mockQuestionService.updateQuestion).not.toHaveBeenCalled();
+    });
+
+    it.each(writes)('should reply the native 415 to a %s %s with an empty content-type and without body', async (method, url) => {
+        const response = await app.inject({ method, url, headers: { 'content-type': '' } });
+
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual(unsupportedMediaType);
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+        expect(mockQuestionService.updateQuestion).not.toHaveBeenCalled();
+    });
+
+    it.each(writes)('should reply the native 415 to a %s %s with an empty content-type and with a body', async (method, url) => {
+        const response = await app.inject({ method, url, headers: { 'content-type': '' }, payload: validBody });
+
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual(unsupportedMediaType);
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+        expect(mockQuestionService.updateQuestion).not.toHaveBeenCalled();
+    });
+
+    it('should judge the content type of a PUT before its malformed path id', async () => {
+        const response = await app.inject({ method: 'PUT', url: '/api/v1/questions/not-a-uuid' });
+
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual(unsupportedMediaType);
+    });
+});
+
+describe('US-005/CA-20 and CA-41 - A question write with a charset other than utf-8 is refused with 415 (decision #89)', () => {
+    const unsupportedMediaType = { code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 };
+    const questionId = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+    const body = {
+        type: 'SPEED',
+        theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+        title: 'Quel est le plus grand océan du monde ?',
+        correct_answer: 'Pacifique',
+        level: 3,
+        time_limit: 20,
+        points: 25
+    };
+    const writes = [
+        ['POST', '/api/v1/questions'],
+        ['PUT', `/api/v1/questions/${questionId}`]
+    ] as const;
+    const refusedContentTypes = [
+        'application/json; charset=iso-8859-1',
+        'application/json; charset=latin1',
+        'application/json; charset=utf-16',
+        'Application/JSON; CHARSET=ISO-8859-1',
+        'application/json; foo=bar; charset=latin1'
+    ];
+    const acceptedContentTypes = [
+        'application/json',
+        'application/json; charset=utf-8',
+        'application/json; charset=UTF-8',
+        'APPLICATION/JSON; CHARSET=UTF-8',
+        'application/json; charset="utf-8"',
+        'Application/JSON',
+        'application/json; foo=bar',
+        'application/json; foo=bar; charset=utf-8'
+    ];
+    const send = (method: 'POST' | 'PUT', url: string, contentType: string, payload: string = JSON.stringify(body)) =>
+        app.inject({ method, url, headers: { 'content-type': contentType }, payload });
+
+    describe.each(writes)('%s %s', (method, url) => {
+        it.each(refusedContentTypes)('should reply the native 415 to the content type %s', async (contentType) => {
+            const response = await send(method, url, contentType);
+
+            expect(response.statusCode).toBe(415);
+            expect(response.json()).toEqual(unsupportedMediaType);
+            expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+            expect(mockQuestionService.updateQuestion).not.toHaveBeenCalled();
+        });
+
+        it.each(acceptedContentTypes)('should accept the content type %s', async (contentType) => {
+            const response = await send(method, url, contentType);
+
+            expect(response.statusCode).toBe(method === 'POST' ? 201 : 200);
+        });
+
+        it('should judge the charset before the JSON of the body', async () => {
+            const response = await send(method, url, 'application/json; charset=latin1', '{bad');
+
+            expect(response.statusCode).toBe(415);
+            expect(response.json()).toEqual(unsupportedMediaType);
+        });
+
+        it('should judge the charset before the body object, the unknown fields and the missing fields', async () => {
+            const notAnObject = await send(method, url, 'application/json; charset=latin1', '[]');
+            const unknownField = await send(method, url, 'application/json; charset=latin1', JSON.stringify({ ...body, extra: 1 }));
+            const missingField = await send(method, url, 'application/json; charset=latin1', '{}');
+
+            expect([notAnObject.statusCode, unknownField.statusCode, missingField.statusCode]).toEqual([415, 415, 415]);
+        });
+
+        it('should judge the charset before the conflict and the not found question raised by the service', async () => {
+            mockQuestionService.createQuestion = vi.fn(() => { throw new ConflictError(); });
+            mockQuestionService.updateQuestion = vi.fn(() => { throw new NotFoundError('missing'); });
+
+            const response = await send(method, url, 'application/json; charset=latin1');
+
+            expect(response.statusCode).toBe(415);
+        });
+    });
+
+    it('should judge the charset of a PUT before its malformed path id and the mismatch of its body id', async () => {
+        const malformedPathId = await send('PUT', '/api/v1/questions/not-a-uuid', 'application/json; charset=latin1');
+        const mismatch = await send('PUT', `/api/v1/questions/${questionId}`, 'application/json; charset=latin1', JSON.stringify({ ...body, id: '019d92d2-e1f6-7d05-9803-3948dbc4c418' }));
+
+        expect([malformedPathId.statusCode, mismatch.statusCode]).toEqual([415, 415]);
+    });
+
+    it.each([
+        ['GET', `/api/v1/questions/${questionId}`, 200],
+        ['GET', '/api/v1/questions', 200],
+        ['DELETE', `/api/v1/questions/${questionId}`, 204]
+    ] as const)('should still ignore the content type of a %s %s with charset=latin1', async (method, url, status) => {
+        mockQuestionService.getQuestionById = vi.fn().mockReturnValue({ id: questionId });
+        mockQuestionService.getAll = vi.fn().mockReturnValue({ data: [], page: 1, limit: 20, total: 0, total_pages: 0 });
+
+        const response = await app.inject({ method, url, headers: { 'content-type': 'application/json; charset=latin1' } });
+
+        expect(response.statusCode).toBe(status);
+    });
+
+    it.each([
+        ['GET', `/api/v1/questions/${questionId}`, 200],
+        ['GET', '/api/v1/questions', 200]
+    ] as const)('should still ignore an empty content type on a %s %s', async (method, url, status) => {
+        mockQuestionService.getQuestionById = vi.fn().mockReturnValue({ id: questionId });
+        mockQuestionService.getAll = vi.fn().mockReturnValue({ data: [], page: 1, limit: 20, total: 0, total_pages: 0 });
+
+        const response = await app.inject({ method, url, headers: { 'content-type': '' } });
+
+        expect(response.statusCode).toBe(status);
+    });
+});
+
+describe('US-005/CA-20, CA-41 and CA-50 to CA-52 - The content type is judged after the authentication and the role (decisions #82, #89 and #102)', () => {
+    const questionId = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+    const writes = [
+        ['POST', '/api/v1/questions'],
+        ['PUT', `/api/v1/questions/${questionId}`]
+    ] as const;
+    beforeEach(() => {
+        app = Fastify();
+        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
+    });
+
+    it.each(writes)('should keep the 401 of a %s %s without token and without content type', async (method, url) => {
+        vi.mocked(mockTokenValidator.validateToken).mockReturnValue(false);
+
+        const response = await app.inject({ method, url });
+
+        expect(response.statusCode).toBe(401);
+    });
+
+    it.each(writes)('should keep the 401 of a %s %s without token and with charset=latin1', async (method, url) => {
+        vi.mocked(mockTokenValidator.validateToken).mockReturnValue(false);
+
+        const response = await app.inject({ method, url, headers: { 'content-type': 'application/json; charset=latin1' }, payload: '{}' });
+
+        expect(response.statusCode).toBe(401);
+    });
+
+    it.each(writes)('should keep the 403 of a %s %s from a non admin without content type', async (method, url) => {
+        vi.mocked(mockTokenValidator.validateToken).mockReturnValue(true);
+        vi.mocked(mockTokenDecoder.decode).mockReturnValue({ role: UserRole.PLAYER });
+
+        const response = await app.inject({ method, url, headers: { authorization: 'Bearer player' } });
+
+        expect(response.statusCode).toBe(403);
+    });
+
+    it.each(writes)('should keep the 403 of a %s %s from a non admin with charset=latin1', async (method, url) => {
+        vi.mocked(mockTokenValidator.validateToken).mockReturnValue(true);
+        vi.mocked(mockTokenDecoder.decode).mockReturnValue({ role: UserRole.PLAYER });
+
+        const response = await app.inject({ method, url, headers: { authorization: 'Bearer player', 'content-type': 'application/json; charset=latin1' }, payload: '{}' });
+
+        expect(response.statusCode).toBe(403);
+    });
+
+    it.each(writes)('should answer the 415 of a %s %s from an admin without content type', async (method, url) => {
+        vi.mocked(mockTokenValidator.validateToken).mockReturnValue(true);
+        vi.mocked(mockTokenDecoder.decode).mockReturnValue({ role: UserRole.ADMIN });
+
+        const response = await app.inject({ method, url, headers: { authorization: 'Bearer admin' } });
+
+        expect(response.statusCode).toBe(415);
+        expect(response.json()).toEqual({ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 });
+    });
+});
+
 describe('US-005/CA-35 - Translate the malformed theme_id refused by the service', () => {
     const invalidUuidBody = {
         status: 400,
