@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyReply } from "fastify";
+import { errorCodes, FastifyInstance, FastifyReply, FastifyRequest, HookHandlerDoneFunction } from "fastify";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { ID_MISMATCH, INTERNAL_SERVER_ERROR, INVALID_BODY, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
@@ -6,6 +6,13 @@ import { NotFoundError } from "../common/not-found-error";
 import { ThemeHasQuestionsError } from "./theme-has-questions-error";
 import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
 import { ThemeRouteConfiguration } from "./theme-route-configuration.interface";
+
+function rejectMissingContentType(request: FastifyRequest, _reply: FastifyReply, done: HookHandlerDoneFunction) {
+    if (!request.headers['content-type']) {
+        return done(new errorCodes.FST_ERR_CTP_INVALID_MEDIA_TYPE());
+    }
+    done();
+}
 
 export default async function themeRoute(app: FastifyInstance, options: ThemeRouteConfiguration) {
     const { themeService, uuidValidator, tokenValidator, tokenDecoder, middleware } = options;
@@ -48,6 +55,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
 
     app.register((instance) => {
         instance.removeContentTypeParser('text/plain');
+        instance.addHook('onRequest', rejectMissingContentType);
         instance.post('/api/v1/themes', async (request, reply) => {
             const body = readBodyObject(request.body, reply);
             if (body === undefined) {

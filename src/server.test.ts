@@ -775,6 +775,56 @@ describe('CA-UnknownRoute (decision #35) - An unknown route is rate limited on t
 	})
 });
 
+describe('US-004/CA-8 and CA-26 - A theme write without content-type is refused with 415 after the rate limit, the authentication and the role, on the assembled server (decisions #82, #96 and #101)', () => {
+	const rateLimitedBody = { status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' }
+	const unsupportedMediaType = { code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', error: 'Unsupported Media Type', message: 'Unsupported Media Type', statusCode: 415 }
+	let server: QuizServer
+	beforeEach(() => {
+		const tokenValidator: TokenValidator = { validateToken: vi.fn((token: string) => token !== 'invalid'), inspectToken: vi.fn() }
+		const tokenDecoder: TokenDecoder = { decode: vi.fn((token: string) => ({ role: token === 'admin' ? UserRole.ADMIN : UserRole.PLAYER })) }
+		const protectedThemeConfiguration: ThemeRouteConfiguration = { ...mockThemeRouteConfiguration, tokenValidator, tokenDecoder, middleware: authenticationMiddleware }
+		const limitedConfiguration: QuizServerConfiguration = {
+			...mockQuizServerConfiguration,
+			rateLimitMiddleware: async (app) => { await rateLimitMiddleware(app, { maxRequestsPerMinute: 3 }) }
+		}
+		server = new QuizServer(limitedConfiguration, mockTokenRouteConfiguration, protectedThemeConfiguration, mockWsRouteConfiguration, mockQuestionRouteConfiguration)
+	})
+	afterEach(async () => {
+		await server.stop()
+	})
+	const writes = [
+		['POST', '/api/v1/themes'],
+		['PUT', `/api/v1/themes/${unknownThemeId}`]
+	] as const
+	const write = (method: 'POST' | 'PUT', url: string, authorization?: string, remoteAddress?: string) => server.inject({ method, url, remoteAddress, headers: authorization ? { authorization } : {} })
+	it.each(writes)('answers the native 415 to an admin %s %s without content-type and without body', async (method, url) => {
+		await server.start()
+		const response = await write(method, url, 'Bearer admin')
+		expect(response.statusCode).toBe(415)
+		expect(response.json()).toEqual(unsupportedMediaType)
+	})
+	it.each(writes)('keeps the 401 of a %s %s without token, before the 415', async (method, url) => {
+		await server.start()
+		const response = await write(method, url)
+		expect(response.statusCode).toBe(401)
+		expect(response.json()).toEqual({ status: 401, error: 'UNAUTHORIZED', message: 'Authentication token is missing or invalid.' })
+	})
+	it.each(writes)('keeps the 403 of a %s %s from a player, before the 415', async (method, url) => {
+		await server.start()
+		const response = await write(method, url, 'Bearer player')
+		expect(response.statusCode).toBe(403)
+		expect(response.json()).toEqual({ status: 403, error: 'FORBIDDEN', message: 'You do not have permission to perform this action.' })
+	})
+	it.each(writes)('counts the 415 of a %s %s and answers the fourth request with 429 instead', async (method, url) => {
+		await server.start()
+		const answered = [await write(method, url, 'Bearer admin'), await write(method, url, 'Bearer admin'), await write(method, url, 'Bearer admin')]
+		expect(answered.map(response => response.statusCode)).toEqual([415, 415, 415])
+		const refused = await write(method, url, 'Bearer admin')
+		expect(refused.statusCode).toBe(429)
+		expect(refused.json()).toEqual(rateLimitedBody)
+	})
+});
+
 describe('US-003/CA-13 - CA-RateLimit (decision #96) - One counter per address is shared by the whole API on the assembled server', () => {
 	const rateLimitedBody = { status: 429, error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please retry in 60 seconds.' }
 	let server: QuizServer
