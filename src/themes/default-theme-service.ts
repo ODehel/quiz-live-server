@@ -38,12 +38,12 @@ export class DefaultThemeService implements ThemeService {
     };
 
     updateTheme(id: string, name: string): Theme {
+        const trimmedName = this.formatName(name);
         const theme = this.themeRepository.getById(id);
 
         if (theme === undefined) {
             throw new NotFoundError();
         }
-        const trimmedName = this.formatName(name);
         if (trimmedName.localeCompare(theme.name, undefined, { sensitivity: 'base' }) === 0) {
             return theme;
         }

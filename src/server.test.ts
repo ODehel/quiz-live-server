@@ -584,6 +584,7 @@ describe('US-004/CA-14- The theme list is ordered most recent first on the assem
 });
 
 const unknownThemeId = '019d92d2-e1f6-7d05-9803-3948dbc4c416'
+const existingThemeId = '019da051-e379-74e7-b446-65518f88cc3a'
 const unknownThemeBody = { status: 404, error: 'NOT_FOUND', message: 'The requested theme was not found.' }
 
 // Vrai service, vrai repository SQLite : seule l'authentification, la validation d'UUID et le rate limit sont neutralisés.
@@ -615,6 +616,57 @@ describe('US-004/CA-25 - An unknown theme answers 404 on PUT on the assembled se
 		})
 		expect(response.statusCode).toBe(404)
 		expect(response.json()).toEqual(unknownThemeBody)
+	})
+	afterEach(async () => {
+		await server.stop()
+		database.close()
+	});
+});
+
+describe('US-004/CA-21, CA-23, CA-25a and CA-27 - A PUT with a malformed id or a missing or mistyped name is refused on the assembled server (decisions #99 and #100)', () => {
+	let database: Database
+	let server: QuizServer
+	beforeEach(() => {
+		database = new SqliteDatabase(':memory:')
+		server = assembledServerWithRealThemeService(database)
+	})
+	const put = (url: string, payload: string) => server.inject({ method: 'PUT', url, headers: { 'content-type': 'application/json' }, payload })
+	const formMessage = 'Theme name must be 3 to 40 characters, start with an uppercase letter, end with a letter or digit, and contain only letters, digits, spaces, apostrophes and hyphens.'
+	it('answers 400 INVALID_UUID to a malformed id in the path', async () => {
+		await server.start()
+		const response = await put('/api/v1/themes/not-a-uuid', JSON.stringify({ name: 'Musique' }))
+		expect(response.statusCode).toBe(400)
+		expect(response.json()).toEqual({ status: 400, error: 'INVALID_UUID', message: 'The provided ID is not a valid UUID.' })
+	})
+	it.each([
+		['{}', 'Theme name is required.'],
+		['{"name":null}', 'Theme name is required.'],
+		['{"name":42}', 'Theme name must be a string.'],
+		['{"name":["Musique"]}', 'Theme name must be a string.']
+	])('answers 400 VALIDATION_ERROR to %s on an unknown id, not 404 nor 500', async (payload, message) => {
+		await server.start()
+		const response = await put(`/api/v1/themes/${unknownThemeId}`, payload)
+		expect(response.statusCode).toBe(400)
+		expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message })
+	})
+	it('answers 400 INVALID_BODY to a body that is not an object', async () => {
+		await server.start()
+		const response = await put(`/api/v1/themes/${unknownThemeId}`, '[]')
+		expect(response.statusCode).toBe(400)
+		expect(response.json()).toEqual({ status: 400, error: 'INVALID_BODY', message: 'Request body must be a JSON object.' })
+	})
+	it('answers 400 VALIDATION_ERROR to a malformed name on an unknown id, before the 404', async () => {
+		await server.start()
+		const response = await put(`/api/v1/themes/${unknownThemeId}`, JSON.stringify({ name: 'm' }))
+		expect(response.statusCode).toBe(400)
+		expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: formMessage })
+	})
+	it('answers 400 UNKNOWN_FIELDS to an unknown field next to a well typed name on an existing theme', async () => {
+		await server.start()
+		new SqliteThemeRepository(database).insert({ id: existingThemeId, name: 'Musique', created_at: '2026-04-08T13:32:00.000Z', last_updated_at: null })
+		const response = await put(`/api/v1/themes/${existingThemeId}`, JSON.stringify({ name: 'Sport', couleur: 'rouge' }))
+		expect(response.statusCode).toBe(400)
+		expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): couleur.' })
 	})
 	afterEach(async () => {
 		await server.stop()

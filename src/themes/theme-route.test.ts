@@ -609,7 +609,7 @@ describe("US-004/CA-27 - Unknown fields", () => {
             method: 'PUT',
             url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', nem: 'Inconnu' })
+            body: JSON.stringify({ id: '019d92d2-e1f6-7d05-9803-3948dbc4c416', name: 'Inconnu', nem: 'Inconnu' })
         });
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): nem.' });
@@ -635,6 +635,99 @@ describe("US-004/CA-27 - Unknown fields", () => {
         });
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): active, size.' });
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
+    });
+});
+
+const themeUrl = '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416';
+const invalidUuidBody = { status: 400, error: 'INVALID_UUID', message: 'The provided ID is not a valid UUID.' };
+const putTheme = (url: string, payload: string) => app.inject({ method: 'PUT', url, headers: { 'content-type': 'application/json' }, payload });
+
+describe("US-004/CA-25a - A malformed id in the path of a PUT is refused (decisions #98 and #99)", () => {
+    it.each(['not-a-uuid', '12345', '019d92d2-e1f6-7d05-9803-3948dbc4c41', '019d92d2-e1f6-7d05-9803-3948dbc4c416-', 'g19d92d2-e1f6-7d05-9803-3948dbc4c416'])("should answer 400 INVALID_UUID for %s without calling the service", async (id) => {
+        const response = await putTheme(`/api/v1/themes/${id}`, JSON.stringify({ name: 'Culture générale 2' }));
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual(invalidUuidBody);
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
+    });
+    it("should judge the form only, with its own validator: a well formed id of another version than 7 reaches the service", async () => {
+        mockUuidValidator.validate = vi.fn().mockReturnValue(false);
+        const response = await putTheme('/api/v1/themes/018e4f5a-0000-0000-0000-000000000000', JSON.stringify({ name: 'Culture générale 2' }));
+        expect(response.statusCode).toBe(200);
+        expect(mockThemeService.updateTheme).toHaveBeenCalledWith('018e4f5a-0000-0000-0000-000000000000', 'Culture générale 2');
+    });
+    it("should judge the path before the body", async () => {
+        const response = await putTheme('/api/v1/themes/not-a-uuid', 'null');
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual(invalidUuidBody);
+    });
+});
+
+describe("US-004/rank 5 - A body that is not a JSON object is refused with INVALID_BODY (decision #99)", () => {
+    it.each(['null', '[]', '["Culture"]', '"Culture"', '42', 'true'])("should answer 400 INVALID_BODY for %s without calling the service", async (payload) => {
+        const response = await putTheme(themeUrl, payload);
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'INVALID_BODY', message: 'Request body must be a JSON object.' });
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
+    });
+});
+
+describe("US-004/CA-23 - The id of the body is judged after the path and before the rest of the body (decision #99)", () => {
+    it.each([
+        ['a malformed string', '"not-a-uuid"'],
+        ['null', 'null'],
+        ['a number', '42'],
+        ['a boolean', 'true'],
+        ['an array holding the id of the path', '["019d92d2-e1f6-7d05-9803-3948dbc4c416"]'],
+        ['an object', '{}']
+    ])("should answer 400 INVALID_UUID for an id that is %s, even with a missing name", async (_label, id) => {
+        const response = await putTheme(themeUrl, `{"id":${id}}`);
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual(invalidUuidBody);
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
+    });
+    it("should answer INVALID_UUID, not ID_MISMATCH, for a malformed id that differs from the path", async () => {
+        const response = await putTheme(themeUrl, JSON.stringify({ id: 'not-a-uuid', name: 'Culture générale 2' }));
+        expect(response.json()).toEqual(invalidUuidBody);
+    });
+    it("should answer ID_MISMATCH before a mistyped name, a missing name and an unknown field", async () => {
+        const response = await putTheme(themeUrl, JSON.stringify({ id: '019da051-e379-74e7-b446-65518f88cc3a', name: 42, extra: true }));
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'ID_MISMATCH', message: 'The ID in the request body does not match the URL parameter.' });
+    });
+});
+
+describe("US-004/CA-21 - A mistyped name is refused (decisions #99 and #100)", () => {
+    it.each(['42', 'true', '["Culture"]', '{"first":"Culture"}', '0', 'false', '[]'])("should answer 400 VALIDATION_ERROR for a name written %s without calling the service", async (name) => {
+        const response = await putTheme(themeUrl, `{"name":${name}}`);
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Theme name must be a string.' });
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
+    });
+    it("should judge a mistyped name before an unknown field", async () => {
+        const response = await putTheme(themeUrl, JSON.stringify({ name: 42, extra: true }));
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Theme name must be a string.' });
+    });
+});
+
+describe("US-004/CA-21 - A missing or null name is refused (decisions #99 and #100)", () => {
+    it.each(['{}', '{"name":null}', '{"id":"019d92d2-e1f6-7d05-9803-3948dbc4c416"}', '{"id":"019d92d2-e1f6-7d05-9803-3948dbc4c416","name":null}'])("should answer 400 VALIDATION_ERROR for %s without calling the service", async (payload) => {
+        const response = await putTheme(themeUrl, payload);
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Theme name is required.' });
+        expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
+    });
+    it("should judge a missing name before an unknown field", async () => {
+        const response = await putTheme(themeUrl, JSON.stringify({ nem: 'Culture' }));
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Theme name is required.' });
+    });
+});
+
+describe("US-004/CA-27 - An unknown field is judged after the name and before its form (decision #99)", () => {
+    it("should answer UNKNOWN_FIELDS for a well typed name next to an unknown field, without calling the service", async () => {
+        const response = await putTheme(themeUrl, JSON.stringify({ name: 'm', extra: true }));
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): extra.' });
         expect(mockThemeService.updateTheme).not.toHaveBeenCalled();
     });
 });
