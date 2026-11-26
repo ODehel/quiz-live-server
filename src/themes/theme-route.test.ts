@@ -119,7 +119,7 @@ describe("US-004/CA-07 - Unknown fields", () => {
             method: 'POST',
             url: '/api/v1/themes',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ nem: 'Histoire' })
+            body: JSON.stringify({ name: 'Histoire', nem: 'Histoire' })
         });
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): nem.' });
@@ -145,6 +145,56 @@ describe("US-004/CA-07 - Unknown fields", () => {
         });
         expect(response.statusCode).toBe(400);
         expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): color, size.' });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+});
+
+const postTheme = (payload: string) => app.inject({ method: 'POST', url: '/api/v1/themes', headers: { 'content-type': 'application/json' }, payload });
+
+describe("US-004/rank 4 - A creation body that is not a JSON object is refused with INVALID_BODY (decision #101)", () => {
+    it.each(['null', '[]', '["Culture"]', '"Culture"', '42', 'true'])("should answer 400 INVALID_BODY for %s without calling the service", async (payload) => {
+        const response = await postTheme(payload);
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'INVALID_BODY', message: 'Request body must be a JSON object.' });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+});
+
+describe("US-004/CA-03 - A mistyped name is refused on creation (decision #101)", () => {
+    it.each(['42', 'true', '["Culture"]', '{"first":"Culture"}', '0', 'false', '[]'])("should answer 400 VALIDATION_ERROR for a name written %s without calling the service", async (name) => {
+        const response = await postTheme(`{"name":${name}}`);
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Theme name must be a string.' });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+    it("should judge a mistyped name before an unknown field", async () => {
+        const response = await postTheme(JSON.stringify({ name: 42, extra: true }));
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Theme name must be a string.' });
+    });
+});
+
+describe("US-004/CA-03 - A missing or null name is refused on creation (decision #101)", () => {
+    it.each(['{}', '{"name":null}'])("should answer 400 VALIDATION_ERROR for %s without calling the service", async (payload) => {
+        const response = await postTheme(payload);
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Theme name is required.' });
+        expect(mockThemeService.createTheme).not.toHaveBeenCalled();
+    });
+    it("should judge a missing name before an unknown field", async () => {
+        const response = await postTheme(JSON.stringify({ nem: 'Culture' }));
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Theme name is required.' });
+    });
+    it("should judge a null name before an unknown field", async () => {
+        const response = await postTheme(JSON.stringify({ name: null, extra: true }));
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message: 'Theme name is required.' });
+    });
+});
+
+describe("US-004/CA-07 - An unknown field is judged after the name and before its form on creation (decision #101)", () => {
+    it("should answer UNKNOWN_FIELDS for a name of invalid form next to an unknown field, without calling the service", async () => {
+        const response = await postTheme(JSON.stringify({ name: 'm', extra: true }));
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'UNKNOWN_FIELDS', message: 'Unknown field(s): extra.' });
         expect(mockThemeService.createTheme).not.toHaveBeenCalled();
     });
 });

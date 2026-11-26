@@ -49,18 +49,27 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
     app.register((instance) => {
         instance.removeContentTypeParser('text/plain');
         instance.post('/api/v1/themes', async (request, reply) => {
-            const unknownFields = findUnknownFields(request.body as object, ['name']);
+            const body = readBodyObject(request.body, reply);
+            if (body === undefined) {
+                return;
+            }
+
+            const name = readName(body, reply);
+            if (name === undefined) {
+                return;
+            }
+
+            const unknownFields = findUnknownFields(body, ['name']);
             if (unknownFields.length > 0) {
                 reply.status(400).send({ status: 400, error: UNKNOWN_FIELDS, message: `Unknown field(s): ${unknownFields.join(', ')}.` });
+                return;
             }
-            else {
-                try {
-                    const { name } = request.body as { name: string };
-                    const newTheme = themeService.createTheme(name);
-                    reply.status(201).send(newTheme);
-                } catch (error) {
-                    sendError(error, reply);
-                }
+
+            try {
+                const newTheme = themeService.createTheme(name);
+                reply.status(201).send(newTheme);
+            } catch (error) {
+                sendError(error, reply);
             }
         });
 
@@ -71,9 +80,8 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
                 return;
             }
 
-            const body = request.body;
-            if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-                reply.status(400).send({ status: 400, error: INVALID_BODY, message: 'Request body must be a JSON object.' });
+            const body = readBodyObject(request.body, reply);
+            if (body === undefined) {
                 return;
             }
 
@@ -89,13 +97,8 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
                 }
             }
 
-            const name: unknown = 'name' in body ? body.name : undefined;
-            if (name !== undefined && name !== null && typeof name !== 'string') {
-                reply.status(400).send({ status: 400, error: VALIDATION_ERROR, message: 'Theme name must be a string.' });
-                return;
-            }
-            if (name === undefined || name === null) {
-                reply.status(400).send({ status: 400, error: VALIDATION_ERROR, message: 'Theme name is required.' });
+            const name = readName(body, reply);
+            if (name === undefined) {
                 return;
             }
 
@@ -151,6 +154,27 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
             reply.log.error(error);
             reply.status(500).send({ status: 500, error: INTERNAL_SERVER_ERROR, message: 'An unexpected error occurred. Please try again later.' });
         }
+    }
+
+    function readBodyObject(body: unknown, reply: FastifyReply): object | undefined {
+        if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+            reply.status(400).send({ status: 400, error: INVALID_BODY, message: 'Request body must be a JSON object.' });
+            return undefined;
+        }
+        return body;
+    }
+
+    function readName(body: object, reply: FastifyReply): string | undefined {
+        const name: unknown = 'name' in body ? body.name : undefined;
+        if (name !== undefined && name !== null && typeof name !== 'string') {
+            reply.status(400).send({ status: 400, error: VALIDATION_ERROR, message: 'Theme name must be a string.' });
+            return undefined;
+        }
+        if (name === undefined || name === null) {
+            reply.status(400).send({ status: 400, error: VALIDATION_ERROR, message: 'Theme name is required.' });
+            return undefined;
+        }
+        return name;
     }
 
     function findUnknownFields(body: object, allowedFields: string[]): string[] {
