@@ -1013,7 +1013,7 @@ comportement cassé en production réelle.
     ou un `PUT` **sans `Content-Type` et sans corps** répond `500` au corps natif de Fastify avec
     le message technique (`{"statusCode":500,…,"message":"Cannot convert undefined or null to
     object"}`) au lieu du `415` de la décision #82 (« absent : `415`, que le corps soit vide ou
-    non ») : `findUnknownFields` lit `request.body` hors du `try`. Avec un corps et sans en-tête :
+    non ») : `rejectUnknownFields` (alors nommée `findUnknownFields`) lit `request.body` hors du `try`. Avec un corps et sans en-tête :
     `415`, conforme. (2) un `charset` autre qu'`utf-8` (`charset=latin1`) est accepté : `POST` `201`
     (le thème est créé), contre le `415` de la décision #89 ; connu (`DEBTS.md`, « Le refus d'un
     `charset` n'existe que sur `POST /api/v1/token` »), sondé aussi sur le `PUT`. Conformes : `Application/JSON`,
