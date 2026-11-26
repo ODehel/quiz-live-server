@@ -1,5 +1,5 @@
-export const MAX_CONNECTIONS_PER_IP = 15;
-export const WINDOW_MS = 60_000;
+const MAX_CONNECTIONS_PER_IP = 15;
+const WINDOW_MS = 60_000;
 
 export class WsConnectionPolicy {
     private lastConnections: Map<string, Date[]> = new Map<string, Date[]>();
