@@ -141,6 +141,19 @@ describe('a production check that no longer fails on a new duplicated block', ()
     });
 });
 
+const LONE = 'export const value = 1\n';
+const HIDING_A_FOLDER: [string, Record<string, string>, string, string, string][] = [
+    ['the tests check', { 'src/themes/a.test.ts': LONE, 'src/b.test.ts': LONE }, configured({ ignore: ['**/themes/**'] }), PRODUCTION, '.jscpd.tests.json analyses 1 files of src, 2 expected'],
+    ['the production check', { 'src/themes/a.ts': LONE, 'src/b.ts': LONE }, CONFIGURATION, producing({ ignore: [...(JSON.parse(PRODUCTION) as { ignore: string[] }).ignore, '**/themes/**'] }), '.jscpd.production.json analyses 1 files of src, 2 expected']
+];
+
+describe('a check that stops analysing files of src', () => {
+    it.each(HIDING_A_FOLDER)('fails the guard when `ignore` hides a folder from %s', (_name, files, tests, production, said) => {
+        const run = guard(treeOf(files, tests, production));
+        expect([run.status, run.output]).toEqual([1, expect.stringContaining(said)]);
+    });
+});
+
 describe('where the guard runs', () => {
     it('is the npm script `duplication:guard`, next to the check of the tests whose command the witness replays', () => {
         const { scripts } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
