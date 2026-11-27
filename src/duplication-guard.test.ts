@@ -168,8 +168,18 @@ describe('a check that stops analysing files of src', () => {
 const WITH_OTHER_KEYS: [string, string, string, string, string][] = [
     ['a token threshold the production witness still exceeds', '.jscpd.production.json', 'minTokens', CONFIGURATION, producing({ minTokens: 52 })],
     ['a line threshold the tests witness still exceeds', '.jscpd.tests.json', 'minLines', configured({ minLines: 6 }), PRODUCTION],
+    ['a token threshold the tests witness still exceeds', '.jscpd.tests.json', 'minTokens', configured({ minTokens: 52 }), PRODUCTION],
+    ['a line threshold the production witness still exceeds', '.jscpd.production.json', 'minLines', CONFIGURATION, producing({ minLines: 6 })],
     ['a key that jscpd does not know, which it accepts', '.jscpd.tests.json', 'failOnEmpt', configured({ failOnEmpt: true }), PRODUCTION]
 ];
+
+describe('a configuration that jscpd rejects', () => {
+    it('fails the guard with the output of jscpd, since it wrote no report to count', () => {
+        const run = guard(treeOf({ 'src/themes/a.test.ts': LONE }, configured({ failOnNewClones: '0' })));
+        expect(run.output).toContain(".jscpd.tests.json analyses no files of src, 1 expected\n(no report, jscpd exit 1):");
+        expect(run.output).toContain('invalid type');
+    });
+});
 
 describe('a configuration that holds a key the guard does not allow', () => {
     it.each(WITH_OTHER_KEYS)('fails the guard on %s', (_name, configuration, key, tests, production) => {
