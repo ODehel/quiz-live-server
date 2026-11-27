@@ -375,6 +375,16 @@ describe("US-005/CA-009 - When the service creates a MCQ question with two choic
     });
 });
 
+describe("US-005/CA-009 (decision #105) - When the service creates a MCQ question whose choices differ once lowercased", () => {
+    it("should accept ß and SS as two distinct choices: the comparison lowercases, it does not fold the German sharp s", () => {
+        const question = defaultQuestionService.createQuestion({
+            type: "MCQ", theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a", title: "Comment s'écrit la rue en allemand ?",
+            choices: ["ß", "SS", "Straße", "Strasse"], correct_answer: "Straße", level: 1, time_limit: 30, points: 10,
+        });
+        expect(question.type === "MCQ" && question.choices).toEqual(["ß", "SS", "Straße", "Strasse"]);
+    });
+});
+
 describe("US-005/CA-009 - When the service creates a MCQ question with two choices that are duplicates after trimming", () => {
     const input: CreateMcqInput = {
         type: "MCQ",
