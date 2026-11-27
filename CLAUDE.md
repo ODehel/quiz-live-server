@@ -32,6 +32,14 @@ Le `PATH` qu'il affiche se préfixe à CHAQUE commande : le shell d'un agent ne 
 Claude écrit un bloc PowerShell, Olivier le lance, la sortie va dans
 `smoke-test-summary.txt` que Claude lit puis supprime.
 
+## Duplication des tests
+`npm run duplication:tests` échoue sur tout bloc absent de `.jscpd.tests.baseline.json` (chercher `[NEW]` dans la sortie).
+- Régénérer l'état (`npm run duplication:tests:update-baseline`, fichier commité dans la même PR) seulement quand la PR
+  retouche, supprime ou déplace un test porteur de blocs connus, ou renomme son fichier. Jamais pour une copie neuve.
+- Revue du diff de l'état : chaque empreinte ajoutée correspond à une retouche ou à un déplacement visible dans le diff
+  des tests ; un compteur qui augmente, ou un ajout sans cette contrepartie, est une copie admise.
+- Pas de commentaire `jscpd:ignore` : il sort le code des deux contrôles de duplication.
+
 ## Le réel fait foi
 Le handoff (`docs/sessions/`) est une hypothèse. On le confronte à l'état réel à chaque
 ouverture ; en cas d'écart, le réel gagne.
