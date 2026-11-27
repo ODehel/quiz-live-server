@@ -141,10 +141,66 @@ describe('a production check that no longer fails on a new duplicated block', ()
     });
 });
 
+const LONE = 'export const value = 1\n';
+const PRODUCTION_IGNORE = (JSON.parse(PRODUCTION) as { ignore: string[] }).ignore;
+const HIDING_FILES: [string, Record<string, string>, string, string, string][] = [
+    ['`ignore` hides a folder from the tests check', { 'src/themes/a.test.ts': LONE, 'src/b.test.ts': LONE }, configured({ ignore: ['**/themes/**'] }), PRODUCTION, '.jscpd.tests.json analyses 1 files of src, 2 expected'],
+    ['`ignore` hides a folder from the production check', { 'src/themes/a.ts': LONE, 'src/b.ts': LONE }, CONFIGURATION, producing({ ignore: [...PRODUCTION_IGNORE, '**/themes/**'] }), '.jscpd.production.json analyses 1 files of src, 2 expected'],
+    ['`pattern` leaves out src/test-support in the tests check', { 'src/a.test.ts': LONE, 'src/test-support/helper.mjs': LONE }, configured({ pattern: '**/*.test.ts' }), PRODUCTION, '.jscpd.tests.json analyses 1 files of src, 2 expected'],
+    ['`path` narrows the tests check to a folder', { 'src/themes/a.test.ts': LONE, 'src/b.test.ts': LONE }, configured({ path: ['src/themes'] }), PRODUCTION, '.jscpd.tests.json analyses 1 files of src, 2 expected'],
+    ['`path` narrows the production check to a folder', { 'src/themes/a.ts': LONE, 'src/b.ts': LONE }, CONFIGURATION, producing({ path: ['src/themes'] }), '.jscpd.production.json analyses 1 files of src, 2 expected'],
+    ['`ignore` no longer leaves src/test-support out of the production check', { 'src/a.ts': LONE, 'src/test-support/helper.mjs': LONE }, CONFIGURATION, producing({ ignore: ['**/*.test.ts'] }), '.jscpd.production.json analyses 2 files of src, 1 expected']
+];
+
+describe('a check that stops analysing files of src', () => {
+    it.each(HIDING_FILES)('fails the guard when %s', (_name, files, tests, production, said) => {
+        const run = guard(treeOf(files, tests, production));
+        expect([run.status, run.output]).toEqual([1, expect.stringContaining(said)]);
+    });
+
+    it('fails the guard on an empty file of src, which jscpd does not count', () => {
+        const run = guard(treeOf({ 'src/a.test.ts': LONE, 'src/empty.test.ts': '' }));
+        expect([run.status, run.output]).toEqual([1, expect.stringContaining('.jscpd.tests.json analyses 1 files of src, 2 expected')]);
+    });
+
+    it('passes the guard when every file lies where its check expects it, at the root of src or deeper', () => {
+        const files = ['src/a.test.ts', 'src/themes/b.test.ts', 'src/test-support/c.mjs', 'src/themes/test-support/d.ts', 'src/e.ts', 'src/themes/f.ts'];
+        const run = guard(treeOf(Object.fromEntries(files.map((file) => [file, LONE]))));
+        expect(run.status).toBe(0);
+    });
+});
+
+const WITH_OTHER_KEYS: [string, string, string, string, string][] = [
+    ['a token threshold the production witness still exceeds', '.jscpd.production.json', 'minTokens', CONFIGURATION, producing({ minTokens: 52 })],
+    ['a line threshold the tests witness still exceeds', '.jscpd.tests.json', 'minLines', configured({ minLines: 6 }), PRODUCTION],
+    ['a token threshold the tests witness still exceeds', '.jscpd.tests.json', 'minTokens', configured({ minTokens: 52 }), PRODUCTION],
+    ['a line threshold the production witness still exceeds', '.jscpd.production.json', 'minLines', CONFIGURATION, producing({ minLines: 6 })],
+    ['a key that jscpd does not know, which it accepts', '.jscpd.tests.json', 'failOnEmpt', configured({ failOnEmpt: true }), PRODUCTION]
+];
+
+describe('a configuration that jscpd rejects', () => {
+    it('fails the guard with the output of jscpd, since it wrote no report to count', () => {
+        const run = guard(treeOf({ 'src/themes/a.test.ts': LONE }, configured({ failOnNewClones: '0' })));
+        expect(run.output).toContain(".jscpd.tests.json analyses no files of src, 1 expected\n(no report, jscpd exit 1):");
+        expect(run.output).toContain('invalid type');
+    });
+});
+
+describe('a configuration that holds a key the guard does not allow', () => {
+    it.each(WITH_OTHER_KEYS)('fails the guard on %s', (_name, configuration, key, tests, production) => {
+        const run = guard(treeOf({ 'src/themes/a.ts': LONE }, tests, production));
+        expect([run.status, run.output]).toEqual([1, expect.stringContaining(`${configuration} holds the key '${key}', which the guard does not allow`)]);
+    });
+});
+
 describe('where the guard runs', () => {
-    it('is the npm script `duplication:guard`, next to the check of the tests whose command the witness replays', () => {
+    it('is the npm script `duplication:guard`, next to the two checks whose commands the witness replays, with no option on the command line', () => {
         const { scripts } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
-        expect([scripts['duplication:guard'], scripts['duplication:tests']]).toEqual(['node scripts/duplication-guard.mjs', 'jscpd --config .jscpd.tests.json']);
+        expect([scripts['duplication:guard'], scripts['duplication:tests'], scripts['duplication:production']]).toEqual([
+            'node scripts/duplication-guard.mjs',
+            'jscpd --config .jscpd.tests.json',
+            'jscpd --config .jscpd.production.json'
+        ]);
     });
 
     it('is a step of the CI that runs only that script, before both duplication checks', () => {
