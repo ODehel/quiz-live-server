@@ -4,13 +4,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Fails when a duplication check of the tests can be switched off (contract: decision #108 of docs/decisions/DECISIONS.md):
+// Fails when a duplication check can be switched off (contract: decisions #108 and #109 of docs/decisions/DECISIONS.md):
 // a comment that tells jscpd to ignore code, or a configuration under which a new duplicated block no longer fails the check.
 
 const JSCPD = fileURLToPath(new URL('../node_modules/jscpd/run-jscpd.js', import.meta.url));
 const SWITCH_OFF = /jscpd:ignore/;
-const CONFIGURATION = '.jscpd.tests.json';
-const BASELINE = '.jscpd.tests.baseline.json';
+// Each check is replayed on two identical files that its configuration must analyse: the tests check reports a new block as [NEW]
+// (it has a baseline), the production check, which tolerates nothing, reports any block as a clone.
+const CHECKS = [
+    { configuration: '.jscpd.tests.json', copied: ['.jscpd.tests.json', '.jscpd.tests.baseline.json'], files: ['first.test.ts', 'second.test.ts'], clone: '[NEW]' },
+    { configuration: '.jscpd.production.json', copied: ['.jscpd.production.json'], files: ['first.ts', 'second.ts'], clone: 'Clone found' }
+];
 const WITNESS = `export function total(values: number[]): number {
     let sum = 0;
     for (const value of values) {
@@ -32,21 +36,21 @@ function switchedOff(folder) {
     });
 }
 
-function replayOnAWitness() {
+function replayOnAWitness({ configuration, copied, files, clone }) {
     const folder = mkdtempSync(join(tmpdir(), 'duplication-witness-'));
     try {
-        for (const file of [CONFIGURATION, BASELINE]) copyFileSync(file, join(folder, file));
+        for (const file of copied) copyFileSync(file, join(folder, file));
         mkdirSync(join(folder, 'src'));
-        for (const name of ['first', 'second']) writeFileSync(join(folder, 'src', `${name}.test.ts`), WITNESS);
-        const run = spawnSync(process.execPath, [JSCPD, '--config', CONFIGURATION], { cwd: folder, encoding: 'utf8' });
+        for (const name of files) writeFileSync(join(folder, 'src', name), WITNESS);
+        const run = spawnSync(process.execPath, [JSCPD, '--config', configuration], { cwd: folder, encoding: 'utf8' });
         const output = run.stdout + run.stderr;
-        return run.status === 1 && output.includes('[NEW]') ? [] : [`${CONFIGURATION} does not fail on a new duplicated block (jscpd exit ${run.status}):\n${output}`];
+        return run.status === 1 && output.includes(clone) ? [] : [`${configuration} does not fail on a new duplicated block (jscpd exit ${run.status}):\n${output}`];
     } finally {
         rmSync(folder, { recursive: true, force: true });
     }
 }
 
-const problems = [...switchedOff('src'), ...replayOnAWitness()];
+const problems = [...switchedOff('src'), ...CHECKS.flatMap(replayOnAWitness)];
 if (problems.length > 0) {
     console.error(problems.join('\n'));
     process.exit(1);
