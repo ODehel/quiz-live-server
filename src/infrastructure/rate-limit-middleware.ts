@@ -8,7 +8,6 @@ export default async function rateLimitMiddleware(app: FastifyInstance, options:
     const { maxRequestsPerMinute } = options;
 
     await app.register(rateLimit, {
-        global: false,
         max: maxRequestsPerMinute,
         timeWindow: '1 minute',
         errorResponseBuilder: (_request, context) => {
