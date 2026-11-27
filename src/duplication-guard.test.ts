@@ -165,6 +165,19 @@ describe('a check that stops analysing files of src', () => {
     });
 });
 
+const WITH_OTHER_KEYS: [string, string, string, string, string][] = [
+    ['a token threshold the production witness still exceeds', '.jscpd.production.json', 'minTokens', CONFIGURATION, producing({ minTokens: 52 })],
+    ['a line threshold the tests witness still exceeds', '.jscpd.tests.json', 'minLines', configured({ minLines: 6 }), PRODUCTION],
+    ['a key that jscpd does not know, which it accepts', '.jscpd.tests.json', 'failOnEmpt', configured({ failOnEmpt: true }), PRODUCTION]
+];
+
+describe('a configuration that holds a key the guard does not allow', () => {
+    it.each(WITH_OTHER_KEYS)('fails the guard on %s', (_name, configuration, key, tests, production) => {
+        const run = guard(treeOf({ 'src/themes/a.ts': LONE }, tests, production));
+        expect([run.status, run.output]).toEqual([1, expect.stringContaining(`${configuration} holds the key '${key}', which the guard does not allow`)]);
+    });
+});
+
 describe('where the guard runs', () => {
     it('is the npm script `duplication:guard`, next to the check of the tests whose command the witness replays', () => {
         const { scripts } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
