@@ -1,6 +1,6 @@
 import { Clock } from "../common/clock.interface";
 import { NotFoundError } from "../common/not-found-error";
-import { buildPagination } from "../common/build-pagination";
+import { paginate } from "../common/paginate";
 import { Pagination } from "../common/pagination.interface";
 import { UuidGenerator } from "../common/uuid-generator.interface";
 import { BaseQuestion } from "./base-question.interface";
@@ -126,9 +126,7 @@ export class DefaultQuestionService implements QuestionService {
     }
 
     getAll(page: number, limit: number): Pagination<Question> {
-        const questions: Question[] = this.questionRepository.getAll(page, limit);
-        const total: number = this.questionRepository.count();
-        return buildPagination(questions, page, limit, total);
+        return paginate(this.questionRepository, page, limit);
     }
 
     deleteQuestion(id: string): void {

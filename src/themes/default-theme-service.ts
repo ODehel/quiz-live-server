@@ -1,5 +1,5 @@
 import { Clock } from "../common/clock.interface";
-import { buildPagination } from "../common/build-pagination";
+import { paginate } from "../common/paginate";
 import { NotFoundError } from "../common/not-found-error";
 import { Pagination } from "../common/pagination.interface";
 import { UuidGenerator } from "../common/uuid-generator.interface";
@@ -14,9 +14,7 @@ export class DefaultThemeService implements ThemeService {
     constructor(private clock: Clock, private uuidGenerator: UuidGenerator, private themeRepository: ThemeRepository) { }
 
     getAll(page: number, limit: number): Pagination<Theme> {
-        const themes: Theme[] = this.themeRepository.getAll(page, limit);
-        const total: number = this.themeRepository.count();
-        return buildPagination(themes, page, limit, total);
+        return paginate(this.themeRepository, page, limit);
     }
 
     getById(id: string): Theme | undefined {
