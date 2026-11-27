@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -351,5 +351,20 @@ describe('what the check cannot be talked out of', () => {
         const fired = new Set(layerCases.flatMap(({ violations }) => violations.map((violation) => violation.replace(/^error ([^:]+):.*$/, '$1'))));
         expect(rules.filter((name) => !fired.has(name))).toEqual([]);
         expect(rules.length).toBeGreaterThan(0);
+    });
+});
+
+describe('where the check runs', () => {
+    it('is the npm script `layers`, with the explicit configuration file and the whole of src', () => {
+        const manifest = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
+        expect(manifest.scripts['layers']).toBe('depcruise --config .dependency-cruiser.cjs src');
+    });
+
+    it('is a step of the CI that runs only that script, before the tests', () => {
+        const steps = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8').split(/\n\s*- name:/).map((step) => step.split('\n').map((line) => line.trim()).filter((line) => line !== ''));
+        const own = steps.filter((lines) => lines.includes('run: npm run layers'));
+        expect(own.map((lines) => lines.length)).toEqual([2]);
+        const position = steps.findIndex((lines) => lines.includes('run: npm run layers'));
+        expect(position).toBeLessThan(steps.findIndex((lines) => lines.includes('run: npm run test:coverage')));
     });
 });
