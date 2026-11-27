@@ -12,6 +12,7 @@
     "lint": "eslint src",
     "knip": "knip",
     "layers": "depcruise --config .dependency-cruiser.cjs src",
+    "mutation:changed": "node scripts/mutation-guard.mjs",
     "duplication:production": "jscpd --config .jscpd.production.json",
     "duplication:tests": "jscpd --config .jscpd.tests.json",
     "duplication:tests:update-baseline": "jscpd --config .jscpd.tests.json --update-baseline"
