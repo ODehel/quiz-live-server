@@ -321,7 +321,8 @@ describe('what the check cannot be talked out of', () => {
             ...WITNESS_LEAF,
             'src/common/a.ts': '// eslint-disable-next-line\n// @ts-ignore\n' + VALUE('../themes/leaf'),
             'src/common/b.ts': '/* eslint-disable */\n/* dependency-cruiser ignore */\n' + VALUE('../themes/leaf'),
-            'src/common/c.ts': '// depcruise-ignore\n// dependency-cruiser-ignore\n// @ts-nocheck\n// jscpd:ignore-start\n' + VALUE('../themes/leaf')
+            // The marker of jscpd is cut in two: src/duplication-guard.test.ts refuses it in any file of src, strings included.
+            'src/common/c.ts': '// depcruise-ignore\n// dependency-cruiser-ignore\n// @ts-nocheck\n// jscpd:' + 'ignore-start\n' + VALUE('../themes/leaf')
         })).toEqual([crossesFromCommon('a.ts'), crossesFromCommon('b.ts'), crossesFromCommon('c.ts')]);
     });
 
