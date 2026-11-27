@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UserRepository } from "./user-repository.interface";
-import { SeedUsers, accountsCreatedMessage } from './seed-users';
+import { SeedUsers } from './seed-users';
 import { UserRole } from './user-role';
 import { User } from './user.interface';
 import { Hasher } from '../common/hasher.interface';
@@ -70,18 +70,11 @@ describe("CA-1 - création des 11 comptes utilisateurs s'il n'y en a pas encore"
         const result = await userSeed.seed(mockEnvironment);
         expect(result).toEqual({ created: true, message: "Seed terminé — 11 comptes créés." });
     });
-    it("should count in its success line the accounts the repository says it wrote", async () => {
-        vi.mocked(mockRepository.insertAllIfEmpty).mockResolvedValue(3);
+    it.each([3, 42])("should count in its success line the accounts the repository says it wrote: %i", async (count) => {
+        vi.mocked(mockRepository.insertAllIfEmpty).mockResolvedValue(count);
         const result = await userSeed.seed(mockEnvironment);
-        expect(result).toEqual({ created: true, message: "Seed terminé — 3 comptes créés." });
+        expect(result).toEqual({ created: true, message: `Seed terminé — ${count} comptes créés.` });
     });
-});
-
-describe("CA-1 - la ligne de succès compte les comptes qu'on lui donne", () => {
-    it.each([[11, "Seed terminé — 11 comptes créés."], [3, "Seed terminé — 3 comptes créés."], [42, "Seed terminé — 42 comptes créés."]])(
-        "should write the figure %i in the line", (count, expected) => {
-            expect(accountsCreatedMessage(count)).toBe(expected);
-        });
 });
 
 describe("CA-7 - le seed dit qu'aucun compte n'a été créé quand la table n'est pas vide", () => {
