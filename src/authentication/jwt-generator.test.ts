@@ -80,6 +80,14 @@ describe("US-003/CA-003 - Claims are correctly set", () => {
     });
 });
 
+describe("US-003/CA-001 - Token type", () => {
+    it("should announce the token as a Bearer token", () => {
+        const tokenGenerator = new JwtGenerator(secretKey, duration);
+        const itoken = tokenGenerator.generateToken({ id: "123", username: "testuser", password: "password", role: UserRole.PLAYER });
+        expect(itoken.tokenType).toBe("Bearer");
+    });
+});
+
 describe("US-003/CA-004 - Token expiration", () => {
     beforeEach(() => {
         // Réinitialiser les données ou les mocks nécessaires avant chaque test
