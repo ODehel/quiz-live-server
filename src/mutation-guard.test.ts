@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, matchesGlob, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 // The mutation guard (`npm run mutation:changed`) is proved here on throwaway git repositories: each one holds the real
@@ -90,15 +90,17 @@ function strykerArguments(repository: string): string[] | null {
 
 const SOURCE = 'export const value = 1\n';
 
+const NOT_MUTATED: [string, string][] = [
+    ['a test', 'src/themes/a.test.ts'],
+    ['an interface', 'src/themes/a.interface.ts'],
+    ['a file of src/test-support', 'src/test-support/helper.mjs'],
+    ['the composition entry point, whose tests start child processes', 'src/index.ts'],
+    ['the seed entry point, whose tests start child processes', 'src/seed.ts'],
+    ['a document', 'docs/decisions/DECISIONS.md']
+];
+
 describe('which files the branch changed', () => {
-    it.each([
-        ['a test', 'src/themes/a.test.ts'],
-        ['an interface', 'src/themes/a.interface.ts'],
-        ['a file of src/test-support', 'src/test-support/helper.mjs'],
-        ['the composition entry point, whose tests start child processes', 'src/index.ts'],
-        ['the seed entry point, whose tests start child processes', 'src/seed.ts'],
-        ['a document', 'docs/decisions/DECISIONS.md']
-    ])('does not run the mutation tool when the branch changes only %s', (_name, path) => {
+    it.each(NOT_MUTATED)('does not run the mutation tool when the branch changes only %s', (_name, path) => {
         const repository = branchOf({ base: { [path]: SOURCE }, changes: { [path]: SOURCE + '// changed\n' } });
         const run = guard(repository, '--base', 'main');
         expect([run.status, strykerArguments(repository)]).toEqual([0, null]);
@@ -239,5 +241,46 @@ describe('what the guard cannot be talked out of', () => {
         const run = guard(branchOf({ base: { 'src/themes/a.ts': SOURCE }, changes: { 'src/themes/a.ts': SOURCE + '// changed\n' } }), '--base', 'origin/nowhere');
         expect(run.status).toBe(1);
         expect(run.output).toContain('Cannot list the files changed since origin/nowhere');
+    });
+});
+
+const CONFIGURATION = {
+    $schema: './node_modules/@stryker-mutator/core/schema/stryker-schema.json',
+    testRunner: 'vitest',
+    checkers: ['typescript'],
+    tsconfigFile: 'tsconfig.json',
+    coverageAnalysis: 'perTest',
+    ignoreStatic: true,
+    mutate: ['src/**/*.ts', '!src/**/*.test.ts', '!src/**/*.interface.ts', '!src/test-support/**', '!src/index.ts', '!src/seed.ts'],
+    reporters: ['json', 'clear-text'],
+    jsonReporter: { fileName: 'reports/mutation/mutation.json' },
+    clearTextReporter: { allowColor: false, logTests: false, reportScoreTable: true, skipFull: true },
+    thresholds: { high: 100, low: 100, break: 100 },
+    timeoutMS: 30000,
+    concurrency: 2
+};
+
+function productionFilesOf(directory: string): string[] {
+    return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) return entry.name === 'test-support' ? [] : productionFilesOf(path);
+        return entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') ? [path] : [];
+    });
+}
+
+describe('what the guard reads from the repository', () => {
+    it('is the configuration of the mutation tool as decided: no threshold lowered, no ignorer, no option added or removed', () => {
+        expect(JSON.parse(readFileSync(join(ROOT, 'stryker.config.json'), 'utf8'))).toEqual(CONFIGURATION);
+    });
+
+    it('has a case for every pattern that leaves a file out of the mutation', () => {
+        const left = CONFIGURATION.mutate.filter((pattern) => pattern.startsWith('!')).map((pattern) => pattern.slice(1));
+        const uncovered = left.filter((glob) => !NOT_MUTATED.some(([, path]) => matchesGlob(path, glob)));
+        expect([uncovered, left.length]).toEqual([[], 5]);
+    });
+
+    it('finds no comment that switches mutation off in the production code', () => {
+        const comments = productionFilesOf(join(ROOT, 'src')).filter((file) => /stryker\s+(disable|restore)/i.test(readFileSync(file, 'utf8')));
+        expect(comments).toEqual([]);
     });
 });
