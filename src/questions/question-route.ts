@@ -12,19 +12,16 @@ import { isWrittenPaginationNumber } from "../common/is-written-pagination-numbe
 import { NotFoundError } from "../common/not-found-error";
 import { sendErrorBody } from "../common/send-error-body";
 import { rejectUnsupportedContentType } from "../common/reject-unsupported-content-type";
-import { UuidFormatValidator } from "../infrastructure/uuid-format-validator";
 import Ajv from "ajv";
 
 type SchemaViolation = { keyword: string, instancePath: string, params: { missingProperty?: string, additionalProperty?: string } };
 
 export default async function questionRoute(app: FastifyInstance, options: QuestionRouteConfiguration) {
-    const { questionService, tokenValidator, tokenDecoder, middleware } = options;
+    const { questionService, uuidValidator, tokenValidator, tokenDecoder, middleware } = options;
 
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 
     app.removeContentTypeParser('text/plain');
-
-    const uuidValidator = new UuidFormatValidator();
 
     const ajv = new Ajv({ allErrors: true });
     app.setValidatorCompiler(({ schema }) => ajv.compile(schema));

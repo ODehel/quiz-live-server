@@ -14,6 +14,7 @@ import authenticationMiddleware from '../authentication/authentication-middlewar
 import { TokenValidator } from '../authentication/token-validator.interface';
 import { TokenDecoder } from '../authentication/token-decoder.interface';
 import { UserRole } from '../users/user-role';
+import { UuidFormatValidator } from '../infrastructure/uuid-format-validator';
 
 let app: FastifyInstance;
 let mockQuestionService: QuestionService;
@@ -49,7 +50,7 @@ beforeEach(() => {
     mockTokenDecoder = { decode: vi.fn() };
     const mockMiddleware = async () => { };
     app = Fastify();
-    app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware });
+    app.register(questionRoute, { questionService: mockQuestionService, uuidValidator: new UuidFormatValidator(), tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: mockMiddleware });
 });
 
 describe('US-005/CA-1 - Create an MCQ question', () => {
@@ -786,7 +787,7 @@ describe('US-005/CA-50 - Refuse a missing or rejected token on every questions r
         // Without a token the validator would accept anything: only the absence of the token may produce the 401.
         mockTokenValidator = { validateToken: vi.fn().mockReturnValue(validatorAnswer), inspectToken: vi.fn() };
         app = Fastify();
-        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
+        app.register(questionRoute, { questionService: mockQuestionService, uuidValidator: new UuidFormatValidator(), tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
         const response = await app.inject({
             method,
             url,
@@ -830,7 +831,7 @@ describe('US-005/CA-51 - Refuse a buzzer on every questions route', () => {
         mockTokenValidator = { validateToken: vi.fn().mockReturnValue(true), inspectToken: vi.fn() };
         mockTokenDecoder = { decode: vi.fn().mockReturnValue({ role: UserRole.PLAYER }) };
         app = Fastify();
-        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
+        app.register(questionRoute, { questionService: mockQuestionService, uuidValidator: new UuidFormatValidator(), tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
     });
     it.each(routes)('should answer $name with the standard 403 body and not call the service', async ({ method, url, service, body }) => {
         const response = await app.inject({
@@ -889,7 +890,7 @@ describe('US-005/CA-54 - Log the technical details of an unexpected error', () =
                 stream: { write: (line: string) => { logLines.push(line); } }
             }
         });
-        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { } });
+        app.register(questionRoute, { questionService: mockQuestionService, uuidValidator: new UuidFormatValidator(), tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: async () => { } });
     });
 
     it('should log the unexpected error with its technical message at error level', async () => {
@@ -2041,7 +2042,7 @@ describe('US-005/CA-20, CA-41 and CA-50 to CA-52 - The content type is judged af
     ] as const;
     beforeEach(() => {
         app = Fastify();
-        app.register(questionRoute, { questionService: mockQuestionService, tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
+        app.register(questionRoute, { questionService: mockQuestionService, uuidValidator: new UuidFormatValidator(), tokenValidator: mockTokenValidator, tokenDecoder: mockTokenDecoder, middleware: authenticationMiddleware });
     });
 
     it.each(writes)('should keep the 401 of a %s %s without token and without content type', async (method, url) => {

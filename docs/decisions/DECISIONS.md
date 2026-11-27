@@ -1726,3 +1726,21 @@ Laissés ouverts volontairement, non décidés ici : (a) `GET /health` (US-020) 
 - **Non décidé ici** : le contrôle du `charset` sur les questions (le `fix(questions)` suivant s'appuie sur ce rang 2) ; le code de l'erreur du JSON invalide ; `PATCH` (US-007) ; `GET` et `DELETE`.
 - Condition de réouverture : un client qui voudrait le `:id` avant le `415`, ou la migration des écritures vers un ordre commun.
 - À challenger : (a) le rang 1 est renvoyé à #96, #92 et CA-35 sans être redécidé (non écrit mot à mot pour les questions) ; (b) le code du JSON invalide reste non tranché ; (c) l'état du code est lu, non rejoué ; (d) les rangs 5 et suivants renvoient aux décisions existantes sans les relire une à une avec Olivier.
+
+---
+
+## #103 — Le hub a quatre couches et un jeu de règles d'imports, écrits une seule fois dans `.dependency-cruiser.cjs`
+
+*`chore(ci): fail the build on a dependency that crosses a layer` — hors US.*
+
+**Contexte.** Aucun CDC n'écrit les couches du hub. Elles se lisaient dans le code (`CLAUDE.md`, `common/` et `infrastructure/` pour l'environnement, la composition dans `index.ts`), et un fichier les traversait : `question-route.ts` créait lui-même un `UuidFormatValidator` d'`infrastructure/`. Mesure sur `main` avec l'outil réel : un seul constat, aucun cycle, aucune arête de production vers un test.
+
+**Décision.** Proposée par l'agent, à valider par Olivier à la revue (pas tranchée avec lui).
+- **Composition** : `src/index.ts`, `seed.ts`, `quiz-server.ts`, `quiz-server-configuration.interface.ts` ; seule à importer tout, seule importée par personne d'autre. **Fonctionnalités** : `authentication`, `questions`, `themes`, `users`, `websocket`, `routes`. **`infrastructure`** : n'importe que `common`. **`common`** : n'importe rien d'autre.
+- Une fonctionnalité n'importe pas `infrastructure` (les adaptateurs se câblent en composition) ; ni route ni service n'importe un `sqlite-*` ; une route n'importe pas un service concret, un service n'importe pas une route ; une fonctionnalité n'importe jamais un fichier concret d'une autre (`sqlite-*`, `default-*`, `*-service`, `*-route`) mais peut importer ses interfaces et ses modules simples.
+- Aucun cycle, aucun import non résolu, aucun import depuis ou vers un fichier de `src/` hors de ces couches, aucun import d'un test par la production. Les tests (`*.test.ts`, `src/test-support`) sont hors des règles de couches : ils câblent de vrais adaptateurs.
+- Écartées : tests soumis aux mêmes règles (8 arêtes à justifier une à une) ; composition limitée à trois fichiers (l'interface de configuration n'est importée que par elle et par des tests).
+
+**Conséquences.** `question-route.ts` reçoit son `UuidValidator` par `QuestionRouteConfiguration` ; la dette « Validateur instancié en dur dans la route » est soldée. Un dossier ajouté sous `src/` doit être nommé dans `.dependency-cruiser.cjs`. Limites de la garde : `DEBTS.md`, zone outillage.
+- Condition de réouverture : une fonctionnalité qui a besoin d'un fichier concret d'une autre (la déplacer dans `common/` ou l'injecter), ou un test de couche basse qui n'a pas besoin d'un vrai adaptateur.
+- À challenger : (a) la liste de composition et le classement de `routes/` comme fonctionnalité ; (b) `*-service` ajouté aux fichiers concrets pour couvrir `jwt-authentication-service` ; (c) les tests hors règles.

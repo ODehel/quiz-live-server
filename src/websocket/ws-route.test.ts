@@ -12,6 +12,7 @@ import { FastifyInstance } from "fastify";
 import rateLimitMiddleware from "../infrastructure/rate-limit-middleware";
 import { TokenValidator } from "../authentication/token-validator.interface";
 import { UuidValidator } from "../common/uuid-validator.interface";
+import { UuidFormatValidator } from "../infrastructure/uuid-format-validator";
 import { ThemeService } from "../themes/theme-service.interface";
 import { UserRole } from "../users/user-role";
 import WebSocket from "ws";
@@ -153,6 +154,7 @@ describe("WebSocket", () => {
             maxConnections: maxConnections
         };
         mockQuestionRouteConfiguration = {
+            uuidValidator: new UuidFormatValidator(),
             tokenValidator: mockTokenValidator,
             tokenDecoder: mockTokenDecoder,
             questionService: mockQuestionService,

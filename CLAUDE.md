@@ -44,6 +44,16 @@ Claude écrit un bloc PowerShell, Olivier le lance, la sortie va dans
 `npm run lint` échoue sur toute fonction de complexité cyclomatique supérieure à 10, tests compris.
 Remède : extraire des fonctions nommées, sous tests verts. Pas de commentaire `eslint-disable` ni de seuil relevé.
 
+## Couches du hub
+`npm run layers` échoue sur tout import qui traverse une couche ; les couches et leurs règles sont dans `.dependency-cruiser.cjs`
+(décision #103). Le nom de la règle dans la sortie dit laquelle est enfreinte.
+- Remède : déplacer le code, ou injecter l'abstraction depuis la composition (`src/index.ts`) comme le fait `QuestionRouteConfiguration`
+  pour le validateur d'UUID. Pas de règle relâchée, pas de dossier ou de fichier ajouté à une couche pour faire passer.
+- Un nouveau dossier sous `src/` échoue tant qu'il n'est pas nommé dans la liste des couches ; le nommer est une décision de conception
+  (`docs/decisions/DECISIONS.md`), pas un geste de dépannage.
+- Pas de `severity` autre que `error`, pas de `--ignore-known`, pas de fichier de violations connues. `src/dependency-layers.test.ts`
+  prouve que chaque règle mord ; une règle ajoutée ou changée s'y accompagne d'un cas qui la fait échouer.
+
 ## Le réel fait foi
 Le handoff (`docs/sessions/`) est une hypothèse. On le confronte à l'état réel à chaque
 ouverture ; en cas d'écart, le réel gagne.

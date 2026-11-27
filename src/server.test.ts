@@ -141,6 +141,7 @@ const mockWsRouteConfiguration: WsRouteConfiguration = {
 };
 
 const mockQuestionRouteConfiguration: QuestionRouteConfiguration = {
+	uuidValidator: new UuidFormatValidator(),
 	tokenValidator: mockTokenValidator,
 	tokenDecoder: mockTokenDecoder,
 	questionService: mockQuestionService,
@@ -313,6 +314,7 @@ describe('US-005/CA-1 - Question creation reachable on the assembled server', ()
 			deleteQuestion: vi.fn()
 		};
 		const creationRouteConfiguration: QuestionRouteConfiguration = {
+			uuidValidator: new UuidFormatValidator(),
 			questionService: creationQuestionService,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,
@@ -369,6 +371,7 @@ describe('US-005/CA-27 - The question list is ordered most recent first on the a
 			{ validate: vi.fn() }
 		)
 		const listingRouteConfiguration: QuestionRouteConfiguration = {
+			uuidValidator: new UuidFormatValidator(),
 			questionService: listingQuestionService,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,
@@ -415,6 +418,7 @@ describe('US-005/CA-8 - A malformed theme_id is refused with INVALID_UUID on the
 			new UuidFormatValidator()
 		)
 		const realRouteConfiguration: QuestionRouteConfiguration = {
+			uuidValidator: new UuidFormatValidator(),
 			questionService: realQuestionService,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,
@@ -466,6 +470,7 @@ describe('US-005/CA-35 - An unknown theme_id is refused with INVALID_THEME on PU
 			new UuidFormatValidator()
 		)
 		const realRouteConfiguration: QuestionRouteConfiguration = {
+			uuidValidator: new UuidFormatValidator(),
 			questionService: realQuestionService,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,
@@ -517,6 +522,7 @@ describe('US-005/CA-37 - A PUT carrying the stored data leaves the question unto
 			new UuidFormatValidator()
 		)
 		const realRouteConfiguration: QuestionRouteConfiguration = {
+			uuidValidator: new UuidFormatValidator(),
 			questionService: realQuestionService,
 			tokenValidator: mockTokenValidator,
 			tokenDecoder: mockTokenDecoder,

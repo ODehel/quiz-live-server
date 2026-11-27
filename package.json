@@ -11,6 +11,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src",
     "knip": "knip",
+    "layers": "depcruise --config .dependency-cruiser.cjs src",
     "duplication:production": "jscpd --config .jscpd.production.json",
     "duplication:tests": "jscpd --config .jscpd.tests.json",
     "duplication:tests:update-baseline": "jscpd --config .jscpd.tests.json --update-baseline"
@@ -29,6 +30,7 @@
     "@types/node": "^26.6.6",
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.1.12",
+    "dependency-cruiser": "^18.9.0",
     "eslint": "^10.13.0",
     "jscpd": "^5.4.3",
     "knip": "^6.48.0",
