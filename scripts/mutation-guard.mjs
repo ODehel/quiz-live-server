@@ -1,14 +1,15 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { matchesGlob } from 'node:path';
+import { SWITCH_OFF } from './switch-off-comment.mjs';
 
 // Fails when a production file changed since a base leaves a mutant alive (contract: decision #104 of docs/decisions/DECISIONS.md).
 
 const STRYKER = 'node_modules/@stryker-mutator/core/bin/stryker.js';
-const REPORT = 'reports/mutation/mutation.json';
+const CONFIGURATION = JSON.parse(readFileSync('stryker.config.json', 'utf8'));
+const REPORT = CONFIGURATION.jsonReporter.fileName;
 const ACCEPTED = new Set(['Killed', 'Timeout', 'CompileError']);
 const STATIC_REASON = 'Static mutant (and "ignoreStatic" was enabled)';
-const SWITCH_OFF = /stryker\s+(disable|restore)/i;
 
 function fail(message) {
     console.error(message);
@@ -16,7 +17,7 @@ function fail(message) {
 }
 
 function changedProductionFiles(base) {
-    const patterns = JSON.parse(readFileSync('stryker.config.json', 'utf8')).mutate;
+    const patterns = CONFIGURATION.mutate;
     const included = patterns.filter((pattern) => !pattern.startsWith('!'));
     const excluded = patterns.filter((pattern) => pattern.startsWith('!')).map((pattern) => pattern.slice(1));
     const run = spawnSync('git', ['diff', '-z', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], { encoding: 'utf8' });

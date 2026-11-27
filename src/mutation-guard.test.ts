@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
 import { dirname, join, matchesGlob, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -339,8 +340,9 @@ describe('what the guard reads from the repository', () => {
         expect([uncovered, left.length]).toEqual([[], 5]);
     });
 
-    it('finds no comment that switches mutation off in the production code', () => {
-        const comments = productionFilesOf(join(ROOT, 'src')).filter((file) => /stryker\s+(disable|restore)/i.test(readFileSync(file, 'utf8')));
+    it('finds no comment that switches mutation off in the production code', async () => {
+        const { SWITCH_OFF } = (await import(pathToFileURL(join(ROOT, 'scripts/switch-off-comment.mjs')).href)) as { SWITCH_OFF: RegExp };
+        const comments = productionFilesOf(join(ROOT, 'src')).filter((file) => SWITCH_OFF.test(readFileSync(file, 'utf8')));
         expect(comments).toEqual([]);
     });
 });
