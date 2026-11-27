@@ -135,3 +135,10 @@ describe('where the guard runs', () => {
         expect(positionOf('duplication:guard')).toBeLessThan(Math.min(positionOf('duplication:production'), positionOf('duplication:tests')));
     });
 });
+
+describe('this repository', () => {
+    it('has no duplication check switched off: the guard passes in its root', () => {
+        const run = guard(ROOT);
+        expect([run.status, run.output]).toEqual([0, expect.stringContaining('No duplication check is switched off')]);
+    });
+});
