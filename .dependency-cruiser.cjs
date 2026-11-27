@@ -23,6 +23,9 @@ module.exports = {
     rule('route-does-not-import-concrete-service', production(ROUTE), { path: SERVICE }),
     rule('service-does-not-import-route', production(SERVICE), { path: '-route(-configuration\\.interface)?\\.ts$|^src/routes/' }),
     rule('feature-does-not-import-concrete-of-another-feature', production('^src/([^/]+)/'), { path: CONCRETE, pathNot: '^src/$1/' }),
+    rule('production-does-not-import-test', production('^src/'), { path: TESTS }),
+    rule('no-circular', {}, { circular: true }),
+    rule('not-to-unresolvable', {}, { couldNotResolve: true }),
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
