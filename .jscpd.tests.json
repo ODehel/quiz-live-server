@@ -1,0 +1,6 @@
+{
+    "path": ["src"],
+    "pattern": "**/{*.test.ts,test-support/**}",
+    "threshold": 18.37,
+    "failOnEmpty": true
+}

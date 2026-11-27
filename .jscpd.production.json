@@ -1,0 +1,6 @@
+{
+    "path": ["src"],
+    "ignore": ["**/*.test.ts", "**/test-support/**"],
+    "exitCode": 1,
+    "failOnEmpty": true
+}

@@ -14,9 +14,8 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
     await middleware(app, { tokenValidator: tokenValidator, tokenDecoder: tokenDecoder });
 
     app.get('/api/v1/themes/:id', async (request, reply) => {
-        const { id } = request.params as { id: string };
-        if (!uuidValidator.validate(id)) {
-            reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
+        const id = readId(request.params, reply);
+        if (id === undefined) {
             return;
         }
         try {
@@ -61,9 +60,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
                 return;
             }
 
-            const unknownFields = findUnknownFields(body, ['name']);
-            if (unknownFields.length > 0) {
-                reply.status(400).send({ status: 400, error: UNKNOWN_FIELDS, message: `Unknown field(s): ${unknownFields.join(', ')}.` });
+            if (rejectUnknownFields(body, ['name'], reply)) {
                 return;
             }
 
@@ -76,9 +73,8 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         });
 
         instance.put('/api/v1/themes/:id', async (request, reply) => {
-            const { id: idFromParams } = request.params as { id: string };
-            if (!uuidValidator.validate(idFromParams)) {
-                reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
+            const idFromParams = readId(request.params, reply);
+            if (idFromParams === undefined) {
                 return;
             }
 
@@ -104,9 +100,7 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
                 return;
             }
 
-            const unknownFields = findUnknownFields(body, ['id', 'name']);
-            if (unknownFields.length > 0) {
-                reply.status(400).send({ status: 400, error: UNKNOWN_FIELDS, message: `Unknown field(s): ${unknownFields.join(', ')}.` });
+            if (rejectUnknownFields(body, ['id', 'name'], reply)) {
                 return;
             }
 
@@ -128,9 +122,8 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
             done(null, null);
         });
         instance.delete('/api/v1/themes/:id', async (request, reply) => {
-            const { id } = request.params as { id: string };
-            if (!uuidValidator.validate(id)) {
-                reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
+            const id = readId(request.params, reply);
+            if (id === undefined) {
                 return;
             }
 
@@ -158,6 +151,15 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         }
     }
 
+    function readId(params: unknown, reply: FastifyReply): string | undefined {
+        const { id } = params as { id: string };
+        if (!uuidValidator.validate(id)) {
+            reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
+            return undefined;
+        }
+        return id;
+    }
+
     function readBodyObject(body: unknown, reply: FastifyReply): object | undefined {
         if (typeof body !== 'object' || body === null || Array.isArray(body)) {
             reply.status(400).send({ status: 400, error: INVALID_BODY, message: 'Request body must be a JSON object.' });
@@ -179,7 +181,12 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
         return name;
     }
 
-    function findUnknownFields(body: object, allowedFields: string[]): string[] {
-        return Object.keys(body).filter(key => !allowedFields.includes(key));
+    function rejectUnknownFields(body: object, allowedFields: string[], reply: FastifyReply): boolean {
+        const unknownFields = Object.keys(body).filter(key => !allowedFields.includes(key));
+        if (unknownFields.length === 0) {
+            return false;
+        }
+        reply.status(400).send({ status: 400, error: UNKNOWN_FIELDS, message: `Unknown field(s): ${unknownFields.join(', ')}.` });
+        return true;
     }
 }
