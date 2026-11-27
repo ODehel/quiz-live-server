@@ -95,3 +95,14 @@ describe('which markers the guard refuses', () => {
         ]);
     });
 });
+
+const configured = (changes: Record<string, unknown>) => JSON.stringify({ ...(JSON.parse(CONFIGURATION) as object), ...changes });
+const REFUSED = '.jscpd.tests.json does not fail on a new duplicated block';
+
+describe('a test check that no longer fails on a new duplicated block', () => {
+    it('fails the guard when the key that counts the new blocks is absent', () => {
+        const run = guard(treeOf({ 'src/themes/a.ts': 'export const value = 1\n' }, configured({ failOnNewClones: undefined })));
+        expect(run.status).toBe(1);
+        expect(run.output).toContain(REFUSED);
+    });
+});
