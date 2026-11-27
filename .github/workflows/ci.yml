@@ -29,6 +29,8 @@ jobs:
         run: npm run knip
       - name: Dependencies that cross a layer
         run: npm run layers
+      - name: Duplication checks that are switched off
+        run: npm run duplication:guard
       - name: Duplicated production code
         run: npm run duplication:production
       - name: New duplicated test code
