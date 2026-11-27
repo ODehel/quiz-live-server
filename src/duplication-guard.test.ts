@@ -106,3 +106,17 @@ describe('a test check that no longer fails on a new duplicated block', () => {
         expect(run.output).toContain(REFUSED);
     });
 });
+
+const NO_LONGER_FAILING: [string, Record<string, unknown>, number, string][] = [
+    ['misspelled, which jscpd accepts', { failOnNewClones: undefined, failOnNewClone: 0 }, 0, "unknown field 'failOnNewClone'"],
+    ['1, which one new block does not exceed', { failOnNewClones: 1 }, 0, '[NEW]'],
+    ['a string, which jscpd rejects as a configuration', { failOnNewClones: '0' }, 1, 'invalid type']
+];
+
+describe('a test check that no longer fails on a new duplicated block, whatever the reason', () => {
+    it.each(NO_LONGER_FAILING)('fails the guard when the key is %s', (_name, changes, status, said) => {
+        const run = guard(treeOf({ 'src/themes/a.ts': 'export const value = 1\n' }, configured(changes)));
+        expect([run.status, run.output]).toEqual([1, expect.stringContaining(`${REFUSED} (jscpd exit ${status})`)]);
+        expect(run.output).toContain(said);
+    });
+});
