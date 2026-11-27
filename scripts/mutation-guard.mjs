@@ -45,7 +45,7 @@ function notKilled(reportFiles) {
 }
 
 const base = process.argv[2] === '--base' ? process.argv[3] : undefined;
-if (base === undefined) fail('Usage: mutation-guard --base <ref>');
+if (base === undefined || base === '') fail('Usage: mutation-guard --base <ref>');
 
 const files = changedProductionFiles(base);
 if (files.length === 0) {
