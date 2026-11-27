@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 const ROOT = resolve(__dirname, '..');
 const SCRIPT = join(ROOT, 'scripts/duplication-guard.mjs');
 const CONFIGURATION = readFileSync(join(ROOT, '.jscpd.tests.json'), 'utf8');
+const PRODUCTION = readFileSync(join(ROOT, '.jscpd.production.json'), 'utf8');
 const BASELINE = readFileSync(join(ROOT, '.jscpd.tests.baseline.json'), 'utf8');
 // Built at run time: the guard reads this very file, and jscpd honours the marker even inside a string.
 const marker = (kind: string) => ['jscpd', `ignore-${kind}`].join(':');
@@ -22,10 +23,10 @@ afterEach(() => {
     for (const tree of trees.splice(0)) rmSync(tree, { recursive: true, force: true });
 });
 
-function treeOf(files: Record<string, string>, configuration = CONFIGURATION): string {
+function treeOf(files: Record<string, string>, configuration = CONFIGURATION, production = PRODUCTION): string {
     const tree = mkdtempSync(join(tmpdir(), 'duplication-guard-'));
     trees.push(tree);
-    for (const [path, content] of Object.entries({ '.jscpd.tests.json': configuration, '.jscpd.tests.baseline.json': BASELINE, ...files })) {
+    for (const [path, content] of Object.entries({ '.jscpd.tests.json': configuration, '.jscpd.production.json': production, '.jscpd.tests.baseline.json': BASELINE, ...files })) {
         mkdirSync(dirname(join(tree, path)), { recursive: true });
         writeFileSync(join(tree, path), content);
     }
@@ -117,6 +118,24 @@ describe('a test check that no longer fails on a new duplicated block, whatever 
     it.each(NO_LONGER_FAILING)('fails the guard when the key is %s', (_name, changes, status, said) => {
         const run = guard(treeOf({ 'src/themes/a.ts': 'export const value = 1\n' }, configured(changes)));
         expect([run.status, run.output]).toEqual([1, expect.stringContaining(`${REFUSED} (jscpd exit ${status})`)]);
+        expect(run.output).toContain(said);
+    });
+});
+
+const producing = (changes: Record<string, unknown>) => JSON.stringify({ ...(JSON.parse(PRODUCTION) as object), ...changes });
+const PRODUCTION_REFUSED = '.jscpd.production.json does not fail on a new duplicated block';
+
+const PRODUCTION_NO_LONGER_FAILING: [string, Record<string, unknown>, number, string][] = [
+    ['absent', { exitCode: undefined }, 0, 'Clone found'],
+    ['misspelled, which jscpd accepts', { exitCode: undefined, exitCod: 1 }, 0, "unknown field 'exitCod'"],
+    ['0, which jscpd reads as success', { exitCode: 0 }, 0, 'Clone found'],
+    ['2, which is not the code the build waits for', { exitCode: 2 }, 2, 'Clone found']
+];
+
+describe('a production check that no longer fails on a new duplicated block', () => {
+    it.each(PRODUCTION_NO_LONGER_FAILING)('fails the guard when the key `exitCode` is %s', (_name, changes, status, said) => {
+        const run = guard(treeOf({ 'src/themes/a.ts': 'export const value = 1\n' }, CONFIGURATION, producing(changes)));
+        expect([run.status, run.output]).toEqual([1, expect.stringContaining(`${PRODUCTION_REFUSED} (jscpd exit ${status})`)]);
         expect(run.output).toContain(said);
     });
 });
