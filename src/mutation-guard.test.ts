@@ -372,6 +372,13 @@ describe('where the guard runs', () => {
         expect(position).toBeLessThan(steps.findIndex((lines) => lines.includes('run: npm run test:coverage')));
     });
 
+    it('is not switched off above the step: the job has no condition and no tolerated failure, and the triggers are the ones decided', () => {
+        const lines = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8').split('\n').map((line) => line.trim()).filter((line) => line !== '');
+        const between = (from: string, to: string) => lines.slice(lines.indexOf(from) + 1, lines.indexOf(to));
+        expect(between('on:', 'jobs:')).toEqual(['push:', 'branches: [main]', 'pull_request:', 'branches: [main]']);
+        expect(between('verify:', 'steps:')).toEqual(['runs-on: ubuntu-latest']);
+    });
+
     it('has the whole history of the repository to compare the branch with its base', () => {
         const checkout = stepsOfCi().find((lines) => lines.includes('uses: actions/checkout@v4'));
         expect(checkout).toContain('fetch-depth: 0');
