@@ -54,6 +54,15 @@ Remède : extraire des fonctions nommées, sous tests verts. Pas de commentaire 
 - Pas de `severity` autre que `error`, pas de `--ignore-known`, pas de fichier de violations connues. `src/dependency-layers.test.ts`
   prouve que chaque règle mord ; une règle ajoutée ou changée s'y accompagne d'un cas qui la fait échouer.
 
+## Mutants survivants
+`npm run mutation:changed -- --base <réf>` (étape de CI avant les tests, décision #104) échoue quand un mutant survit, ou qu'aucun test ne couvre, dans un fichier de production
+modifié depuis `<réf>` : `src/**/*.ts` hors `*.test.ts`, `*.interface.ts`, `src/test-support`, `index.ts` et `seed.ts` (liste dans `stryker.config.json`). Un `Timeout` vaut tué.
+La sortie dit `fichier:ligne Statut Mutateur => remplacement`. Pour rejouer un fichier : `npx stryker run --mutate src/<dossier>/<fichier>.ts`.
+- Remède : un test du comportement du CDC qui tue le mutant (le commit `spec:` cite le mutant tué). Un mutant équivalent, que nul test ne peut distinguer, se règle en changeant
+  le code (`refactor`, comportement observable inchangé, suite verte). Un comportement que le CDC ne décrit pas ne se fige pas par un test pour tuer un mutant : le remonter.
+- Interdit : `// Stryker disable` ou `restore` (la garde refuse le commentaire, même dans un fichier dont tous les mutants sont tués), `thresholds.break` abaissé, `ignorers`,
+  fichier retiré de `mutate`. `src/mutation-guard.test.ts` prouve ces refus ; une option de `stryker.config.json` ajoutée, retirée ou changée s'y accompagne d'un cas.
+
 ## Le réel fait foi
 Le handoff (`docs/sessions/`) est une hypothèse. On le confronte à l'état réel à chaque
 ouverture ; en cas d'écart, le réel gagne.

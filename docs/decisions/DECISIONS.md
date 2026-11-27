@@ -1744,3 +1744,22 @@ Laissés ouverts volontairement, non décidés ici : (a) `GET /health` (US-020) 
 **Conséquences.** `question-route.ts` reçoit son `UuidValidator` par `QuestionRouteConfiguration` ; la dette « Validateur instancié en dur dans la route » est soldée. Un dossier ajouté sous `src/` doit être nommé dans `.dependency-cruiser.cjs`. Limites de la garde : `DEBTS.md`, zone outillage.
 - Condition de réouverture : une fonctionnalité qui a besoin d'un fichier concret d'une autre (la déplacer dans `common/` ou l'injecter), ou un test de couche basse qui n'a pas besoin d'un vrai adaptateur.
 - À challenger : (a) la liste de composition et le classement de `routes/` comme fonctionnalité ; (b) `*-service` ajouté aux fichiers concrets pour couvrir `jwt-authentication-service` ; (c) les tests hors règles.
+
+---
+
+## #104 — Un mutant qui survit dans un fichier de production modifié par la PR fait échouer la CI
+
+*`chore(ci): fail the build on a surviving mutant in the changed files` — hors US.*
+
+**Contexte.** Aucun CDC ne dit comment prouver qu'un test mord. Les mutants survivants se relevaient à la main, session par session, et les dettes les chiffraient sans garde : un test né vert pouvait ne rien prouver sans que la CI le voie.
+
+**Décision.** Proposée par l'agent, à valider par Olivier à la revue (pas tranchée avec lui).
+- **Outil** : Stryker 10.1.1 (`stryker.config.json`, exécuteur Vitest, vérificateur TypeScript, `coverageAnalysis: perTest`, `ignoreStatic`). Seuil `break` à 100, aucun fichier exclu hors `index.ts`, `seed.ts`, tests, `*.interface.ts` et `src/test-support`.
+- **Périmètre de la garde** : les fichiers de production ajoutés, copiés, modifiés ou renommés entre la base de la PR et `HEAD` (`git diff --diff-filter=ACMR <base>...HEAD`). Survivant ou sans couverture = échec ; `Timeout` compte comme tué.
+- **Interdit** : tout commentaire `Stryker disable` ou `Stryker restore` dans un fichier modifié, tout `ignorers`, tout seuil abaissé. Un mutant équivalent ou mort se règle en changeant le code (`refactor`, comportement observable inchangé).
+- **Sur `main`** : la base est le `before` du push ; une PR est comparée à sa base.
+- **Écartées** : mutation de tout `src` à chaque PR (≈ 20 min sur 2 cœurs) ; seuil à 90 % (laisse passer un mutant) ; commentaires de désactivation tolérés avec justification.
+
+**Conséquences.** La PR mesure tout `src` une fois et règle les 77 survivants relevés ; la garde est prouvée par `src/mutation-guard.test.ts` (dépôts jetables, Stryker simulé). Limites de la garde : `DEBTS.md`, zone outillage.
+- Condition de réouverture : une durée de CI jugée trop longue (passer à un contrôle nocturne de tout `src` plus un contrôle des fichiers modifiés), ou un mutant que seul un changement de comportement peut tuer.
+- À challenger : (a) Stryker comme outil ; (b) seuil 100 sans exclusion ; (c) détection par `base...HEAD` et `fetch-depth: 0` ; (d) base `before` sur `main` ; (e) durée ajoutée à la CI.
