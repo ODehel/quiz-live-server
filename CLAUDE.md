@@ -40,6 +40,13 @@ Claude écrit un bloc PowerShell, Olivier le lance, la sortie va dans
   des tests ; un compteur qui augmente, ou un ajout sans cette contrepartie, est une copie admise.
 - Pas de commentaire `jscpd:ignore` : il sort le code des deux contrôles de duplication.
 
+## Garde des duplications
+`npm run duplication:guard` (étape de CI avant les deux contrôles, décision #108) échoue sur deux faux verts de jscpd :
+- une ligne de `src` (production, tests, `test-support`, même dans une chaîne) qui contient `jscpd:ignore` : la sortie dit `fichier:ligne`. Un test qui doit écrire ce marqueur le construit à l'exécution.
+- une `.jscpd.tests.json` sous laquelle deux copies neuves ne font plus échouer le contrôle (clé `failOnNewClones` absente, mal orthographiée, ≠ 0 ou mal typée) : la garde rejoue le contrôle sur un témoin à la racine de `src` ; la sortie de jscpd est affichée. Une clé `ignore` ou `pattern` qui retire des fichiers du vrai contrôle n'est pas vue (`DEBTS.md`).
+- Remède : retirer le commentaire (la copie se règle par un `refactor`, jamais par une exclusion) ; remettre la configuration. Ne pas relâcher le motif ni le témoin.
+- `src/duplication-guard.test.ts` prouve ces refus ; une option de `.jscpd.tests.json` ajoutée, retirée ou changée s'y accompagne d'un cas. `.jscpd.production.json` n'est pas gardé non plus (`DEBTS.md`, zone outillage).
+
 ## Complexité des fonctions
 `npm run lint` échoue sur toute fonction de complexité cyclomatique supérieure à 10, tests compris.
 Remède : extraire des fonctions nommées, sous tests verts. Pas de commentaire `eslint-disable` ni de seuil relevé.
