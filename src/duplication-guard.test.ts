@@ -142,15 +142,26 @@ describe('a production check that no longer fails on a new duplicated block', ()
 });
 
 const LONE = 'export const value = 1\n';
-const HIDING_A_FOLDER: [string, Record<string, string>, string, string, string][] = [
-    ['the tests check', { 'src/themes/a.test.ts': LONE, 'src/b.test.ts': LONE }, configured({ ignore: ['**/themes/**'] }), PRODUCTION, '.jscpd.tests.json analyses 1 files of src, 2 expected'],
-    ['the production check', { 'src/themes/a.ts': LONE, 'src/b.ts': LONE }, CONFIGURATION, producing({ ignore: [...(JSON.parse(PRODUCTION) as { ignore: string[] }).ignore, '**/themes/**'] }), '.jscpd.production.json analyses 1 files of src, 2 expected']
+const PRODUCTION_IGNORE = (JSON.parse(PRODUCTION) as { ignore: string[] }).ignore;
+const HIDING_FILES: [string, Record<string, string>, string, string, string][] = [
+    ['`ignore` hides a folder from the tests check', { 'src/themes/a.test.ts': LONE, 'src/b.test.ts': LONE }, configured({ ignore: ['**/themes/**'] }), PRODUCTION, '.jscpd.tests.json analyses 1 files of src, 2 expected'],
+    ['`ignore` hides a folder from the production check', { 'src/themes/a.ts': LONE, 'src/b.ts': LONE }, CONFIGURATION, producing({ ignore: [...PRODUCTION_IGNORE, '**/themes/**'] }), '.jscpd.production.json analyses 1 files of src, 2 expected'],
+    ['`pattern` leaves out src/test-support in the tests check', { 'src/a.test.ts': LONE, 'src/test-support/helper.mjs': LONE }, configured({ pattern: '**/*.test.ts' }), PRODUCTION, '.jscpd.tests.json analyses 1 files of src, 2 expected'],
+    ['`path` narrows the tests check to a folder', { 'src/themes/a.test.ts': LONE, 'src/b.test.ts': LONE }, configured({ path: ['src/themes'] }), PRODUCTION, '.jscpd.tests.json analyses 1 files of src, 2 expected'],
+    ['`path` narrows the production check to a folder', { 'src/themes/a.ts': LONE, 'src/b.ts': LONE }, CONFIGURATION, producing({ path: ['src/themes'] }), '.jscpd.production.json analyses 1 files of src, 2 expected'],
+    ['`ignore` no longer leaves src/test-support out of the production check', { 'src/a.ts': LONE, 'src/test-support/helper.mjs': LONE }, CONFIGURATION, producing({ ignore: ['**/*.test.ts'] }), '.jscpd.production.json analyses 2 files of src, 1 expected']
 ];
 
 describe('a check that stops analysing files of src', () => {
-    it.each(HIDING_A_FOLDER)('fails the guard when `ignore` hides a folder from %s', (_name, files, tests, production, said) => {
+    it.each(HIDING_FILES)('fails the guard when %s', (_name, files, tests, production, said) => {
         const run = guard(treeOf(files, tests, production));
         expect([run.status, run.output]).toEqual([1, expect.stringContaining(said)]);
+    });
+
+    it('passes the guard when every file lies where its check expects it, at the root of src or deeper', () => {
+        const files = ['src/a.test.ts', 'src/themes/b.test.ts', 'src/test-support/c.mjs', 'src/themes/test-support/d.ts', 'src/e.ts', 'src/themes/f.ts'];
+        const run = guard(treeOf(Object.fromEntries(files.map((file) => [file, LONE]))));
+        expect(run.status).toBe(0);
     });
 });
 
