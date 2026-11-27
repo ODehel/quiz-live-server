@@ -13,7 +13,7 @@ const CLI = join(ROOT, 'node_modules/dependency-cruiser/bin/dependency-cruiser.m
 const CONFIGURATION = join(ROOT, '.dependency-cruiser.cjs');
 
 interface Violation { rule: { name: string; severity: string }; from: string; to: string }
-interface Report { summary: { violations: Violation[] } }
+interface Report { summary: { violations: Violation[]; ruleSetUsed?: { forbidden?: { name: string; severity: string }[] } } }
 
 const trees: string[] = [];
 
@@ -37,11 +37,14 @@ function cruise(tree: string, outputType: 'json' | 'err'): { status: number | nu
     return { status: run.status, stdout: run.stdout, stderr: run.stderr };
 }
 
-function violationsOf(files: Record<string, string>): string[] {
+function reportOf(files: Record<string, string>): Report {
     const run = cruise(writeTree(files), 'json');
     if (run.status !== 0) throw new Error(`dependency-cruiser did not run (status ${String(run.status)}): ${run.stderr}${run.stdout}`);
-    const report = JSON.parse(run.stdout) as Report;
-    return report.summary.violations.map(({ rule, from, to }) => `${rule.severity} ${rule.name}: ${from} -> ${to}`).sort();
+    return JSON.parse(run.stdout) as Report;
+}
+
+function violationsOf(files: Record<string, string>): string[] {
+    return reportOf(files).summary.violations.map(({ rule, from, to }) => `${rule.severity} ${rule.name}: ${from} -> ${to}`).sort();
 }
 
 const LEAF = 'export const leaf = 1\n';
@@ -310,5 +313,43 @@ const layerCases: Case[] = [
 describe('layer rules', () => {
     it.each(layerCases)('$name', ({ files, violations }) => {
         expect(violationsOf(files)).toEqual(violations);
+    });
+});
+
+const WITNESS_LEAF = { 'src/themes/leaf.ts': LEAF };
+const crossesFromCommon = (file: string) => `error common-imports-nothing-else: src/common/${file} -> src/themes/leaf.ts`;
+
+describe('what the check cannot be talked out of', () => {
+    it('is not hidden by a comment that disables another check or this one', () => {
+        expect(violationsOf({
+            ...WITNESS_LEAF,
+            'src/common/a.ts': '// eslint-disable-next-line\n// @ts-ignore\n' + VALUE('../themes/leaf'),
+            'src/common/b.ts': '/* eslint-disable */\n/* dependency-cruiser ignore */\n' + VALUE('../themes/leaf'),
+            'src/common/c.ts': '// depcruise-ignore\n// dependency-cruiser-ignore\n// @ts-nocheck\n// jscpd:ignore-start\n' + VALUE('../themes/leaf')
+        })).toEqual([crossesFromCommon('a.ts'), crossesFromCommon('b.ts'), crossesFromCommon('c.ts')]);
+    });
+
+    it('sees every written form of an import', () => {
+        expect(violationsOf({
+            ...WITNESS_LEAF,
+            'src/common/a.ts': "export const load = () => import('../themes/leaf')\n",
+            'src/common/b.ts': "export const loaded = require('../themes/leaf')\n",
+            'src/common/c.ts': "export { leaf } from '../themes/leaf'\n",
+            'src/common/d.ts': "import '../themes/leaf'\n",
+            'src/common/e.ts': "export type Leaf = typeof import('../themes/leaf')\n"
+        })).toEqual(['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts'].map(crossesFromCommon));
+    });
+
+    it('fails the command when a layer is crossed, and succeeds when none is', () => {
+        const crossing = cruise(writeTree({ ...WITNESS_LEAF, 'src/common/a.ts': VALUE('../themes/leaf') }), 'err');
+        const clean = cruise(writeTree({ ...WITNESS_LEAF, 'src/themes/a.ts': VALUE('./leaf') }), 'err');
+        expect([crossing.status === 0, clean.status]).toEqual([false, 0]);
+    });
+
+    it('has no rule that no case above fires', () => {
+        const rules = (reportOf({ 'src/themes/leaf.ts': LEAF }).summary.ruleSetUsed?.forbidden ?? []).map(({ name }) => name).sort();
+        const fired = new Set(layerCases.flatMap(({ violations }) => violations.map((violation) => violation.replace(/^error ([^:]+):.*$/, '$1'))));
+        expect(rules.filter((name) => !fired.has(name))).toEqual([]);
+        expect(rules.length).toBeGreaterThan(0);
     });
 });
