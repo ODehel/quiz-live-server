@@ -218,6 +218,64 @@ const layerCases: Case[] = [
         },
         violations: []
     }
+    ,
+    {
+        name: 'a production file imports a test',
+        files: { 'src/themes/a.ts': VALUE('./b.test'), 'src/themes/b.test.ts': LEAF },
+        violations: ['error production-does-not-import-test: src/themes/a.ts -> src/themes/b.test.ts']
+    },
+    {
+        name: 'a production file imports a file of src/test-support',
+        files: { 'src/themes/a.ts': VALUE('../test-support/helper.mjs'), 'src/test-support/helper.mjs': LEAF },
+        violations: ['error production-does-not-import-test: src/themes/a.ts -> src/test-support/helper.mjs']
+    },
+    {
+        name: 'a composition file imports a test',
+        files: { 'src/index.ts': VALUE('./themes/a.test'), 'src/themes/a.test.ts': LEAF },
+        violations: ['error production-does-not-import-test: src/index.ts -> src/themes/a.test.ts']
+    },
+    {
+        name: 'a test imports a test and a file of src/test-support',
+        files: {
+            'src/themes/a.test.ts': VALUE('./b.test') + VALUE('../test-support/helper.mjs').replace('copy', 'second'),
+            'src/themes/b.test.ts': LEAF,
+            'src/test-support/helper.mjs': LEAF
+        },
+        violations: []
+    },
+    {
+        name: 'two files import each other',
+        files: { 'src/themes/a.ts': VALUE('./b') + 'export const leaf = 1\n', 'src/themes/b.ts': VALUE('./a') + 'export const leaf = 1\n' },
+        violations: ['error no-circular: src/themes/a.ts -> src/themes/b.ts']
+    },
+    {
+        name: 'two files import each other, one of them only through a type',
+        files: {
+            'src/themes/a.ts': "import type { T } from './b'\nexport const leaf = 1\nexport type U = T\n",
+            'src/themes/b.ts': VALUE('./a') + 'export type T = 1\n'
+        },
+        violations: ['error no-circular: src/themes/a.ts -> src/themes/b.ts']
+    },
+    {
+        name: 'two tests import each other',
+        files: { 'src/themes/a.test.ts': VALUE('./b.test') + 'export const leaf = 1\n', 'src/themes/b.test.ts': VALUE('./a.test') + 'export const leaf = 1\n' },
+        violations: ['error no-circular: src/themes/a.test.ts -> src/themes/b.test.ts']
+    },
+    {
+        name: 'a file imports a file that does not exist',
+        files: { 'src/themes/a.ts': VALUE('./does-not-exist') },
+        violations: ['error not-to-unresolvable: src/themes/a.ts -> ./does-not-exist']
+    },
+    {
+        name: 'a test imports a file that does not exist',
+        files: { 'src/themes/a.test.ts': VALUE('../nowhere') },
+        violations: ['error not-to-unresolvable: src/themes/a.test.ts -> ../nowhere']
+    },
+    {
+        name: 'a file imports a module of Node',
+        files: { 'src/themes/a.ts': "import { readFileSync } from 'node:fs'\nexport const read = readFileSync\n" },
+        violations: []
+    }
 ];
 
 describe('layer rules', () => {
