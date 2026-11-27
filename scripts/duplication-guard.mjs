@@ -5,12 +5,15 @@ import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Fails when a duplication check can be switched off (contract: decisions #108 and #109 of docs/decisions/DECISIONS.md):
-// a comment that tells jscpd to ignore code, or a configuration under which a new duplicated block no longer fails the check.
+// a comment that tells jscpd to ignore code, a configuration under which a new duplicated block no longer fails the check,
+// a configuration under which the check analyses fewer files of src than it should, or a configuration key that is not allowed.
 
 const JSCPD = fileURLToPath(new URL('../node_modules/jscpd/run-jscpd.js', import.meta.url));
 const SWITCH_OFF = /jscpd:ignore/;
 // Each check is replayed on two identical files that its configuration must analyse: the tests check reports a new block as [NEW]
-// (it has a baseline), the production check, which tolerates nothing, reports any block as a clone.
+// (it has a baseline), the production check, which tolerates nothing, reports any block as a clone. `owns` says which files of src
+// (path relative to src, separators `/`) the check must analyse; `allowed` lists its configuration keys, any other (a threshold,
+// a misspelling that jscpd accepts without effect) is refused.
 const isTestFile = (path) => path.endsWith('.test.ts') || path.startsWith('test-support/') || path.includes('/test-support/');
 const CHECKS = [
     { configuration: '.jscpd.tests.json', copied: ['.jscpd.tests.json', '.jscpd.tests.baseline.json'], files: ['first.test.ts', 'second.test.ts'], clone: '[NEW]', owns: isTestFile, allowed: ['path', 'pattern', 'baseline', 'failOnNewClones', 'failOnEmpty'] },
@@ -58,7 +61,9 @@ function analysedFiles(configuration) {
     try {
         const run = spawnSync(process.execPath, [JSCPD, '--config', configuration, '-k', '1', '-l', '1', '--reporters', 'json', '--output', folder], { encoding: 'utf8' });
         const report = join(folder, 'jscpd-report.json');
-        return existsSync(report) ? JSON.parse(readFileSync(report, 'utf8')).statistics.total.sources : `no file (no report, jscpd exit ${run.status}):\n${run.stdout + run.stderr}`;
+        return existsSync(report)
+            ? { count: JSON.parse(readFileSync(report, 'utf8')).statistics.total.sources, said: '' }
+            : { count: 'no', said: `\n(no report, jscpd exit ${run.status}):\n${run.stdout + run.stderr}` };
     } finally {
         rmSync(folder, { recursive: true, force: true });
     }
@@ -73,8 +78,8 @@ function filesOfSrc() {
 
 function countProblems({ configuration, owns }) {
     const expected = filesOfSrc().filter(owns).length;
-    const analysed = analysedFiles(configuration);
-    return analysed === expected ? [] : [`${configuration} analyses ${analysed} files of src, ${expected} expected`];
+    const { count, said } = analysedFiles(configuration);
+    return count === expected ? [] : [`${configuration} analyses ${count} files of src, ${expected} expected${said}`];
 }
 
 function keyProblems({ configuration, allowed }) {
