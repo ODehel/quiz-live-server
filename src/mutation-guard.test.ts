@@ -182,3 +182,62 @@ describe('which mutants fail the command', () => {
         expect(run.output).not.toContain('No surviving mutant');
     });
 });
+
+describe('what the guard cannot be talked out of', () => {
+    it.each([
+        ['a line comment that disables mutation', '// Stryker disable next-line all: equivalent'],
+        ['a block comment that disables mutation', '/* Stryker disable all */'],
+        ['a comment that restores mutation after a disable', '// Stryker restore all'],
+        ['a comment in another case', '// stryker DISABLE-line StringLiteral'],
+        ['a comment with the words apart', '//   Stryker    disable   next-line']
+    ])('fails on %s in a changed file, without running the mutation tool', (_name, comment) => {
+        const repository = branchOf({
+            base: { 'src/themes/a.ts': SOURCE },
+            changes: { 'src/themes/a.ts': `${SOURCE}${comment}\nexport const other = 2\n` },
+            report: reportOf({ 'src/themes/a.ts': [KILLED] })
+        });
+        const run = guard(repository, '--base', 'main');
+        expect([run.status, strykerArguments(repository)]).toEqual([1, null]);
+        expect(run.output).toContain('src/themes/a.ts:2 switches mutation off');
+    });
+
+    it('does not read the comments of a file the branch does not change', () => {
+        const repository = branchOf({
+            base: { 'src/themes/a.ts': SOURCE, 'src/themes/old.ts': '// Stryker disable all\n' + SOURCE },
+            changes: { 'src/themes/a.ts': SOURCE + '// changed\n' },
+            report: reportOf({ 'src/themes/a.ts': [KILLED] })
+        });
+        expect(guard(repository, '--base', 'main').status).toBe(0);
+    });
+
+    it('fails when the mutation tool fails, even if a report says all is well', () => {
+        const run = guard(branchOf({
+            base: { 'src/themes/a.ts': SOURCE },
+            changes: { 'src/themes/a.ts': SOURCE + '// changed\n' },
+            report: reportOf({ 'src/themes/a.ts': [KILLED] }),
+            strykerExit: 1
+        }), '--base', 'main');
+        expect(run.status).toBe(1);
+        expect(run.output).toContain('The mutation tool failed');
+    });
+
+    it('fails when the mutation tool writes no report, and does not trust the one of an earlier run', () => {
+        const repository = branchOf({ base: { 'src/themes/a.ts': SOURCE }, changes: { 'src/themes/a.ts': SOURCE + '// changed\n' } });
+        write(repository, { 'reports/mutation/mutation.json': JSON.stringify(reportOf({ 'src/themes/a.ts': [KILLED] })) });
+        const run = guard(repository, '--base', 'main');
+        expect(run.status).toBe(1);
+        expect(run.output).toContain('The mutation tool wrote no report');
+    });
+
+    it('fails when it is not told what to compare with', () => {
+        const run = guard(branchOf({ base: { 'src/themes/a.ts': SOURCE }, changes: { 'src/themes/a.ts': SOURCE + '// changed\n' } }));
+        expect(run.status).toBe(1);
+        expect(run.output).toContain('Usage: mutation-guard --base <ref>');
+    });
+
+    it('fails when what it is told to compare with does not exist, instead of finding no change', () => {
+        const run = guard(branchOf({ base: { 'src/themes/a.ts': SOURCE }, changes: { 'src/themes/a.ts': SOURCE + '// changed\n' } }), '--base', 'origin/nowhere');
+        expect(run.status).toBe(1);
+        expect(run.output).toContain('Cannot list the files changed since origin/nowhere');
+    });
+});
