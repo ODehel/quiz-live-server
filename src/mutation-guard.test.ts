@@ -128,3 +128,57 @@ describe('what the mutation tool is asked to mutate', () => {
         expect(strykerArguments(repository)).toEqual(['run', '--mutate', 'src/themes/a.ts']);
     });
 });
+
+const STATIC = 'Static mutant (and "ignoreStatic" was enabled)';
+
+function branchWithMutants(mutants: FakeMutant[]): string {
+    return branchOf({
+        base: { 'src/themes/a.ts': SOURCE },
+        changes: { 'src/themes/a.ts': SOURCE + '// changed\n' },
+        report: reportOf({ 'src/themes/a.ts': [KILLED, ...mutants] })
+    });
+}
+
+describe('which mutants fail the command', () => {
+    it.each([
+        ['survives', 'Survived'],
+        ['is covered by no test', 'NoCoverage'],
+        ['fails at run time', 'RuntimeError'],
+        ['has a status the guard does not know', 'Pending']
+    ])('fails when a mutant %s, and names it', (_name, status) => {
+        const run = guard(branchWithMutants([{ mutatorName: 'EqualityOperator', status, replacement: 'a >= b', line: 7 }]), '--base', 'main');
+        expect(run.status).toBe(1);
+        expect(run.output).toContain(`src/themes/a.ts:7 ${status} EqualityOperator => a >= b`);
+    });
+
+    it.each([
+        ['is killed', { status: 'Killed' }],
+        ['times out, which counts as killed', { status: 'Timeout' }],
+        ['does not compile', { status: 'CompileError' }],
+        ['is static and the tool was asked to ignore the static ones', { status: 'Ignored', statusReason: STATIC }]
+    ])('does not fail when a mutant %s', (_name, mutant) => {
+        const run = guard(branchWithMutants([{ mutatorName: 'EqualityOperator', replacement: 'a >= b', line: 7, ...mutant }]), '--base', 'main');
+        expect([run.status, run.output.includes('No surviving mutant')]).toEqual([0, true]);
+    });
+
+    it('fails when a mutant is ignored for any reason but being static', () => {
+        const run = guard(branchWithMutants([{ mutatorName: 'EqualityOperator', status: 'Ignored', statusReason: 'Disabled by a comment', replacement: 'a >= b', line: 7 }]), '--base', 'main');
+        expect(run.status).toBe(1);
+        expect(run.output).toContain('src/themes/a.ts:7 Ignored EqualityOperator => a >= b');
+    });
+
+    it('lists every mutant that survives, in every changed file', () => {
+        const repository = branchOf({
+            base: { 'src/themes/a.ts': SOURCE, 'src/questions/b.ts': SOURCE },
+            changes: { 'src/themes/a.ts': SOURCE + '// changed\n', 'src/questions/b.ts': SOURCE + '// changed\n' },
+            report: reportOf({
+                'src/themes/a.ts': [{ ...KILLED, status: 'Survived', line: 3 }],
+                'src/questions/b.ts': [KILLED, { ...KILLED, status: 'NoCoverage', line: 5 }]
+            })
+        });
+        const run = guard(repository, '--base', 'main');
+        expect(run.output).toContain('src/themes/a.ts:3 Survived');
+        expect(run.output).toContain('src/questions/b.ts:5 NoCoverage');
+        expect(run.output).not.toContain('No surviving mutant');
+    });
+});
