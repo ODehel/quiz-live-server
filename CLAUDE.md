@@ -32,6 +32,12 @@ Le `PATH` qu'il affiche se préfixe à CHAQUE commande : le shell d'un agent ne 
 Claude écrit un bloc PowerShell, Olivier le lance, la sortie va dans
 `smoke-test-summary.txt` que Claude lit puis supprime.
 
+## Duplication des tests
+`npm run duplication:tests` échoue sur tout bloc absent de `.jscpd.tests.baseline.json`. Régénérer l'état
+(`npm run duplication:tests:update-baseline`) seulement quand la PR retouche, déplace ou supprime un bloc connu,
+jamais pour faire passer une copie neuve. La PR cite la ligne « Baseline … updated » : un total d'empreintes
+qui monte est une copie admise.
+
 ## Le réel fait foi
 Le handoff (`docs/sessions/`) est une hypothèse. On le confronte à l'état réel à chaque
 ouverture ; en cas d'écart, le réel gagne.
