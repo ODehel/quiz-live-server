@@ -1146,7 +1146,7 @@ describe("WebSocket", () => {
         await vi.waitFor(() => expect(mockWsEventReporter.disconnected).toHaveBeenCalledWith({ buzzersConnected: 1, adminConnected: false, buzzersMax: 5 }));
         player.close();
     });
-    it("does not tell a player that another player disconnected, nor the admin that the admin left", async () => {
+    it("does not tell a player that another player disconnected", async () => {
         acceptAnyToken({ "token-A": UserRole.PLAYER, "token-B": UserRole.PLAYER });
         const { client: staying } = await connectAuthenticated(port, "token-A");
         const received: string[] = [];
