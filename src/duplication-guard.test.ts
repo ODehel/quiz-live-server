@@ -126,14 +126,15 @@ const producing = (changes: Record<string, unknown>) => JSON.stringify({ ...(JSO
 const PRODUCTION_REFUSED = '.jscpd.production.json does not fail on a new duplicated block';
 
 const PRODUCTION_NO_LONGER_FAILING: [string, Record<string, unknown>, number, string][] = [
-    ['absent', { exitCode: undefined }, 0, 'Clone found'],
-    ['misspelled, which jscpd accepts', { exitCode: undefined, exitCod: 1 }, 0, "unknown field 'exitCod'"],
-    ['0, which jscpd reads as success', { exitCode: 0 }, 0, 'Clone found'],
-    ['2, which is not the code the build waits for', { exitCode: 2 }, 2, 'Clone found']
+    ['the key `exitCode` is absent', { exitCode: undefined }, 0, 'Clone found'],
+    ['the key `exitCode` is misspelled, which jscpd accepts', { exitCode: undefined, exitCod: 1 }, 0, "unknown field 'exitCod'"],
+    ['the key `exitCode` is 0, which jscpd reads as success', { exitCode: 0 }, 0, 'Clone found'],
+    ['the key `exitCode` is 2, which is not the code the build waits for', { exitCode: 2 }, 2, 'Clone found'],
+    ['`ignore` hides the witness, so no block is found', { ignore: ['**/*.ts'] }, 1, 'analyzed no files']
 ];
 
 describe('a production check that no longer fails on a new duplicated block', () => {
-    it.each(PRODUCTION_NO_LONGER_FAILING)('fails the guard when the key `exitCode` is %s', (_name, changes, status, said) => {
+    it.each(PRODUCTION_NO_LONGER_FAILING)('fails the guard when %s', (_name, changes, status, said) => {
         const run = guard(treeOf({ 'src/themes/a.ts': 'export const value = 1\n' }, CONFIGURATION, producing(changes)));
         expect([run.status, run.output]).toEqual([1, expect.stringContaining(`${PRODUCTION_REFUSED} (jscpd exit ${status})`)]);
         expect(run.output).toContain(said);
