@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -31,5 +33,9 @@ jobs:
         run: npm run duplication:production
       - name: New duplicated test code
         run: npm run duplication:tests
+      - name: Surviving mutants in the changed files
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: npm run mutation:changed -- --base "$BASE_REF"
       - name: Test with coverage
         run: npm run test:coverage

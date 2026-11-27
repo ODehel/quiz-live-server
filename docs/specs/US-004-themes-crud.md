@@ -154,7 +154,7 @@ Les messages du `POST` sont les mêmes, rang pour rang (section « Messages de `
 | CA-29 | ID inexistant | `404 NOT_FOUND` |
 | CA-29a | `:id` de l'URL mal formé (décision #98) | `400 INVALID_UUID` |
 | CA-30 | Le thème a des questions associées | `409 THEME_HAS_QUESTIONS` |
-| CA-31 | Un body éventuel est ignoré silencieusement | Aucune erreur |
+| CA-31 | Un body éventuel est ignoré silencieusement ; la limite par défaut de Fastify s'applique pourtant (décision #107) | Aucune erreur ; un body de plus de 1 MiB (1 048 576 octets) → `413`, corps d'erreur de Fastify : `{ "statusCode": 413, "code": "FST_ERR_CTP_BODY_TOO_LARGE", "error": "Payload Too Large", "message": "Request body is too large" }` (1 MiB exactement accepté) |
 | CA-31a | Le `Content-Type` est ignoré sur les requêtes DELETE | Aucune validation, quelle que soit sa valeur |
 
 ### Sécurité et transversalité

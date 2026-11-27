@@ -34,8 +34,8 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-6 | Le champ `type` doit valoir `"MCQ"` ou `"SPEED"` | Sinon → `400 VALIDATION_ERROR` |
 | CA-7 | Le champ `theme_id` doit référencer un thème existant | Sinon → `400 INVALID_THEME` |
 | CA-8 | Le champ `theme_id` doit être un UUID valide | Sinon → `400 INVALID_UUID` |
-| CA-9 | Pour une question MCQ, `choices` est obligatoire : tableau d'exactement 4 chaînes non vides (1–40 caractères chacune), toutes distinctes (insensible à la casse) | Sinon → `400 VALIDATION_ERROR` |
-| CA-10 | Pour une question MCQ, `correct_answer` est obligatoire ; il est trimmé avant validation, doit correspondre exactement (insensible à la casse) à l'un des 4 `choices`, et la valeur trimmée est celle persistée | Sinon → `400 VALIDATION_ERROR` |
+| CA-9 | Pour une question MCQ, `choices` est obligatoire : tableau d'exactement 4 chaînes non vides (1–40 caractères chacune), toutes distinctes (insensible à la casse : comparaison après `toLowerCase()`, décision #105) | Sinon → `400 VALIDATION_ERROR` |
+| CA-10 | Pour une question MCQ, `correct_answer` est obligatoire ; il est trimmé avant validation, doit correspondre exactement (insensible à la casse : comparaison après `toLowerCase()`, décision #105) à l'un des 4 `choices`, et la valeur trimmée est celle persistée | Sinon → `400 VALIDATION_ERROR` |
 | CA-11 | Pour une question SPEED, `choices` doit être absent du body | Présent → `400 VALIDATION_ERROR` |
 | CA-12 | Pour une question SPEED, `correct_answer` est obligatoire ; il est trimmé avant validation et doit faire 1–40 caractères après trim, et la valeur trimmée est celle persistée | `"paris "` → `"paris"` (persisté) ; `"   "` → `""` → `400 VALIDATION_ERROR` |
 | CA-13 | Le champ `level` doit être un entier entre 1 et 5 | Sinon → `400 VALIDATION_ERROR` |
@@ -116,7 +116,7 @@ Voir [VISION.md](../shared/VISION.md) pour la description complète du projet et
 | CA-44 | Supprimer une question existante | `204 No Content` sans body |
 | CA-45 | ID inexistant | `404 NOT_FOUND` |
 | CA-46 | ID mal formé | `400 INVALID_UUID` |
-| CA-47 | Un body éventuel est ignoré silencieusement | Aucune erreur |
+| CA-47 | Un body éventuel est ignoré silencieusement ; la limite par défaut de Fastify s'applique pourtant (décision #107) | Aucune erreur ; un body de plus de 1 MiB (1 048 576 octets) → `413`, corps d'erreur de Fastify (voir ci-dessous) |
 
 ### Garde de suppression des thèmes (implémentation du TODO CA-30 de l'US-004)
 
@@ -1129,6 +1129,20 @@ L'unicité du titre repose sur `COLLATE NOCASE` dans SQLite. La contrainte `UNIQ
 ### Cohérence type / champs conditionnels
 
 Le champ `choices` (4 colonnes en base) n'a de sens que pour les questions MCQ. Pour les questions SPEED, ces colonnes doivent rester à `NULL`. L'API ne doit **jamais** retourner le champ `choices` dans la réponse JSON d'une question SPEED. Inversement, une question MCQ doit toujours retourner `choices` sous forme de tableau de 4 chaînes.
+
+### Insensibilité à la casse des `choices` (décision #105)
+
+« Insensible à la casse » veut dire : deux `choices`, ou un `correct_answer` et un choix, sont égaux quand leurs formes après `toLowerCase()` sont égales. Aucun autre repliement n'est fait : `ß` et `SS` sont deux choix distincts, `ß` n'est pas lu comme `ss`. S'applique au `POST` et au `PUT` (CA-9, CA-10, CA-35).
+
+### Limite du body d'un `DELETE` (décision #107)
+
+Le `DELETE` ignore son body (CA-47) mais la limite par défaut de Fastify s'applique : un body de plus de 1 MiB (1 048 576 octets ; 1 MiB exactement est accepté) répond `413` avec le corps d'erreur de Fastify, **pas** le corps standard du hub :
+
+```json
+{ "statusCode": 413, "code": "FST_ERR_CTP_BODY_TOO_LARGE", "error": "Payload Too Large", "message": "Request body is too large" }
+```
+
+Constaté sur le serveur assemblé (`Content-Type` `application/json` ou `text/plain`). Un body sous la limite reste ignoré (`204`). Écart connu à la décision #82 : un `Content-Type` autre que JSON ou texte brut répond `415` au `DELETE` d'une question avant toute lecture du corps (dette ouverte dans `DEBTS.md`, non corrigé ici).
 
 ### Validation croisée correct_answer / choices
 

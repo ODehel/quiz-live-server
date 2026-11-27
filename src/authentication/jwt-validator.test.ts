@@ -17,6 +17,10 @@ describe("JWT validator", () => {
         const validated = validator.validateToken("atoken");
         expect(validated).toBe(false);
     });
+    it("reports a valid token as valid", () => {
+        jwt.verify = vi.fn().mockImplementation(() => { return {} as Jwt });
+        expect(validator.inspectToken("atoken")).toEqual({ valid: true, reason: "valid" });
+    });
     it("reports an invalid token as invalid", () => {
         jwt.verify = vi.fn().mockImplementation(() => { throw new Error(); });
         expect(validator.inspectToken("atoken")).toEqual({ valid: false, reason: "invalid" });

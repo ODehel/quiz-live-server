@@ -1744,3 +1744,62 @@ Laissés ouverts volontairement, non décidés ici : (a) `GET /health` (US-020) 
 **Conséquences.** `question-route.ts` reçoit son `UuidValidator` par `QuestionRouteConfiguration` ; la dette « Validateur instancié en dur dans la route » est soldée. Un dossier ajouté sous `src/` doit être nommé dans `.dependency-cruiser.cjs`. Limites de la garde : `DEBTS.md`, zone outillage.
 - Condition de réouverture : une fonctionnalité qui a besoin d'un fichier concret d'une autre (la déplacer dans `common/` ou l'injecter), ou un test de couche basse qui n'a pas besoin d'un vrai adaptateur.
 - À challenger : (a) la liste de composition et le classement de `routes/` comme fonctionnalité ; (b) `*-service` ajouté aux fichiers concrets pour couvrir `jwt-authentication-service` ; (c) les tests hors règles.
+
+---
+
+## #104 — Un mutant qui survit dans un fichier de production modifié par la PR fait échouer la CI
+
+*`chore(ci): fail the build on a surviving mutant in the changed files` — hors US.*
+
+**Contexte.** Aucun CDC ne dit comment prouver qu'un test mord. Les mutants survivants se relevaient à la main, session par session, et les dettes les chiffraient sans garde : un test né vert pouvait ne rien prouver sans que la CI le voie.
+
+**Décision.** Proposée par l'agent, à valider par Olivier à la revue (pas tranchée avec lui).
+- **Outil** : Stryker 10.1.1 (`stryker.config.json`, exécuteur Vitest, vérificateur TypeScript, `coverageAnalysis: perTest`, `ignoreStatic`). Seuil `break` à 100, aucun fichier exclu hors `index.ts`, `seed.ts`, tests, `*.interface.ts` et `src/test-support`.
+- **Périmètre de la garde** : les fichiers de production ajoutés, copiés, modifiés ou renommés entre la base de la PR et `HEAD` (`git diff --diff-filter=ACMR <base>...HEAD`). Survivant ou sans couverture = échec ; `Timeout` compte comme tué.
+- **Interdit** : tout commentaire `Stryker disable` ou `Stryker restore` dans un fichier modifié, tout `ignorers`, tout seuil abaissé. Un mutant équivalent ou mort se règle en changeant le code (`refactor`, comportement observable inchangé).
+- **Sur `main`** : la base est le `before` du push ; une PR est comparée à sa base.
+- **Écartées** : mutation de tout `src` à chaque PR (≈ 20 min sur 2 cœurs) ; seuil à 90 % (laisse passer un mutant) ; commentaires de désactivation tolérés avec justification.
+
+**Conséquences.** La PR mesure tout `src` une fois et règle les 77 survivants relevés ; la garde est prouvée par `src/mutation-guard.test.ts` (dépôts jetables, Stryker simulé). Limites de la garde : `DEBTS.md`, zone outillage.
+- Condition de réouverture : une durée de CI jugée trop longue (passer à un contrôle nocturne de tout `src` plus un contrôle des fichiers modifiés), ou un mutant que seul un changement de comportement peut tuer.
+- À challenger : (a) Stryker comme outil ; (b) seuil 100 sans exclusion ; (c) détection par `base...HEAD` et `fetch-depth: 0` ; (d) base `before` sur `main` ; (e) durée ajoutée à la CI.
+
+---
+
+## #105 — « Insensible à la casse » veut dire : comparaison après `toLowerCase()`, sans autre repliement
+
+*`docs: write the case rule, the login log messages and the delete body limit as the code applies them` — US-005 CA-9 et CA-10.*
+
+**Contexte.** US-005 écrit « insensible à la casse » pour l'unicité des `choices` et pour la correspondance de `correct_answer` sans dire comment. Le code compare après `toLowerCase()` ; le mutant `toUpperCase` ne se distingue que pour des caractères comme `ß` (`"ß".toUpperCase()` donne `"SS"`). Constaté par la garde des mutants (#104).
+
+**Décision.** Constat reporté d'office, comportement actuel conservé (la session n'ouvre pas de question à Olivier : aucune partie jouée n'est touchée, c'est le CRUD d'administration). La comparaison se fait après `toLowerCase()` ; `ß` et `SS` sont deux choix distincts. Écrit dans US-005 (CA-9, CA-10, section dédiée) et prouvé par un test (deux choix `ß` et `SS` acceptés).
+
+**Conséquences.** Rien n'est changé dans le code. Condition de réouverture : un public pour qui `ß` et `SS` doivent être égaux (un repliement `localeCompare` ou `toLocaleLowerCase`).
+- **Coexistence non tranchée** : l'unicité d'un nom de thème et d'un titre de question repose sur `COLLATE NOCASE` de SQLite, qui ne replie que l'ASCII (`sqlite-theme-repository.ts:44`, `sqlite-question-repository.ts:42` et `:87`, US-004 CA-4 et CA-22) ; les `choices` suivent `toLowerCase()`, qui replie davantage (`É` et `é` sont égaux ici, pas là-bas). Deux règles de casse coexistent ; dette nommée dans `DEBTS.md`, à décider.
+- À challenger : (a) option A : ne rien fixer et refuser le repliement non ASCII (supprimerait le test) ; (b) `correct_answer` suit la même règle.
+
+---
+
+## #106 — Les messages de log d'une connexion réussie et d'une connexion échouée sont `Authentication successful` et `Authentication failed`
+
+*`docs: write the case rule, the login log messages and the delete body limit as the code applies them` — US-003 CA-14 et CA-15.*
+
+**Contexte.** CA-14 et CA-15 n'exigent que le contenu et le niveau de la ligne (#83, « jamais la forme »). Le code écrit le message `Authentication successful` (info) et `Authentication failed` (warn) ; un mutant qui vide le message survit sans qu'aucun CA ne l'interdise.
+
+**Décision.** Constat reporté d'office, comportement actuel conservé : ces deux messages sont écrits dans US-003 (CA-14, CA-15) et testés. Le reste de la forme de la ligne relève d'US-022.
+
+**Conséquences.** Rien n'est changé dans le code. Condition de réouverture : US-022 fixe un autre texte ou un `event` nommé (alors le message s'aligne).
+- À challenger : option A : supprimer le message (changerait le journal, donc à décider) plutôt que le figer.
+
+---
+
+## #107 — Le `DELETE` ignore son body mais la limite de 1 MiB de Fastify s'applique : au-delà, `413` au corps d'erreur de Fastify
+
+*`docs: write the case rule, the login log messages and the delete body limit as the code applies them` — US-004 CA-31 et US-005 CA-47.*
+
+**Contexte.** CA-31 et CA-47 disent que le body d'un `DELETE` est ignoré sans parler de sa taille. Les deux routes lisent le body en chaîne (`parseAs: 'string'`), donc la limite par défaut de Fastify (1 MiB) s'applique ; sans cette option, le body ne serait pas lu et la réponse serait `204`. Sondé le 2026-11-27 sur le serveur assemblé : 1 048 576 octets → `204`/`404` selon la ressource, 1 048 577 octets → `413`.
+
+**Décision.** Constat reporté d'office, comportement actuel conservé. Un body de plus de 1 MiB répond `413` ; le corps de la réponse est celui de Fastify (`{ statusCode, code: FST_ERR_CTP_BODY_TOO_LARGE, error: "Payload Too Large", message }`), **pas** le corps standard `{ status, error, message }` du hub. Écrit dans US-004 (CA-31), US-005 (CA-47, section dédiée) et testé (route et serveur assemblé).
+
+**Conséquences.** Rien n'est changé dans le code. Deux écarts relevés, non décidés : (a) le corps du `413` ne suit pas le format standard des erreurs ; (b) le `DELETE` d'une question avec un `Content-Type` autre que JSON ou texte brut répond `415` (Fastify) alors que CA-47 dit que le body est ignoré. Défauts À DÉCIDER, aucun changement de comportement ici : (c) le corps du `413` de Fastify contredit `docs/shared/CONVENTIONS-TECHNIQUES.md:35` (format fixe `{ status, error, message }`) ; (d) asymétrie : le `DELETE` d'un thème accepte tout `Content-Type` (son hook retire l'en-tête) alors que celui d'une question répond `415` à un type autre que JSON ou texte brut, contre la décision #82 (dette déjà ouverte, zone questions). Dettes nommées dans `DEBTS.md`. Condition de réouverture : un client qui envoie un gros body à un `DELETE`, ou la mise en conformité du corps du `413` avec `error-codes.md`.
+- À challenger : option A : retirer `parseAs: 'string'` (le body ne serait plus lu, `204` quelle que soit la taille) ; ou un `413` au corps standard.

@@ -148,14 +148,12 @@ export default function wsRoute(app: FastifyInstance, config: WsRouteConfigurati
                 if (leaving?.ws !== socket) {
                     return;
                 }
-                if (leaving?.role === UserRole.PLAYER) {
-                    const admin = [...registry.values()].find(e => e.role === UserRole.ADMIN);
-                    admin?.ws.send(JSON.stringify({ type: "buzzer_disconnected", username }));
-                }
                 registry.delete(subject);
+                // The admin left in the registry is told that a buzzer left; when the admin itself leaves, there is no other one (a second admin replaces the first).
+                const admin = [...registry.values()].find(e => e.role === UserRole.ADMIN);
+                admin?.ws.send(JSON.stringify({ type: "buzzer_disconnected", username }));
                 const buzzersConnected = [...registry.values()].filter(e => e.role === UserRole.PLAYER).length;
-                const adminConnected = [...registry.values()].some(e => e.role === UserRole.ADMIN);
-                config.wsEventReporter.disconnected({ buzzersConnected, adminConnected, buzzersMax: config.maxConnections });
+                config.wsEventReporter.disconnected({ buzzersConnected, adminConnected: admin !== undefined, buzzersMax: config.maxConnections });
             }
         });
     });

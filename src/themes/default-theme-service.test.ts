@@ -81,6 +81,24 @@ describe("US-004/CA-003 - When the service is called to create a theme with a hy
     });
 });
 
+describe("US-004/CA-003 - The theme name is judged as a whole: its first character, its characters and its last character", () => {
+    it.each([
+        ["a name that starts with a lowercase letter and holds an uppercase one", "aBcd"],
+        ["a name with a character that is no letter, digit, space, apostrophe or hyphen", "Rock!roll"],
+        ["a name that ends with a hyphen", "Musique-"],
+        ["a name that ends with an apostrophe", "Musique'"],
+    ])("should refuse %s", (_label, name) => {
+        expect(() => defaultThemeService.createTheme(name)).toThrow(ValidationError);
+    });
+    it.each([
+        ["digits in the middle", "Top 10 hits"],
+        ["a digit at the end", "Top 10"],
+        ["an apostrophe in the middle", "L'histoire"],
+    ])("should accept a name with %s", (_label, name) => {
+        expect(defaultThemeService.createTheme(name).name).toBe(name);
+    });
+});
+
 describe("US-004/CA-004 - When the service is called to create a theme with a name that already exists", () => {
     beforeEach(() => {
         themeRepository.getByName = vi.fn().mockReturnValue({ id: "existing-id", name: "Existing Theme", created_at: "2026-04-08T13:32:00Z", last_updated_at: null });
@@ -174,6 +192,11 @@ describe("US-004/CA-20 - Update a theme name", () => {
         const updated_theme = defaultThemeService.updateTheme(theme.id, updated_name);
         expect(updated_theme.name).toBe(updated_name);
         expect(updated_theme.last_updated_at).toBe(update_date);
+    });
+    it("should persist the updated theme", () => {
+        themeRepository.getById = vi.fn().mockReturnValue(theme);
+        const updated_theme = defaultThemeService.updateTheme(theme.id, updated_name);
+        expect(themeRepository.update).toHaveBeenCalledExactlyOnceWith(updated_theme);
     });
     it("should throw a NotFoundError", () => {
         themeRepository.getById = vi.fn().mockReturnValue(undefined);

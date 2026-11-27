@@ -498,6 +498,20 @@ describe('US-003/CA-17: When an unexpected error occurs', () => {
         expect(response.json()).toEqual(standardBody);
     });
 
+    it('should return the standard 500 body when the error carries the status code 500', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(Object.assign(new Error('database is locked'), { statusCode: 500 }));
+        const response = await postValidCredentials();
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual(standardBody);
+    });
+
+    it('should not turn an error that carries the client status code 400 into a 500', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(Object.assign(new Error('bad request'), { statusCode: 400 }));
+        const response = await postValidCredentials();
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).not.toEqual(standardBody);
+    });
+
     it('should return the standard 500 body when the error carries a status code that is not an error', async () => {
         vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(Object.assign(new Error('moved elsewhere'), { statusCode: 302 }));
         const response = await postValidCredentials();
@@ -540,11 +554,28 @@ describe('US-003/CA-14, US-003/CA-15 and US-003/CA-17: The server log', () => {
     }
 
     // Only the content is asserted, never the shape (US-022): the lines are found by what they carry.
-    function levelsOfTheLinesCarrying(username: string, ip: string): unknown[] {
-        return logs
-            .filter(line => Object.values(line).includes(username) && Object.values(line).includes(ip))
-            .map(line => line.level);
+    function linesCarrying(username: string, ip: string): Record<string, unknown>[] {
+        return logs.filter(line => Object.values(line).includes(username) && Object.values(line).includes(ip));
     }
+
+    function levelsOfTheLinesCarrying(username: string, ip: string): unknown[] {
+        return linesCarrying(username, ip).map(line => line.level);
+    }
+
+    function messagesOfTheLinesCarrying(username: string, ip: string): unknown[] {
+        return linesCarrying(username, ip).map(line => line.msg);
+    }
+
+    it('US-003/CA-14 (decision #106): should word a successful login "Authentication successful"', async () => {
+        await login('User Name', 'user-password');
+        expect(messagesOfTheLinesCarrying('User Name', clientIp)).toEqual(['Authentication successful']);
+    });
+
+    it('US-003/CA-15 (decision #106): should word a failed login "Authentication failed"', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockResolvedValue(undefined);
+        await login('User Name', 'wrong-password');
+        expect(messagesOfTheLinesCarrying('User Name', clientIp)).toEqual(['Authentication failed']);
+    });
 
     it('US-003/CA-14: should log a successful login at INFO level with the username and the IP', async () => {
         const response = await login('User Name', 'user-password');

@@ -1118,6 +1118,48 @@ describe("WebSocket", () => {
         await expect(disconnection).resolves.toEqual({ type: "buzzer_disconnected", username: "user of token-B" });
         admin.close();
     });
+    it("answers only the request_game_state message of an authenticated client", async () => {
+        acceptAnyToken({ "token-A": UserRole.ADMIN });
+        const { client: admin } = await connectAuthenticated(port, "token-A");
+        const received: string[] = [];
+        admin.on('message', (data) => received.push(parseJson<{ type: string }>(rawDataToString(data)).type));
+        admin.send(JSON.stringify({ type: "something_else" }));
+        const gameState = waitForMessage(admin, "game_state_sync");
+        admin.send(JSON.stringify({ type: "request_game_state" }));
+        await gameState;
+        expect(received).toEqual(["game_state_sync"]);
+        admin.close();
+    });
+    it("reports that the admin is still connected when a player disconnects", async () => {
+        acceptAnyToken({ "token-A": UserRole.ADMIN, "token-B": UserRole.PLAYER });
+        const { client: admin } = await connectAuthenticated(port, "token-A");
+        const { client: player } = await connectAuthenticated(port, "token-B");
+        player.close();
+        await vi.waitFor(() => expect(mockWsEventReporter.disconnected).toHaveBeenCalledWith({ buzzersConnected: 0, adminConnected: true, buzzersMax: 5 }));
+        admin.close();
+    });
+    it("reports that no admin is connected when the admin disconnects", async () => {
+        acceptAnyToken({ "token-A": UserRole.ADMIN, "token-B": UserRole.PLAYER });
+        const { client: admin } = await connectAuthenticated(port, "token-A");
+        const { client: player } = await connectAuthenticated(port, "token-B");
+        admin.close();
+        await vi.waitFor(() => expect(mockWsEventReporter.disconnected).toHaveBeenCalledWith({ buzzersConnected: 1, adminConnected: false, buzzersMax: 5 }));
+        player.close();
+    });
+    it("does not tell a player that another player disconnected", async () => {
+        acceptAnyToken({ "token-A": UserRole.PLAYER, "token-B": UserRole.PLAYER });
+        const { client: staying } = await connectAuthenticated(port, "token-A");
+        const received: string[] = [];
+        staying.on('message', (data) => received.push(parseJson<{ type: string }>(rawDataToString(data)).type));
+        const { client: leaving } = await connectAuthenticated(port, "token-B");
+        leaving.close();
+        await vi.waitFor(() => expect(mockWsEventReporter.disconnected).toHaveBeenCalled());
+        const gameState = waitForMessage(staying, "game_state_sync");
+        staying.send(JSON.stringify({ type: "request_game_state" }));
+        await gameState;
+        expect(received).toEqual(["game_state_sync"]);
+        staying.close();
+    });
     // Every token is valid, is its own subject, and resolves to a participant with the role given for it.
     function acceptAnyToken(roles: Record<string, UserRole>) {
         mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });

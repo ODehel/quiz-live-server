@@ -375,6 +375,16 @@ describe("US-005/CA-009 - When the service creates a MCQ question with two choic
     });
 });
 
+describe("US-005/CA-009 (decision #105) - When the service creates a MCQ question whose choices differ once lowercased", () => {
+    it("should accept ß and SS as two distinct choices: the comparison lowercases, it does not fold the German sharp s", () => {
+        const question = defaultQuestionService.createQuestion({
+            type: "MCQ", theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a", title: "Comment s'écrit la rue en allemand ?",
+            choices: ["ß", "SS", "Straße", "Strasse"], correct_answer: "Straße", level: 1, time_limit: 30, points: 10,
+        });
+        expect(question.type === "MCQ" && question.choices).toEqual(["ß", "SS", "Straße", "Strasse"]);
+    });
+});
+
 describe("US-005/CA-009 - When the service creates a MCQ question with two choices that are duplicates after trimming", () => {
     const input: CreateMcqInput = {
         type: "MCQ",
@@ -2265,5 +2275,52 @@ describe("US-005/CA-35 - When the service updates a question with a theme_id tha
             expect(() => defaultQuestionService.updateQuestion(storedMcq.id, validMcqBody)).toThrow(InvalidThemeError);
             expect(questionRepository.getByTitle).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe("US-005/CA-004, CA-009 and CA-012 - The length bounds of the title, the choices and the correct_answer are inclusive", () => {
+    const mcqBody: CreateMcqInput = {
+        type: "MCQ",
+        theme_id: "018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a",
+        title: "Quelle est la capitale de la France ?",
+        choices: ["Paris", "Lyon", "Marseille", "Toulouse"],
+        correct_answer: "Paris",
+        level: 1,
+        time_limit: 30,
+        points: 10,
+    };
+    const speedBody: CreateSpeedInput = {
+        type: "SPEED",
+        theme_id: mcqBody.theme_id,
+        title: "Quel est le plus grand océan du monde ?",
+        correct_answer: "Pacifique",
+        level: 2,
+        time_limit: 15,
+        points: 20,
+    };
+    const shortest = "A";
+    const longest = "A".repeat(40);
+
+    it.each([
+        ["10 characters", "Q" + "a".repeat(9)],
+        ["250 characters", "Q" + "a".repeat(249)],
+    ])("should accept a title of %s", (_label, title) => {
+        expect(defaultQuestionService.createQuestion({ ...mcqBody, title }).title).toBe(title);
+    });
+
+    it.each([
+        ["a choice of 1 character", ["B", "Lyon", "Marseille", "Toulouse"], "B"],
+        ["a choice of 40 characters", [longest, "Lyon", "Marseille", "Toulouse"], longest],
+    ])("should accept %s", (_label, choices, correctAnswer) => {
+        const question = defaultQuestionService.createQuestion({ ...mcqBody, choices, correct_answer: correctAnswer });
+        if (question.type !== "MCQ") throw new Error("expected MCQ");
+        expect(question.choices).toEqual(choices);
+    });
+
+    it.each([
+        ["of 1 character", shortest],
+        ["of 40 characters", longest],
+    ])("should accept a SPEED correct_answer %s", (_label, correctAnswer) => {
+        expect(defaultQuestionService.createQuestion({ ...speedBody, correct_answer: correctAnswer }).correct_answer).toBe(correctAnswer);
     });
 });

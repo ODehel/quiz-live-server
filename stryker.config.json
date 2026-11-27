@@ -1,0 +1,15 @@
+{
+    "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+    "testRunner": "vitest",
+    "checkers": ["typescript"],
+    "tsconfigFile": "tsconfig.json",
+    "coverageAnalysis": "perTest",
+    "ignoreStatic": true,
+    "mutate": ["src/**/*.ts", "!src/**/*.test.ts", "!src/**/*.interface.ts", "!src/test-support/**", "!src/index.ts", "!src/seed.ts"],
+    "reporters": ["json", "clear-text"],
+    "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+    "clearTextReporter": { "allowColor": false, "logTests": false, "reportScoreTable": true, "skipFull": true },
+    "thresholds": { "high": 100, "low": 100, "break": 100 },
+    "timeoutMS": 30000,
+    "concurrency": 2
+}

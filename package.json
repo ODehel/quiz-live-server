@@ -12,6 +12,7 @@
     "lint": "eslint src",
     "knip": "knip",
     "layers": "depcruise --config .dependency-cruiser.cjs src",
+    "mutation:changed": "node scripts/mutation-guard.mjs",
     "duplication:production": "jscpd --config .jscpd.production.json",
     "duplication:tests": "jscpd --config .jscpd.tests.json",
     "duplication:tests:update-baseline": "jscpd --config .jscpd.tests.json --update-baseline"
@@ -25,6 +26,9 @@
   "type": "commonjs",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/typescript-checker": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.6",

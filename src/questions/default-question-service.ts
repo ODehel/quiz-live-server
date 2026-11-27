@@ -148,8 +148,9 @@ export class DefaultQuestionService implements QuestionService {
     }
 
     private carriesTheStoredData(input: CreateQuestionInput, existing: Question, title: string, correctAnswer: string): boolean {
+        // No length comparison: validateChoices has already required exactly CHOICES_COUNT choices, as the stored question has.
         const sameChoices = input.type !== "MCQ" || existing.type !== "MCQ"
-            || (input.choices.length === existing.choices.length && input.choices.every((choice, index) => choice.trim() === existing.choices[index]));
+            || input.choices.every((choice, index) => choice.trim() === existing.choices[index]);
 
         return input.theme_id === existing.theme_id
             && title === existing.title

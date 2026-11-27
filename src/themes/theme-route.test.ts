@@ -569,6 +569,18 @@ describe("US-004/CA-16 - Limit must be equal or less than 100", () => {
     });
 });
 
+describe("US-004/CA-16 - A limit of exactly 100 is accepted", () => {
+    it("should send a limit of 100 to the service", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?limit=100',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(200);
+        expect(mockThemeService.getAll).toHaveBeenCalledWith(1, 100);
+    });
+});
+
 describe("US-004/CA-17 - When pagination parameters are invalid", () => {
     it("should send a 400 error code - negative page", async () => {
         const response = await app.inject({
@@ -949,6 +961,22 @@ describe("US-004/CA-28 - Delete route", () => {
         });
         expect(response.statusCode).toBe(204);
         expect(mockThemeService.deleteTheme).toHaveBeenCalled();
+    });
+});
+
+describe("US-004/CA-31 (decision #107) - The body of a DELETE stays under the default limit of 1 MiB", () => {
+    it.each([
+        ["1 MiB exactly", 1024 * 1024, 204],
+        ["1 MiB and one byte", 1024 * 1024 + 1, 413]
+    ])("should answer %s with %s", async (_label, size, status) => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'text/plain' },
+            body: 'a'.repeat(size)
+        });
+        expect(response.statusCode).toBe(status);
+        expect(mockThemeService.deleteTheme).toHaveBeenCalledTimes(status === 204 ? 1 : 0);
     });
 });
 

@@ -7,6 +7,12 @@ describe("Websocket connection policy", () => {
         const isAdmitted = wsConnectionPolicy.admit("192.168.1.100", new Date(2026, 8, 11, 17, 8, 20, 838));
         expect(isAdmitted).toBe(true);
     });
+    it("admits each of the first 15 attempts in a minute", () => {
+        const now = new Date(2026, 8, 12, 8, 27, 20, 500);
+        const wsConnectionPolicy: WsConnectionPolicy = new WsConnectionPolicy();
+        const admitted = Array.from({ length: 15 }, () => wsConnectionPolicy.admit("192.168.1.100", now));
+        expect(admitted).toEqual(Array(15).fill(true));
+    });
     it("refuses the 16th attempt", () => {
         const now = new Date(2026, 8, 12, 8, 27, 20, 500);
         const wsConnectionPolicy: WsConnectionPolicy = new WsConnectionPolicy();

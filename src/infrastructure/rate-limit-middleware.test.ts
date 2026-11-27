@@ -15,6 +15,11 @@ describe("US-005/CA-52 (decision #36) - a rate limited request always answers Re
         await app.close();
         vi.useRealTimers();
     });
+    it('should accept the first request of the window, which counts once against a limit of 1, and answer it no Retry-After', async () => {
+        const accepted = await app.inject({ method: 'GET', url: '/limited' });
+        expect(accepted.statusCode).toBe(200);
+        expect(accepted.headers['retry-after']).toBeUndefined();
+    });
     it('should answer Retry-After 60 to the first request refused in the window', async () => {
         await app.inject({ method: 'GET', url: '/limited' });
         const refused = await app.inject({ method: 'GET', url: '/limited' });
