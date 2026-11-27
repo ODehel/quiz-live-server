@@ -85,8 +85,8 @@ Le corps est le corps standard à trois champs (`status`, `error`, `message`). E
 
 | # | Critère | Résultat attendu |
 |---|---|---|
-| CA-14 | Les connexions réussies sont loggées | Une ligne de log au niveau `INFO` porte le `username` et l'adresse IP de la requête |
-| CA-15 | Les connexions échouées sont loggées | Une ligne de log au niveau `WARN` porte le `username` tenté et l'adresse IP de la requête |
+| CA-14 | Les connexions réussies sont loggées | Une ligne de log au niveau `INFO` porte le `username` et l'adresse IP de la requête ; son message est `Authentication successful` (décision #106) |
+| CA-15 | Les connexions échouées sont loggées | Une ligne de log au niveau `WARN` porte le `username` tenté et l'adresse IP de la requête ; son message est `Authentication failed` (décision #106) |
 
 > Ces deux CA n'exigent que le **contenu** (`username`, IP) et le **niveau** de la ligne. Sa **forme** (champs `timestamp`, `level` et `event`, représentation du niveau, horodatage ISO 8601 UTC) n'est pas exigée ici : elle relève d'[US-022](US-022-logging.md#format-json-des-entrées-de-log) (CA-6 à CA-8), qui s'applique à toute entrée de log, y compris celles-ci.
 
@@ -276,7 +276,7 @@ Client → POST /api/v1/token { username, password }
 
 ### Exemples du format d'US-022 (non normatifs)
 
-> Les deux exemples ci-dessous illustrent le format commun des logs défini par [US-022](US-022-logging.md#format-json-des-entrées-de-log) (CA-6 à CA-8). Ils ne sont **pas** une exigence d'US-003 : CA-14 et CA-15 n'exigent que le contenu et le niveau de la ligne.
+> Les deux exemples ci-dessous illustrent le format commun des logs défini par [US-022](US-022-logging.md#format-json-des-entrées-de-log) (CA-6 à CA-8). Ils ne sont **pas** une exigence d'US-003 : CA-14 et CA-15 n'exigent que le contenu et le niveau de la ligne. Seul le texte du message des deux lignes est fixé (décision #106) : `Authentication successful` et `Authentication failed`.
 
 **Connexion réussie :**
 
