@@ -2214,3 +2214,34 @@ describe('US-005/CA-54 - Hide technical details of an unexpected error on DELETE
         });
     });
 });
+
+describe('US-005/CA-1 and CA-2 - Several mistyped fields are signalled one at a time, the correct_answer first, then the choices, then the title (decisions #10 and #25)', () => {
+    const mcqBody = {
+        type: 'MCQ',
+        theme_id: '018e4f5a-8c3b-7d2e-9f1a-4b5c6d7e8f9a',
+        title: 'Quelle est la capitale de la France ?',
+        choices: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
+        correct_answer: 'Paris',
+        level: 1,
+        time_limit: 30,
+        points: 10
+    };
+
+    it.each([
+        ['a correct_answer and a title', { correct_answer: 1, title: 2 }, 'Question correct_answer must be a string.'],
+        ['a correct_answer and choices that are not an array', { correct_answer: 1, choices: 'Paris' }, 'Question correct_answer must be a string.'],
+        ['a correct_answer and choices holding a number', { correct_answer: 1, choices: [1, 'Lyon', 'Marseille', 'Toulouse'] }, 'Question correct_answer must be a string.'],
+        ['choices holding a number and a title', { choices: [1, 'Lyon', 'Marseille', 'Toulouse'], title: 2 }, 'Question choices must contain only strings.'],
+        ['choices that are not an array and a title', { choices: 'Paris', title: 2 }, 'Question choices must be an array.'],
+    ])('should signal only the first of %s', async (_label, wrong, message) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/questions',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...mcqBody, ...wrong })
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ status: 400, error: 'VALIDATION_ERROR', message });
+        expect(mockQuestionService.createQuestion).not.toHaveBeenCalled();
+    });
+});
