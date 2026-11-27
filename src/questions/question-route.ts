@@ -52,26 +52,13 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
 
         if (request.validationError) {
             const violations = request.validationError.validation as SchemaViolation[];
-            if (violations.some(v => v.keyword === 'type')) {
-                if (violations.some(v => v.keyword === 'type' && v.instancePath === '/correct_answer')) {
-                    sendCorrectAnswerNotAString(reply);
-                } else if (violations.some(v => v.keyword === 'type' && v.instancePath.startsWith('/choices/'))) {
-                    sendChoicesNotOnlyStrings(reply);
-                } else if (violations.some(v => v.keyword === 'type' && v.instancePath === '/choices')) {
-                    sendChoicesNotAnArray(reply);
-                } else if (violations.some(v => v.keyword === 'type' && v.instancePath === '/title')) {
-                    sendTitleNotAString(reply);
-                } else if (violations.some(v => v.keyword === 'type' && v.instancePath === '')) {
-                    sendInvalidBody(reply);
-                } else {
-                    const uncaughtViolations = violations.filter(v => v.keyword === 'type').map(v => v.instancePath);
-                    throw new Error(`No branch handles the type violation at: ${uncaughtViolations.join(', ')}`);
-                }
+            const typeViolations = violations.filter(v => v.keyword === 'type').map(v => v.instancePath);
+            if (typeViolations.length > 0) {
+                sendFirstTypeViolation(reply, typeViolations);
                 return;
             }
 
             const missingFields = violations
-                .filter(v => v.keyword === 'required')
                 .map(v => v.params.missingProperty)
                 .filter((f): f is string => f !== undefined);
 
@@ -177,6 +164,21 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             }
         });
     });
+
+    // The schema has no other type violation than these five: the body itself, then the fields in the order of the decisions #10 and #25.
+    function sendFirstTypeViolation(reply: FastifyReply, paths: string[]) {
+        if (paths.includes('/correct_answer')) {
+            sendCorrectAnswerNotAString(reply);
+        } else if (paths.some(path => path.startsWith('/choices/'))) {
+            sendChoicesNotOnlyStrings(reply);
+        } else if (paths.includes('/choices')) {
+            sendChoicesNotAnArray(reply);
+        } else if (paths.includes('/title')) {
+            sendTitleNotAString(reply);
+        } else {
+            sendInvalidBody(reply);
+        }
+    }
 
     function sendMissingFields(reply: FastifyReply, missingFields: string[]) {
         const missingFieldsList = missingFields.join(', ');
