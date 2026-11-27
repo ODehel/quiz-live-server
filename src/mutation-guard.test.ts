@@ -247,6 +247,12 @@ describe('what the guard cannot be talked out of', () => {
         expect(run.output).toContain('Usage: mutation-guard --base <ref>');
     });
 
+    it('fails when it is told an empty base, instead of comparing the branch with nothing', () => {
+        const run = guard(branchOf({ base: { 'src/themes/a.ts': SOURCE }, changes: { 'src/themes/a.ts': SOURCE + '// changed\n' } }), '--base', '');
+        expect(run.status).toBe(1);
+        expect(run.output).toContain('Usage: mutation-guard --base <ref>');
+    });
+
     it('fails when what it is told to compare with does not exist, instead of finding no change', () => {
         const run = guard(branchOf({ base: { 'src/themes/a.ts': SOURCE }, changes: { 'src/themes/a.ts': SOURCE + '// changed\n' } }), '--base', 'origin/nowhere');
         expect(run.status).toBe(1);
