@@ -88,6 +88,7 @@ function createServer(): QuizServer {
         tokenDecoder: new JwtDecoder(),
         tokenValidator: new JwtValidator(jwtSettings.secret),
         questionService: new DefaultQuestionService(clock, new Uuidv7Generator(), questionRepository, new ThemeRepositoryExistenceChecker(themeRepository), new UuidFormatValidator()),
+        uuidValidator: new UuidFormatValidator(),
         middleware: authenticationMiddleware
     };
     return new QuizServer(quizServerConfiguration, tokenRouteConfiguration, themeRouteConfiguration, wsRouteConfiguration, questionRouteConfiguration);
