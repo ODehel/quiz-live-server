@@ -1,7 +1,9 @@
 // Layers of src/, read from the real import graph (no specification states them).
 // Run by `npm run layers` and by the CI. src/dependency-layers.test.ts proves that every rule below fires.
+const COMPOSITION = '^src/(index|seed|quiz-server|quiz-server-configuration\\.interface)\\.ts$';
 const COMMON = '^src/common/';
 const INFRASTRUCTURE = '^src/infrastructure/';
+const FEATURES = '^src/(authentication|questions|themes|users|websocket|routes)/';
 const TESTS = '\\.test\\.ts$|^src/test-support/';
 
 const production = (path) => ({ path, pathNot: TESTS });
@@ -11,6 +13,8 @@ module.exports = {
   forbidden: [
     rule('common-imports-nothing-else', production(COMMON), { path: '^src/', pathNot: COMMON }),
     rule('infrastructure-imports-only-common', production(INFRASTRUCTURE), { path: '^src/', pathNot: [COMMON, INFRASTRUCTURE] }),
+    rule('only-composition-imports-composition', { path: '^src/', pathNot: [COMPOSITION, TESTS] }, { path: COMPOSITION }),
+    rule('feature-does-not-import-infrastructure', production(FEATURES), { path: INFRASTRUCTURE }),
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
