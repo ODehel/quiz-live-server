@@ -41,32 +41,35 @@ function switchedOff(folder) {
     });
 }
 
-function replayOnAWitness({ configuration, copied, files, clone }) {
-    const folder = mkdtempSync(join(tmpdir(), 'duplication-witness-'));
+function inTemporaryFolder(prefix, use) {
+    const folder = mkdtempSync(join(tmpdir(), prefix));
     try {
+        return use(folder);
+    } finally {
+        rmSync(folder, { recursive: true, force: true });
+    }
+}
+
+function replayOnAWitness({ configuration, copied, files, clone }) {
+    return inTemporaryFolder('duplication-witness-', (folder) => {
         for (const file of copied) copyFileSync(file, join(folder, file));
         mkdirSync(join(folder, 'src'));
         for (const name of files) writeFileSync(join(folder, 'src', name), WITNESS);
         const run = spawnSync(process.execPath, [JSCPD, '--config', configuration], { cwd: folder, encoding: 'utf8' });
         const output = run.stdout + run.stderr;
         return run.status === 1 && output.includes(clone) ? [] : [`${configuration} does not fail on a new duplicated block (jscpd exit ${run.status}):\n${output}`];
-    } finally {
-        rmSync(folder, { recursive: true, force: true });
-    }
+    });
 }
 
 // Run with a threshold of one token and one line, jscpd counts every file the configuration lets through (the real thresholds skip the short ones).
 function analysedFiles(configuration) {
-    const folder = mkdtempSync(join(tmpdir(), 'duplication-report-'));
-    try {
+    return inTemporaryFolder('duplication-report-', (folder) => {
         const run = spawnSync(process.execPath, [JSCPD, '--config', configuration, '-k', '1', '-l', '1', '--reporters', 'json', '--output', folder], { encoding: 'utf8' });
         const report = join(folder, 'jscpd-report.json');
         return existsSync(report)
             ? { count: JSON.parse(readFileSync(report, 'utf8')).statistics.total.sources, said: '' }
             : { count: 'no', said: `\n(no report, jscpd exit ${run.status}):\n${run.stdout + run.stderr}` };
-    } finally {
-        rmSync(folder, { recursive: true, force: true });
-    }
+    });
 }
 
 function filesOfSrc() {
