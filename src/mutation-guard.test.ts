@@ -108,6 +108,16 @@ describe('which files the branch changed', () => {
     });
 });
 
+describe('which files the branch changed, whatever their name', () => {
+    it.each(['é', 'a b', 'ça va'])('reads the comments of a changed production file named %s', (name) => {
+        const path = `src/themes/${name}.ts`;
+        const repository = branchOf({ base: { [path]: SOURCE }, changes: { [path]: `${SOURCE}// Stryker disable all\n` }, report: null });
+        const run = guard(repository, '--base', 'main');
+        expect([run.status, strykerArguments(repository)]).toEqual([1, null]);
+        expect(run.output).toContain(`${path}:2 switches mutation off`);
+    });
+});
+
 describe('what the mutation tool is asked to mutate', () => {
     it('is the production files the branch changed, and only them', () => {
         const repository = branchOf({
