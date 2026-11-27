@@ -11,6 +11,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src",
     "knip": "knip",
+    "knip:production": "knip --production --config knip.production.jsonc --treat-config-hints-as-errors",
     "layers": "depcruise --config .dependency-cruiser.cjs src",
     "mutation:changed": "node scripts/mutation-guard.mjs",
     "duplication:guard": "node scripts/duplication-guard.mjs",
