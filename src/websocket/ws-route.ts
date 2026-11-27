@@ -5,6 +5,7 @@ import { toRoleLabel } from "../users/role-label";
 import { RawData, WebSocket } from "ws";
 import { rawDataToString } from "./raw-data-to-string";
 import { UserRole } from "../users/user-role";
+import { Participant } from "../authentication/participant.interface";
 
 const WS_CLOSE_INTERNAL_ERROR = { code: 1011, reason: "Internal server error." } as const;
 const WS_CLOSE_INVALID_TOKEN = { code: 4001, reason: "Invalid token." } as const;
@@ -15,6 +16,20 @@ const WS_CLOSE_SERVER_FULL = { code: 4005, reason: "Server is full." } as const;
 const WS_CLOSE_RATE_LIMITED = { code: 4006, reason: "Rate limit exceeded." } as const;
 
 const AUTH_TIMEOUT_WS = 60_000;
+
+// The token of an authentication message; undefined when the message is not JSON, is not of type "auth" or carries no token.
+function readAuthToken(data: RawData): string | undefined {
+    let message: { type?: string, token?: string };
+    try {
+        message = JSON.parse(rawDataToString(data)) as { type?: string, token?: string };
+    } catch {
+        return undefined;
+    }
+    if (message.type !== "auth") {
+        return undefined;
+    }
+    return message.token;
+}
 
 export default function wsRoute(app: FastifyInstance, config: WsRouteConfiguration) {
     const registry = new Map<string, { ws: WebSocket, role: UserRole, username: string }>();
@@ -33,89 +48,94 @@ export default function wsRoute(app: FastifyInstance, config: WsRouteConfigurati
             socket.close(WS_CLOSE_AUTH_TIMEOUT.code, WS_CLOSE_AUTH_TIMEOUT.reason);
         };
         const handle = config.scheduler.schedule(schedulerCallback, AUTH_TIMEOUT_WS);
+        const answerGameStateRequest = (data: RawData) => {
+            try {
+                const syncMessage = JSON.parse(rawDataToString(data)) as { type?: string };
+                if (syncMessage.type === "request_game_state") {
+                    const connectedBuzzers = [...registry.values()].filter(e => e.role === UserRole.PLAYER).map(e => ({ username: e.username }));
+                    socket.send(JSON.stringify({ type: "game_state_sync", connected_buzzers: connectedBuzzers }));
+                }
+            } catch { /* a non-json message is ignored */ }
+        };
+        const rejectInvalidToken = () => {
+            config.wsEventReporter.invalidToken(request.ip);
+            socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
+        };
+        // Returns false, registry untouched by the newcomer, when the server is full.
+        const register = (sub: string, participant: Participant): boolean => {
+            if (participant.role === UserRole.ADMIN) {
+                const oldAdmin = [...registry.entries()].find(([, entry]) => entry.role === UserRole.ADMIN);
+                if (oldAdmin !== undefined) {
+                    const [oldSub, oldEntry] = oldAdmin;
+                    registry.delete(oldSub);
+                    oldEntry.ws.close(WS_CLOSE_SESSION_REPLACED.code, WS_CLOSE_SESSION_REPLACED.reason);
+                }
+            }
+            const existing = registry.get(sub);
+            if (existing === undefined && registry.size >= config.maxConnections) {
+                return false;
+            }
+            if (existing !== undefined) {
+                existing.ws.close(WS_CLOSE_SESSION_REPLACED.code, WS_CLOSE_SESSION_REPLACED.reason);
+            }
+            username = participant.username;
+            registry.set(sub, { ws: socket, role: participant.role, username: participant.username });
+            return true;
+        };
+        const announce = (participant: Participant, token: string) => {
+            const expiration = config.expirationExtractor.extract(token);
+            const now = config.clock.now().getTime() / 1000;
+            const expiresIn = Math.floor(expiration - now);
+            socket.send(JSON.stringify({
+                type: "auth_success",
+                username: participant.username,
+                role: toRoleLabel(participant.role),
+                expires_in: expiresIn
+            }));
+            const admin = [...registry.values()].find(e => e.role === UserRole.ADMIN);
+            const buzzersConnected = [...registry.values()].filter(e => e.role === UserRole.PLAYER).length;
+            const adminConnected = admin !== undefined;
+            admin?.ws.send(JSON.stringify({ type: "buzzer_connected", username: participant.username }));
+            config.wsEventReporter.authenticated({ buzzersConnected, adminConnected, buzzersMax: config.maxConnections });
+        };
+        const authenticate = async (data: RawData) => {
+            const token = readAuthToken(data);
+            if (token === undefined) {
+                rejectInvalidToken();
+                return;
+            }
+            const inspection = config.tokenValidator.inspectToken(token);
+            if (inspection.reason === "expired") {
+                config.wsEventReporter.tokenExpired(request.ip);
+                socket.close(WS_CLOSE_TOKEN_EXPIRED.code, WS_CLOSE_TOKEN_EXPIRED.reason);
+                return;
+            }
+            if (!inspection.valid) {
+                rejectInvalidToken();
+                return;
+            }
+            subject = config.subjectExtractor.extract(token);
+            const participant = await config.participantResolver.resolve(subject);
+            if (participant === null) {
+                rejectInvalidToken();
+                return;
+            }
+            if (!register(subject, participant)) {
+                config.wsEventReporter.serverFull(request.ip);
+                socket.close(WS_CLOSE_SERVER_FULL.code, WS_CLOSE_SERVER_FULL.reason);
+                return;
+            }
+            announce(participant, token);
+        };
         const handleMessage = async (data: RawData) => {
             try {
                 if (authenticated) {
-                    try {
-                        const syncMessage = JSON.parse(rawDataToString(data)) as { type?: string };
-                        if (syncMessage.type === "request_game_state") {
-                            const connectedBuzzers = [...registry.values()].filter(e => e.role === UserRole.PLAYER).map(e => ({ username: e.username }));
-                            socket.send(JSON.stringify({ type: "game_state_sync", connected_buzzers: connectedBuzzers }));
-                        }
-                    } catch { /* a non-json message is ignored */ }
+                    answerGameStateRequest(data);
                     return;
                 }
                 authenticated = true;
                 handle.cancel();
-                let message: { type?: string, token?: string };
-                try {
-                    message = JSON.parse(rawDataToString(data)) as { type?: string, token?: string };
-                } catch {
-                    config.wsEventReporter.invalidToken(request.ip);
-                    socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
-                    return;
-                }
-                if (message.type !== "auth") {
-                    config.wsEventReporter.invalidToken(request.ip);
-                    socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
-                    return;
-                }
-                if (message.token === undefined) {
-                    config.wsEventReporter.invalidToken(request.ip);
-                    socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
-                    return;
-                }
-                const inspection = config.tokenValidator.inspectToken(message.token);
-                if (inspection.reason === "expired") {
-                    config.wsEventReporter.tokenExpired(request.ip);
-                    socket.close(WS_CLOSE_TOKEN_EXPIRED.code, WS_CLOSE_TOKEN_EXPIRED.reason);
-                    return;
-                }
-                if (!inspection.valid) {
-                    config.wsEventReporter.invalidToken(request.ip);
-                    socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
-                    return;
-                }
-                subject = config.subjectExtractor.extract(message.token);
-                const participant = await config.participantResolver.resolve(subject);
-                if (participant === null) {
-                    config.wsEventReporter.invalidToken(request.ip);
-                    socket.close(WS_CLOSE_INVALID_TOKEN.code, WS_CLOSE_INVALID_TOKEN.reason);
-                    return;
-                }
-                if (participant.role === UserRole.ADMIN) {
-                    const oldAdmin = [...registry.entries()].find(([, entry]) => entry.role === UserRole.ADMIN);
-                    if (oldAdmin !== undefined) {
-                        const [oldSub, oldEntry] = oldAdmin;
-                        registry.delete(oldSub);
-                        oldEntry.ws.close(WS_CLOSE_SESSION_REPLACED.code, WS_CLOSE_SESSION_REPLACED.reason);
-                    }
-                }
-                const existing = registry.get(subject);
-                if (existing === undefined && registry.size >= config.maxConnections) {
-                    config.wsEventReporter.serverFull(request.ip);
-                    socket.close(WS_CLOSE_SERVER_FULL.code, WS_CLOSE_SERVER_FULL.reason);
-                    return;
-                }
-                if (existing !== undefined) {
-                    existing.ws.close(WS_CLOSE_SESSION_REPLACED.code, WS_CLOSE_SESSION_REPLACED.reason);
-                }
-                username = participant.username;
-                registry.set(subject, { ws: socket, role: participant.role, username: participant.username });
-                const expiration = config.expirationExtractor.extract(message.token);
-                const now = config.clock.now().getTime() / 1000;
-                const expiresIn = Math.floor(expiration - now);
-                socket.send(JSON.stringify({
-                    type: "auth_success",
-                    username: participant.username,
-                    role: toRoleLabel(participant.role),
-                    expires_in: expiresIn
-                }));
-                const admin = [...registry.values()].find(e => e.role === UserRole.ADMIN);
-                const buzzersConnected = [...registry.values()].filter(e => e.role === UserRole.PLAYER).length;
-                const adminConnected = admin !== undefined;
-                admin?.ws.send(JSON.stringify({ type: "buzzer_connected", username: participant.username }));
-                config.wsEventReporter.authenticated({ buzzersConnected, adminConnected, buzzersMax: config.maxConnections });
+                await authenticate(data);
             } catch {
                 config.wsEventReporter.internalError(request.ip);
                 socket.close(WS_CLOSE_INTERNAL_ERROR.code, WS_CLOSE_INTERNAL_ERROR.reason);
