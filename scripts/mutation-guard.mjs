@@ -19,9 +19,9 @@ function changedProductionFiles(base) {
     const patterns = JSON.parse(readFileSync('stryker.config.json', 'utf8')).mutate;
     const included = patterns.filter((pattern) => !pattern.startsWith('!'));
     const excluded = patterns.filter((pattern) => pattern.startsWith('!')).map((pattern) => pattern.slice(1));
-    const run = spawnSync('git', ['diff', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], { encoding: 'utf8' });
+    const run = spawnSync('git', ['diff', '-z', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], { encoding: 'utf8' });
     if (run.status !== 0) fail(`Cannot list the files changed since ${base}:\n${run.stderr}`);
-    return run.stdout.split('\n').filter((file) => included.some((glob) => matchesGlob(file, glob)) && !excluded.some((glob) => matchesGlob(file, glob)));
+    return run.stdout.split('\0').filter((file) => included.some((glob) => matchesGlob(file, glob)) && !excluded.some((glob) => matchesGlob(file, glob)));
 }
 
 function switchedOff(files) {
