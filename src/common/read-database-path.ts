@@ -14,7 +14,8 @@ export function readDatabasePath(value: string | undefined): string {
     }
     let start = 0;
     let end = value.length;
-    while (start < end && WHITESPACES.has(value.charAt(start))) {
+    // charAt answers "" past the end of the string, and "" is not a whitespace: this loop stops at the end by itself.
+    while (WHITESPACES.has(value.charAt(start))) {
         start++;
     }
     while (end > start && WHITESPACES.has(value.charAt(end - 1))) {
