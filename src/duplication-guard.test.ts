@@ -13,7 +13,8 @@ const SCRIPT = join(ROOT, 'scripts/duplication-guard.mjs');
 const CONFIGURATION = readFileSync(join(ROOT, '.jscpd.tests.json'), 'utf8');
 const BASELINE = readFileSync(join(ROOT, '.jscpd.tests.baseline.json'), 'utf8');
 // Built at run time: the guard reads this very file, and jscpd honours the marker even inside a string.
-const MARKER = ['jscpd', 'ignore-start'].join(':');
+const marker = (kind: string) => ['jscpd', `ignore-${kind}`].join(':');
+const MARKER = marker('start');
 
 const trees: string[] = [];
 
@@ -48,5 +49,49 @@ describe('a tree where a comment switches a duplication check off', () => {
         const run = guard(treeOf({ 'src/themes/a.ts': `export const value = 1\n// ${MARKER}\n` }));
         expect(run.status).toBe(1);
         expect(run.output).toContain(`${join('src', 'themes', 'a.ts')}:2 switches a duplication check off`);
+    });
+});
+
+const SWITCHING_OFF: [string, string][] = [
+    ['a production file', 'src/themes/a.ts'],
+    ['a test', 'src/themes/a.test.ts'],
+    ['a file of src/test-support', 'src/test-support/helper.mjs'],
+    ['a file directly in src', 'src/a.ts']
+];
+
+describe('which files of the tree the guard reads', () => {
+    it.each(SWITCHING_OFF)('refuses a marker in %s', (_name, path) => {
+        const run = guard(treeOf({ [path]: `// ${MARKER}\n` }));
+        expect([run.status, run.output]).toEqual([1, expect.stringContaining(`${join(...path.split('/'))}:1 switches a duplication check off`)]);
+    });
+
+    it('accepts a marker outside src, which no duplication check reads', () => {
+        const run = guard(treeOf({ 'src/themes/a.ts': 'export const value = 1\n', 'scripts/a.mjs': `// ${MARKER}\n`, 'docs/a.md': `${MARKER}\n`, 'a.ts': `// ${MARKER}\n` }));
+        expect(run.status).toBe(0);
+    });
+});
+
+describe('which markers the guard refuses', () => {
+    it.each(['start', 'end', 'next-line'])('refuses the marker of kind %s', (kind) => {
+        const run = guard(treeOf({ 'src/a.ts': `export const value = 1\n// ${marker(kind)}\n` }));
+        expect([run.status, run.output]).toEqual([1, expect.stringContaining(`${join('src', 'a.ts')}:2 `)]);
+    });
+
+    it.each([
+        ['a block comment', '/* MARKER */'],
+        ['the end of a line of code', 'export const value = 1 // MARKER'],
+        ['a string, where jscpd honours it too', "export const text = 'MARKER'"]
+    ])('refuses a marker in %s', (_name, line) => {
+        const run = guard(treeOf({ 'src/a.ts': `${line.replace('MARKER', MARKER)}\n` }));
+        expect(run.status).toBe(1);
+    });
+
+    it('names every line that holds a marker, in every file', () => {
+        const run = guard(treeOf({ 'src/a.ts': `// ${MARKER}\nexport const value = 1\n// ${MARKER}\n`, 'src/b.ts': `// ${MARKER}\n` }));
+        expect(run.output.split('\n').filter((line) => line.includes('switches a duplication check off')).sort()).toEqual([
+            `${join('src', 'a.ts')}:1 switches a duplication check off`,
+            `${join('src', 'a.ts')}:3 switches a duplication check off`,
+            `${join('src', 'b.ts')}:1 switches a duplication check off`
+        ]);
     });
 });
