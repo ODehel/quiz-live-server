@@ -498,6 +498,20 @@ describe('US-003/CA-17: When an unexpected error occurs', () => {
         expect(response.json()).toEqual(standardBody);
     });
 
+    it('should return the standard 500 body when the error carries the status code 500', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(Object.assign(new Error('database is locked'), { statusCode: 500 }));
+        const response = await postValidCredentials();
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual(standardBody);
+    });
+
+    it('should not turn an error that carries the client status code 400 into a 500', async () => {
+        vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(Object.assign(new Error('bad request'), { statusCode: 400 }));
+        const response = await postValidCredentials();
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).not.toEqual(standardBody);
+    });
+
     it('should return the standard 500 body when the error carries a status code that is not an error', async () => {
         vi.mocked(mockAuthenticationService.authenticate).mockRejectedValue(Object.assign(new Error('moved elsewhere'), { statusCode: 302 }));
         const response = await postValidCredentials();
