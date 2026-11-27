@@ -23,47 +23,44 @@ afterEach(() => {
     for (const tree of trees.splice(0)) rmSync(tree, { recursive: true, force: true });
 });
 
-// A throwaway tree holds the declared entries (each an empty module), a hub entry that starts with `tsx`, the files the case describes,
-// and the real configuration (or the one the case changes). The pass runs with the arguments of the npm script `knip:production`.
-function pass(files: Record<string, string>, changes: Partial<Configuration> = {}, without: string[] = []): { status: number | null; output: string } {
-    const tree = mkdtempSync(join(tmpdir(), 'knip-production-'));
-    trees.push(tree);
-    copyFileSync(join(ROOT, 'tsconfig.json'), join(tree, 'tsconfig.json'));
-    const configuration = { ...CONFIGURATION, ...changes };
+type Run = { status: number | null; output: string };
+
+// Runs knip with the arguments of an npm script of the repository (`knip` or `knip:production`), in the given directory.
+function runScript(script: string, cwd: string): Run {
+    const [, ...args] = (manifest().scripts[script] ?? '').split(' ');
+    const run = spawnSync(process.execPath, [KNIP, ...args], { cwd, encoding: 'utf8' });
+    return { status: run.status, output: run.stdout + run.stderr };
+}
+
+// Writes a throwaway tree (with the real tsconfig.json) and runs the npm script in it.
+function inTree(script: string, files: Record<string, string>): Run {
+    const directory = mkdtempSync(join(tmpdir(), 'knip-'));
+    trees.push(directory);
+    copyFileSync(join(ROOT, 'tsconfig.json'), join(directory, 'tsconfig.json'));
+    for (const [name, text] of Object.entries(files)) {
+        mkdirSync(dirname(join(directory, name)), { recursive: true });
+        writeFileSync(join(directory, name), text);
+    }
+    return runScript(script, directory);
+}
+
+// The production pass on a tree that holds the declared entries (each an empty module), a hub entry that starts with `tsx`, the files the case describes,
+// and the real configuration (or the one the case changes).
+function pass(files: Record<string, string>, changes: Partial<Configuration> = {}): Run {
     const entries = Object.fromEntries(CONFIGURATION.entry.map((entry) => [entry.replace(/!$/, ''), 'export {}\n']));
-    const everything: Record<string, string> = {
+    return inTree('knip:production', {
         'package.json': JSON.stringify({ name: 'tree', scripts: { start: 'tsx src/index.ts' }, devDependencies: { tsx: '*', vitest: '*' } }),
-        'knip.production.jsonc': JSON.stringify(configuration),
+        'knip.production.jsonc': JSON.stringify({ ...CONFIGURATION, ...changes }),
         'src/index.ts': "import { used } from './used'\nexport const hub = used\n",
         'src/used.ts': 'export const used = 1\n',
         ...entries,
         ...files
-    };
-    for (const [path, content] of Object.entries(everything)) {
-        if (without.includes(path)) continue;
-        mkdirSync(dirname(join(tree, path)), { recursive: true });
-        writeFileSync(join(tree, path), content);
-    }
-    const run = spawnSync(process.execPath, [KNIP, ...(manifest().scripts['knip:production'] ?? '').split(' ').slice(1)], { cwd: tree, encoding: 'utf8' });
-    return { status: run.status, output: run.stdout + run.stderr };
+    });
 }
 
 // The full pass, as the npm script `knip` runs it, on a tree whose knip.jsonc declares one entry.
-function fullPass(files: Record<string, string>): { status: number | null; output: string } {
-    const tree = mkdtempSync(join(tmpdir(), 'knip-full-'));
-    trees.push(tree);
-    copyFileSync(join(ROOT, 'tsconfig.json'), join(tree, 'tsconfig.json'));
-    const everything: Record<string, string> = {
-        'package.json': JSON.stringify({ name: 'tree' }),
-        'knip.jsonc': JSON.stringify({ entry: ['src/helper.mjs'] }),
-        ...files
-    };
-    for (const [path, content] of Object.entries(everything)) {
-        mkdirSync(dirname(join(tree, path)), { recursive: true });
-        writeFileSync(join(tree, path), content);
-    }
-    const run = spawnSync(process.execPath, [KNIP, ...(manifest().scripts.knip ?? '').split(' ').slice(1)], { cwd: tree, encoding: 'utf8' });
-    return { status: run.status, output: run.stdout + run.stderr };
+function fullPass(files: Record<string, string>): Run {
+    return inTree('knip', { 'package.json': JSON.stringify({ name: 'tree' }), 'knip.jsonc': JSON.stringify({ entry: ['src/helper.mjs'] }), ...files });
 }
 
 const CI_STEPS = () => readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8').split(/\n\s*- name:/).map((step) => step.split('\n').map((line) => line.trim()).filter((line) => line !== ''));
@@ -158,7 +155,7 @@ describe('an entry of knip.jsonc that no file matches', () => {
 
 describe('this repository', () => {
     it('has no production code that only its tests use: the production pass passes in its root', () => {
-        const run = spawnSync(process.execPath, [KNIP, ...(manifest().scripts['knip:production'] ?? '').split(' ').slice(1)], { cwd: ROOT, encoding: 'utf8' });
-        expect([run.status, run.stdout + run.stderr]).toEqual([0, '']);
+        const run = runScript('knip:production', ROOT);
+        expect([run.status, run.output]).toEqual([0, '']);
     });
 });
