@@ -49,7 +49,7 @@ function violationsOf(files: Record<string, string>): string[] {
 
 const LEAF = 'export const leaf = 1\n';
 const TYPE_ONLY = (path: string) => `import type { T } from '${path}'\nexport type Copy = T\n`;
-const VALUE = (path: string) => `import { leaf } from '${path}'\nexport const copy = leaf\n`;
+const VALUE = (path: string, exported = 'copy') => `import { leaf } from '${path}'\nexport const ${exported} = leaf\n`;
 
 interface Case { name: string; files: Record<string, string>; violations: string[] }
 
@@ -77,13 +77,12 @@ const layerCases: Case[] = [
     {
         name: 'infrastructure imports common and infrastructure',
         files: {
-            'src/infrastructure/a.ts': VALUE('../common/leaf') + VALUE('./leaf').replace('copy', 'second'),
+            'src/infrastructure/a.ts': VALUE('../common/leaf') + VALUE('./leaf', 'second'),
             'src/common/leaf.ts': LEAF,
             'src/infrastructure/leaf.ts': LEAF
         },
         violations: []
-    }
-    ,
+    },
     {
         name: 'a feature imports the composition root',
         files: { 'src/themes/a.ts': VALUE('../quiz-server'), 'src/quiz-server.ts': LEAF },
@@ -97,7 +96,7 @@ const layerCases: Case[] = [
     {
         name: 'the composition files import every layer and each other',
         files: {
-            'src/index.ts': VALUE('./quiz-server') + VALUE('./infrastructure/leaf').replace('copy', 'second') + VALUE('./themes/leaf').replace('copy', 'third'),
+            'src/index.ts': VALUE('./quiz-server') + VALUE('./infrastructure/leaf', 'second') + VALUE('./themes/leaf', 'third'),
             'src/seed.ts': VALUE('./common/leaf'),
             'src/quiz-server.ts': VALUE('./questions/leaf'),
             'src/infrastructure/leaf.ts': LEAF,
@@ -125,13 +124,12 @@ const layerCases: Case[] = [
     {
         name: 'tests import the composition root and infrastructure (they wire real adapters)',
         files: {
-            'src/themes/a.test.ts': VALUE('../quiz-server') + VALUE('../infrastructure/leaf').replace('copy', 'second'),
+            'src/themes/a.test.ts': VALUE('../quiz-server') + VALUE('../infrastructure/leaf', 'second'),
             'src/quiz-server.ts': LEAF,
             'src/infrastructure/leaf.ts': LEAF
         },
         violations: []
-    }
-    ,
+    },
     {
         name: 'a route imports a sqlite repository',
         files: { 'src/questions/question-route.ts': VALUE('./sqlite-question-repository'), 'src/questions/sqlite-question-repository.ts': LEAF },
@@ -205,7 +203,7 @@ const layerCases: Case[] = [
     {
         name: 'a feature imports interfaces and plain modules of another feature',
         files: {
-            'src/themes/a.ts': TYPE_ONLY('../questions/question-service.interface') + VALUE('../users/role-label').replace('copy', 'second'),
+            'src/themes/a.ts': TYPE_ONLY('../questions/question-service.interface') + VALUE('../users/role-label', 'second'),
             'src/questions/question-service.interface.ts': 'export interface T {}\n',
             'src/users/role-label.ts': LEAF
         },
@@ -214,14 +212,13 @@ const layerCases: Case[] = [
     {
         name: 'tests import concrete files of another feature and of their own feature',
         files: {
-            'src/questions/a.test.ts': VALUE('../themes/sqlite-theme-repository') + VALUE('./sqlite-question-repository').replace('copy', 'second'),
+            'src/questions/a.test.ts': VALUE('../themes/sqlite-theme-repository') + VALUE('./sqlite-question-repository', 'second'),
             'src/themes/theme-route.test.ts': VALUE('./sqlite-theme-repository'),
             'src/themes/sqlite-theme-repository.ts': LEAF,
             'src/questions/sqlite-question-repository.ts': LEAF
         },
         violations: []
-    }
-    ,
+    },
     {
         name: 'a production file imports a test',
         files: { 'src/themes/a.ts': VALUE('./b.test'), 'src/themes/b.test.ts': LEAF },
@@ -240,7 +237,7 @@ const layerCases: Case[] = [
     {
         name: 'a test imports a test and a file of src/test-support',
         files: {
-            'src/themes/a.test.ts': VALUE('./b.test') + VALUE('../test-support/helper.mjs').replace('copy', 'second'),
+            'src/themes/a.test.ts': VALUE('./b.test') + VALUE('../test-support/helper.mjs', 'second'),
             'src/themes/b.test.ts': LEAF,
             'src/test-support/helper.mjs': LEAF
         },
@@ -278,8 +275,7 @@ const layerCases: Case[] = [
         name: 'a file imports a module of Node',
         files: { 'src/themes/a.ts': "import { readFileSync } from 'node:fs'\nexport const read = readFileSync\n" },
         violations: []
-    }
-    ,
+    },
     {
         name: 'a file of a directory that is no known layer imports common',
         files: { 'src/mystery/a.ts': VALUE('../common/leaf'), 'src/common/leaf.ts': LEAF },
