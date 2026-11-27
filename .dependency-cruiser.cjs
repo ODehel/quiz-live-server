@@ -9,6 +9,8 @@ const ROUTE = '-route\\.ts$|^src/routes/';
 const SERVICE = '/(default-[^/]+|[^/]+-service)\\.ts$';
 const CONCRETE = '^src/[^/]+/(sqlite-[^/]+|default-[^/]+|[^/]+-service|[^/]+-route)\\.ts$';
 const TESTS = '\\.test\\.ts$|^src/test-support/';
+// Every file of src/ belongs to one of these; a directory added under src/ is outside all of them until it is named here.
+const LAYERS = [COMPOSITION, COMMON, INFRASTRUCTURE, FEATURES, TESTS];
 
 const production = (path) => ({ path, pathNot: TESTS });
 const rule = (name, from, to) => ({ name, severity: 'error', from, to });
@@ -24,6 +26,8 @@ module.exports = {
     rule('service-does-not-import-route', production(SERVICE), { path: '-route(-configuration\\.interface)?\\.ts$|^src/routes/' }),
     rule('feature-does-not-import-concrete-of-another-feature', production('^src/([^/]+)/'), { path: CONCRETE, pathNot: '^src/$1/' }),
     rule('production-does-not-import-test', production('^src/'), { path: TESTS }),
+    rule('file-outside-every-layer-imports', { path: '^src/', pathNot: LAYERS }, {}),
+    rule('import-of-a-file-outside-every-layer', { path: '^src/' }, { path: '^src/', pathNot: LAYERS }),
     rule('no-circular', {}, { circular: true }),
     rule('not-to-unresolvable', {}, { couldNotResolve: true }),
   ],
