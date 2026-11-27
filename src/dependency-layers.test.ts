@@ -276,6 +276,35 @@ const layerCases: Case[] = [
         files: { 'src/themes/a.ts': "import { readFileSync } from 'node:fs'\nexport const read = readFileSync\n" },
         violations: []
     }
+    ,
+    {
+        name: 'a file of a directory that is no known layer imports common',
+        files: { 'src/mystery/a.ts': VALUE('../common/leaf'), 'src/common/leaf.ts': LEAF },
+        violations: ['error file-outside-every-layer-imports: src/mystery/a.ts -> src/common/leaf.ts']
+    },
+    {
+        name: 'a file at the root of src that is not the composition imports common',
+        files: { 'src/helper.ts': VALUE('./common/leaf'), 'src/common/leaf.ts': LEAF },
+        violations: ['error file-outside-every-layer-imports: src/helper.ts -> src/common/leaf.ts']
+    },
+    {
+        name: 'a feature imports a file of a directory that is no known layer',
+        files: { 'src/themes/a.ts': VALUE('../mystery/leaf'), 'src/mystery/leaf.ts': LEAF },
+        violations: ['error import-of-a-file-outside-every-layer: src/themes/a.ts -> src/mystery/leaf.ts']
+    },
+    {
+        name: 'two files of a directory that is no known layer import each other',
+        files: { 'src/mystery/a.ts': VALUE('./leaf'), 'src/mystery/leaf.ts': LEAF },
+        violations: [
+            'error file-outside-every-layer-imports: src/mystery/a.ts -> src/mystery/leaf.ts',
+            'error import-of-a-file-outside-every-layer: src/mystery/a.ts -> src/mystery/leaf.ts'
+        ]
+    },
+    {
+        name: 'a test in a directory that is no known layer imports common',
+        files: { 'src/mystery/a.test.ts': VALUE('../common/leaf'), 'src/common/leaf.ts': LEAF },
+        violations: []
+    }
 ];
 
 describe('layer rules', () => {
