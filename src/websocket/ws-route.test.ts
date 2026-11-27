@@ -1079,7 +1079,7 @@ describe("WebSocket", () => {
     });
     it("ignores a non-json message from an authenticated client and still answers its next request", async () => {
         acceptAnyToken({ "token-A": UserRole.ADMIN });
-        const admin = await connectAuthenticated(port, "token-A");
+        const { client: admin } = await connectAuthenticated(port, "token-A");
         const gameState = waitForMessage(admin, "game_state_sync");
         admin.send("bonjour");
         admin.send(JSON.stringify({ type: "request_game_state" }));
@@ -1092,24 +1092,26 @@ describe("WebSocket", () => {
         acceptAnyToken({ "token-A": UserRole.PLAYER });
         const replaced = await connectAuthenticated(port, "token-A");
         const reconnected = await connectAuthenticated(port, "token-A");
+        expect(reconnected.answer).toMatchObject({ type: "auth_success", username: "user of token-A" });
         expect(mockWsEventReporter.serverFull).not.toHaveBeenCalled();
-        replaced.close();
-        reconnected.close();
+        replaced.client.close();
+        reconnected.client.close();
     });
     it("accepts a second admin in place of the first when the server is full", async () => {
         mockWsRouteConfiguration.maxConnections = 1;
         acceptAnyToken({ "token-A": UserRole.ADMIN, "token-B": UserRole.ADMIN });
         const replaced = await connectAuthenticated(port, "token-A");
         const replacing = await connectAuthenticated(port, "token-B");
+        expect(replacing.answer).toMatchObject({ type: "auth_success", username: "user of token-B" });
         expect(mockWsEventReporter.serverFull).not.toHaveBeenCalled();
-        replaced.close();
-        replacing.close();
+        replaced.client.close();
+        replacing.client.close();
     });
     it("reports the username of the disconnected player to the admin", async () => {
         acceptAnyToken({ "token-A": UserRole.ADMIN, "token-B": UserRole.PLAYER });
-        const admin = await connectAuthenticated(port, "token-A");
+        const { client: admin } = await connectAuthenticated(port, "token-A");
         const disconnection = waitForMessage(admin, "buzzer_disconnected");
-        const player = await connectAuthenticated(port, "token-B");
+        const { client: player } = await connectAuthenticated(port, "token-B");
         player.close();
         await expect(disconnection).resolves.toEqual({ type: "buzzer_disconnected", username: "user of token-B" });
         admin.close();
@@ -1129,12 +1131,12 @@ function parseJson<T>(raw: string): T {
     return JSON.parse(raw) as T
 }
 
-// Resolves with the client once the hub has answered its authentication message, rejects if the hub closes it first.
-function connectAuthenticated(port: number, token: string): Promise<WebSocket> {
+// Resolves with the client and the first answer of the hub to its authentication message, rejects if the hub closes it first.
+function connectAuthenticated(port: number, token: string): Promise<{ client: WebSocket, answer: unknown }> {
     return new Promise((resolve, reject) => {
         const client = new WebSocket(`ws://localhost:${port}/ws`);
         client.once('open', () => client.send(JSON.stringify({ type: "auth", token })));
-        client.once('message', () => resolve(client));
+        client.once('message', (data) => resolve({ client, answer: parseJson(rawDataToString(data)) }));
         client.once('close', (code) => reject(new Error(`closed with code ${code} before any answer`)));
         client.once('error', reject);
     });
