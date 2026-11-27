@@ -284,3 +284,34 @@ describe('what the guard reads from the repository', () => {
         expect(comments).toEqual([]);
     });
 });
+
+function stepsOfCi(): string[][] {
+    return readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8').split(/\n\s*- name:/).map((step) => step.split('\n').map((line) => line.trim()).filter((line) => line !== ''));
+}
+
+const GUARD_STEP = [
+    'Surviving mutants in the changed files',
+    'env:',
+    'BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}',
+    'run: npm run mutation:changed -- --base "$BASE_REF"'
+];
+
+describe('where the guard runs', () => {
+    it('is the npm script `mutation:changed`, which runs the script of the repository', () => {
+        const manifest = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
+        expect(manifest.scripts['mutation:changed']).toBe('node scripts/mutation-guard.mjs');
+    });
+
+    it('is a step of the CI that runs only that script, with the base of the branch, before the tests', () => {
+        const steps = stepsOfCi();
+        const position = steps.findIndex((lines) => lines.some((line) => line.startsWith('run: npm run mutation:changed')));
+        expect(steps[position]).toEqual(GUARD_STEP);
+        expect(steps.filter((lines) => lines.some((line) => line.includes('mutation:changed')))).toHaveLength(1);
+        expect(position).toBeLessThan(steps.findIndex((lines) => lines.includes('run: npm run test:coverage')));
+    });
+
+    it('has the whole history of the repository to compare the branch with its base', () => {
+        const checkout = stepsOfCi().find((lines) => lines.includes('uses: actions/checkout@v4'));
+        expect(checkout).toContain('fetch-depth: 0');
+    });
+});
