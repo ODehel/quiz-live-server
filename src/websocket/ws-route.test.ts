@@ -1077,6 +1077,49 @@ describe("WebSocket", () => {
         });
         expect(received.code).toBe(404);
     });
+    it("ignores a non-json message from an authenticated client and still answers its next request", async () => {
+        acceptAnyToken({ "token-A": UserRole.ADMIN });
+        const admin = await connectAuthenticated(port, "token-A");
+        const gameState = waitForMessage(admin, "game_state_sync");
+        admin.send("bonjour");
+        admin.send(JSON.stringify({ type: "request_game_state" }));
+        await expect(gameState).resolves.toEqual({ type: "game_state_sync", connected_buzzers: [] });
+        expect(mockWsEventReporter.internalError).not.toHaveBeenCalled();
+        admin.close();
+    });
+    it("accepts the reconnection of a connected player when the server is full", async () => {
+        mockWsRouteConfiguration.maxConnections = 1;
+        acceptAnyToken({ "token-A": UserRole.PLAYER });
+        const replaced = await connectAuthenticated(port, "token-A");
+        const reconnected = await connectAuthenticated(port, "token-A");
+        expect(mockWsEventReporter.serverFull).not.toHaveBeenCalled();
+        replaced.close();
+        reconnected.close();
+    });
+    it("accepts a second admin in place of the first when the server is full", async () => {
+        mockWsRouteConfiguration.maxConnections = 1;
+        acceptAnyToken({ "token-A": UserRole.ADMIN, "token-B": UserRole.ADMIN });
+        const replaced = await connectAuthenticated(port, "token-A");
+        const replacing = await connectAuthenticated(port, "token-B");
+        expect(mockWsEventReporter.serverFull).not.toHaveBeenCalled();
+        replaced.close();
+        replacing.close();
+    });
+    it("reports the username of the disconnected player to the admin", async () => {
+        acceptAnyToken({ "token-A": UserRole.ADMIN, "token-B": UserRole.PLAYER });
+        const admin = await connectAuthenticated(port, "token-A");
+        const disconnection = waitForMessage(admin, "buzzer_disconnected");
+        const player = await connectAuthenticated(port, "token-B");
+        player.close();
+        await expect(disconnection).resolves.toEqual({ type: "buzzer_disconnected", username: "user of token-B" });
+        admin.close();
+    });
+    // Every token is valid, is its own subject, and resolves to a participant with the role given for it.
+    function acceptAnyToken(roles: Record<string, UserRole>) {
+        mockTokenValidator.inspectToken = vi.fn().mockReturnValue({ valid: true, reason: "valid" });
+        mockSubjectExtractor.extract = vi.fn().mockImplementation((token: string) => token);
+        mockParticipantResolver.resolve = vi.fn().mockImplementation((sub: string) => ({ username: `user of ${sub}`, role: roles[sub] }));
+    }
     afterEach(async () => {
         await server.stop();
     });
@@ -1084,4 +1127,26 @@ describe("WebSocket", () => {
 
 function parseJson<T>(raw: string): T {
     return JSON.parse(raw) as T
+}
+
+// Resolves with the client once the hub has answered its authentication message, rejects if the hub closes it first.
+function connectAuthenticated(port: number, token: string): Promise<WebSocket> {
+    return new Promise((resolve, reject) => {
+        const client = new WebSocket(`ws://localhost:${port}/ws`);
+        client.once('open', () => client.send(JSON.stringify({ type: "auth", token })));
+        client.once('message', () => resolve(client));
+        client.once('close', (code) => reject(new Error(`closed with code ${code} before any answer`)));
+        client.once('error', reject);
+    });
+}
+
+// Resolves with the first message of the given type (others are skipped), rejects if the connection closes first.
+function waitForMessage(client: WebSocket, type: string): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+        client.on('message', (data) => {
+            const message = parseJson<{ type: string }>(rawDataToString(data));
+            if (message.type === type) resolve(message);
+        });
+        client.once('close', (code) => reject(new Error(`closed with code ${code} before a ${type} message`)));
+    });
 }
