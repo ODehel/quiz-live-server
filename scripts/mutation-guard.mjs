@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { matchesGlob } from 'node:path';
 
@@ -14,4 +14,7 @@ const changed = execFileSync('git', ['diff', '--name-only', '--diff-filter=ACMR'
 
 if (changed.length === 0) {
     console.log('No production file changed: no mutation to check.');
+} else {
+    spawnSync(process.execPath, ['node_modules/@stryker-mutator/core/bin/stryker.js', 'run', '--mutate', changed.join(',')], { stdio: 'inherit' });
+    console.log('No surviving mutant in the changed files.');
 }
