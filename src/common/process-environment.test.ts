@@ -66,6 +66,13 @@ describe("environment variables test", () => {
             expect(processEnvironment.seedPasswordFor(`quiz_buzzer_${suffix}`)).toBe(`value-of-SEED_PASSWORD_BUZZER_${suffix}`);
         }
     });
+    it("should drop the quiz_ prefix of a login only at its start", () => {
+        process.env.SEED_PASSWORD_MY_QUIZ_ACCOUNT = "value-of-the-account";
+        process.env.SEED_PASSWORD_XQUIZ_ACCOUNT = "value-of-the-other-account";
+        const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
+        expect(processEnvironment.seedPasswordFor("my_quiz_account")).toBe("value-of-the-account");
+        expect(processEnvironment.seedPasswordFor("xquiz_account")).toBe("value-of-the-other-account");
+    });
     it("should provide no seed password when its variable is not set", () => {
         const processEnvironment: ProcessEnvironment = new ProcessEnvironment();
         expect(processEnvironment.seedPasswordFor("admin")).toBeUndefined();
@@ -94,6 +101,8 @@ describe("environment variables test", () => {
         for (const variable of seedPasswordVariables) {
             delete process.env[variable];
         }
+        delete process.env.SEED_PASSWORD_MY_QUIZ_ACCOUNT;
+        delete process.env.SEED_PASSWORD_XQUIZ_ACCOUNT;
         delete process.env.JWT_SECRET;
         delete process.env.JWT_EXPIRATION;
         delete process.env.MAX_REQUESTS_PER_MINUTE;
