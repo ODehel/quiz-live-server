@@ -1142,7 +1142,7 @@ Le `DELETE` ignore son body (CA-47) mais la limite par défaut de Fastify s'appl
 { "statusCode": 413, "code": "FST_ERR_CTP_BODY_TOO_LARGE", "error": "Payload Too Large", "message": "Request body is too large" }
 ```
 
-Constaté sur le serveur assemblé (`Content-Type` `application/json` ou `text/plain`). Un body sous la limite reste ignoré (`204`). Un `Content-Type` autre que JSON ou texte brut répond `415` au `DELETE` d'une question avant toute lecture du corps (comportement de Fastify, non décidé).
+Constaté sur le serveur assemblé (`Content-Type` `application/json` ou `text/plain`). Un body sous la limite reste ignoré (`204`). Écart connu à la décision #82 : un `Content-Type` autre que JSON ou texte brut répond `415` au `DELETE` d'une question avant toute lecture du corps (dette ouverte dans `DEBTS.md`, non corrigé ici).
 
 ### Validation croisée correct_answer / choices
 
