@@ -128,6 +128,96 @@ const layerCases: Case[] = [
         },
         violations: []
     }
+    ,
+    {
+        name: 'a route imports a sqlite repository',
+        files: { 'src/questions/question-route.ts': VALUE('./sqlite-question-repository'), 'src/questions/sqlite-question-repository.ts': LEAF },
+        violations: ['error route-or-service-does-not-import-sqlite: src/questions/question-route.ts -> src/questions/sqlite-question-repository.ts']
+    },
+    {
+        name: 'a default service imports a sqlite repository',
+        files: { 'src/themes/default-theme-service.ts': VALUE('./sqlite-theme-repository'), 'src/themes/sqlite-theme-repository.ts': LEAF },
+        violations: ['error route-or-service-does-not-import-sqlite: src/themes/default-theme-service.ts -> src/themes/sqlite-theme-repository.ts']
+    },
+    {
+        name: 'a service not named default-* imports a sqlite repository',
+        files: { 'src/authentication/jwt-authentication-service.ts': VALUE('./sqlite-user-repository'), 'src/authentication/sqlite-user-repository.ts': LEAF },
+        violations: ['error route-or-service-does-not-import-sqlite: src/authentication/jwt-authentication-service.ts -> src/authentication/sqlite-user-repository.ts']
+    },
+    {
+        name: 'a file that is neither a route nor a service imports a sqlite repository of its feature',
+        files: { 'src/questions/existence-checker.ts': VALUE('./sqlite-question-repository'), 'src/questions/sqlite-question-repository.ts': LEAF },
+        violations: []
+    },
+    {
+        name: 'a route imports a default service',
+        files: { 'src/themes/theme-route.ts': VALUE('./default-theme-service'), 'src/themes/default-theme-service.ts': LEAF },
+        violations: ['error route-does-not-import-concrete-service: src/themes/theme-route.ts -> src/themes/default-theme-service.ts']
+    },
+    {
+        name: 'a route imports a service not named default-*',
+        files: { 'src/authentication/token-route.ts': VALUE('./jwt-authentication-service'), 'src/authentication/jwt-authentication-service.ts': LEAF },
+        violations: ['error route-does-not-import-concrete-service: src/authentication/token-route.ts -> src/authentication/jwt-authentication-service.ts']
+    },
+    {
+        name: 'a route imports the interface of its service',
+        files: { 'src/themes/theme-route.ts': TYPE_ONLY('./theme-service.interface'), 'src/themes/theme-service.interface.ts': 'export interface T {}\n' },
+        violations: []
+    },
+    {
+        name: 'a service imports a route',
+        files: { 'src/themes/default-theme-service.ts': VALUE('./theme-route'), 'src/themes/theme-route.ts': LEAF },
+        violations: ['error service-does-not-import-route: src/themes/default-theme-service.ts -> src/themes/theme-route.ts']
+    },
+    {
+        name: 'a service imports the configuration interface of a route',
+        files: { 'src/themes/default-theme-service.ts': TYPE_ONLY('./theme-route-configuration.interface'), 'src/themes/theme-route-configuration.interface.ts': 'export interface T {}\n' },
+        violations: ['error service-does-not-import-route: src/themes/default-theme-service.ts -> src/themes/theme-route-configuration.interface.ts']
+    },
+    {
+        name: 'a service imports a file of src/routes',
+        files: { 'src/themes/default-theme-service.ts': VALUE('../routes/route-catalog'), 'src/routes/route-catalog.ts': LEAF },
+        violations: ['error service-does-not-import-route: src/themes/default-theme-service.ts -> src/routes/route-catalog.ts']
+    },
+    {
+        name: 'a feature imports the sqlite repository of another feature',
+        files: { 'src/themes/a.ts': VALUE('../questions/sqlite-question-repository'), 'src/questions/sqlite-question-repository.ts': LEAF },
+        violations: ['error feature-does-not-import-concrete-of-another-feature: src/themes/a.ts -> src/questions/sqlite-question-repository.ts']
+    },
+    {
+        name: 'a feature imports the default service of another feature',
+        files: { 'src/themes/a.ts': VALUE('../questions/default-question-service'), 'src/questions/default-question-service.ts': LEAF },
+        violations: ['error feature-does-not-import-concrete-of-another-feature: src/themes/a.ts -> src/questions/default-question-service.ts']
+    },
+    {
+        name: 'a feature imports the route of another feature',
+        files: { 'src/themes/a.ts': VALUE('../questions/question-route'), 'src/questions/question-route.ts': LEAF },
+        violations: ['error feature-does-not-import-concrete-of-another-feature: src/themes/a.ts -> src/questions/question-route.ts']
+    },
+    {
+        name: 'a feature imports the service that is not named default-* of another feature',
+        files: { 'src/websocket/a.ts': VALUE('../authentication/jwt-authentication-service'), 'src/authentication/jwt-authentication-service.ts': LEAF },
+        violations: ['error feature-does-not-import-concrete-of-another-feature: src/websocket/a.ts -> src/authentication/jwt-authentication-service.ts']
+    },
+    {
+        name: 'a feature imports interfaces and plain modules of another feature',
+        files: {
+            'src/themes/a.ts': TYPE_ONLY('../questions/question-service.interface') + VALUE('../users/role-label').replace('copy', 'second'),
+            'src/questions/question-service.interface.ts': 'export interface T {}\n',
+            'src/users/role-label.ts': LEAF
+        },
+        violations: []
+    },
+    {
+        name: 'tests import concrete files of another feature and of their own feature',
+        files: {
+            'src/questions/a.test.ts': VALUE('../themes/sqlite-theme-repository') + VALUE('./sqlite-question-repository').replace('copy', 'second'),
+            'src/themes/theme-route.test.ts': VALUE('./sqlite-theme-repository'),
+            'src/themes/sqlite-theme-repository.ts': LEAF,
+            'src/questions/sqlite-question-repository.ts': LEAF
+        },
+        violations: []
+    }
 ];
 
 describe('layer rules', () => {
