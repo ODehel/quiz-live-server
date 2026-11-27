@@ -27,6 +27,8 @@ jobs:
         run: npm run lint
       - name: Unused files, exports and dependencies
         run: npm run knip
+      - name: Production code that only its tests use
+        run: npm run knip:production
       - name: Dependencies that cross a layer
         run: npm run layers
       - name: Duplication checks that are switched off

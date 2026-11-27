@@ -9,7 +9,7 @@ import { readBcryptCost } from "./bcrypt-cost";
 // US-002/CA-1 and decision #73: one line, whose sense (the accounts were created) is the only normative part; the figure is the number of accounts the repository wrote.
 export type SeedResult = { created: true; message: string } | { created: false; message: string };
 
-export function accountsCreatedMessage(count: number): string {
+function accountsCreatedMessage(count: number): string {
     return `Seed terminé — ${count} comptes créés.`;
 }
 

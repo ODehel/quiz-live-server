@@ -1,0 +1,21 @@
+{
+    "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+    // Production pass (`npm run knip:production`): a file or an export counts as used only when production code reaches it.
+    // Patterns ending in `!` are the ones knip reads in production mode.
+    "entry": [
+        // Run with node by `npm run duplication:guard`.
+        "scripts/duplication-guard.mjs!",
+        // Run with node by `npm run mutation:changed` (it imports scripts/switch-off-comment.mjs).
+        "scripts/mutation-guard.mjs!",
+        // Imported by scripts/mutation-guard.mjs, and run by nothing else: kept as an entry so a reorganisation of the import does not hide it.
+        "scripts/switch-off-comment.mjs!",
+        // Run with tsx by `npm run seed`; it pulls in src/users/seed-users.ts and its imports.
+        "src/seed.ts!"
+    ],
+    // What production is made of: the hub and its scripts. Without it knip also looks at src/test-support and docs/specs/scripts, which only tests and shell scripts run.
+    "project": ["src/**/*.ts!", "scripts/**/*.mjs!"],
+    // `npm start` and `npm run seed` run `tsx`, a devDependency that production mode does not list.
+    "ignoreBinaries": ["tsx"],
+    // AdmissionPolicy is dormant: only its test uses it until US-009 wires it into src/websocket/ws-route.ts or deletes it (DEBTS.md). Remove this line then.
+    "ignoreIssues": { "src/authentication/admission-policy.ts": ["files"] }
+}
