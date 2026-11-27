@@ -130,7 +130,11 @@ const PRODUCTION_NO_LONGER_FAILING: [string, Record<string, unknown>, number, st
     ['the key `exitCode` is misspelled, which jscpd accepts', { exitCode: undefined, exitCod: 1 }, 0, "unknown field 'exitCod'"],
     ['the key `exitCode` is 0, which jscpd reads as success', { exitCode: 0 }, 0, 'Clone found'],
     ['the key `exitCode` is 2, which is not the code the build waits for', { exitCode: 2 }, 2, 'Clone found'],
-    ['`ignore` hides the witness, so no block is found', { ignore: ['**/*.ts'] }, 1, 'analyzed no files']
+    ['`ignore` hides the witness, so no block is found', { ignore: ['**/*.ts'] }, 1, 'analyzed no files'],
+    ['the key `ignoreIdentifiers` is absent, so a copy up to a name is no clone', { ignoreIdentifiers: undefined }, 0, 'Found 0 clones'],
+    ['the key `ignoreIdentifiers` is misspelled, which jscpd accepts', { ignoreIdentifiers: undefined, ignoreIdentifier: true }, 0, "unknown field 'ignoreIdentifier'"],
+    ['the key `ignoreIdentifiers` is false', { ignoreIdentifiers: false }, 0, 'Found 0 clones'],
+    ['the key `ignoreIdentifiers` is a string, which jscpd rejects as a configuration', { ignoreIdentifiers: 'true' }, 1, 'expected true, false, "blind" or "consistent"']
 ];
 
 describe('a production check that no longer fails on a new duplicated block', () => {
