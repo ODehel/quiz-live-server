@@ -569,6 +569,18 @@ describe("US-004/CA-16 - Limit must be equal or less than 100", () => {
     });
 });
 
+describe("US-004/CA-16 - A limit of exactly 100 is accepted", () => {
+    it("should send a limit of 100 to the service", async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/themes?limit=100',
+            headers: { 'content-type': 'application/json' }
+        });
+        expect(response.statusCode).toBe(200);
+        expect(mockThemeService.getAll).toHaveBeenCalledWith(1, 100);
+    });
+});
+
 describe("US-004/CA-17 - When pagination parameters are invalid", () => {
     it("should send a 400 error code - negative page", async () => {
         const response = await app.inject({
