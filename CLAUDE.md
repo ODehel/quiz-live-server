@@ -40,6 +40,10 @@ Claude écrit un bloc PowerShell, Olivier le lance, la sortie va dans
   des tests ; un compteur qui augmente, ou un ajout sans cette contrepartie, est une copie admise.
 - Pas de commentaire `jscpd:ignore` : il sort le code des deux contrôles de duplication.
 
+## Complexité des fonctions
+`npm run lint` échoue sur toute fonction de complexité cyclomatique supérieure à 10, tests compris.
+Remède : extraire des fonctions nommées, sous tests verts. Pas de commentaire `eslint-disable` ni de seuil relevé.
+
 ## Le réel fait foi
 Le handoff (`docs/sessions/`) est une hypothèse. On le confronte à l'état réel à chaque
 ouverture ; en cas d'écart, le réel gagne.
