@@ -120,3 +120,18 @@ describe('a test check that no longer fails on a new duplicated block, whatever 
         expect(run.output).toContain(said);
     });
 });
+
+describe('where the guard runs', () => {
+    it('is the npm script `duplication:guard`, next to the check of the tests whose command the witness replays', () => {
+        const { scripts } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
+        expect([scripts['duplication:guard'], scripts['duplication:tests']]).toEqual(['node scripts/duplication-guard.mjs', 'jscpd --config .jscpd.tests.json']);
+    });
+
+    it('is a step of the CI that runs only that script, before both duplication checks', () => {
+        const steps = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8').split(/\n\s*- name:/).map((step) => step.split('\n').map((line) => line.trim()).filter((line) => line !== ''));
+        const positionOf = (script: string) => steps.findIndex((lines) => lines.includes(`run: npm run ${script}`));
+        expect(steps[positionOf('duplication:guard')]).toHaveLength(2);
+        expect(positionOf('duplication:guard')).toBeGreaterThan(0);
+        expect(positionOf('duplication:guard')).toBeLessThan(Math.min(positionOf('duplication:production'), positionOf('duplication:tests')));
+    });
+});
