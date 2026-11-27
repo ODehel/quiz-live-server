@@ -80,6 +80,54 @@ const layerCases: Case[] = [
         },
         violations: []
     }
+    ,
+    {
+        name: 'a feature imports the composition root',
+        files: { 'src/themes/a.ts': VALUE('../quiz-server'), 'src/quiz-server.ts': LEAF },
+        violations: ['error only-composition-imports-composition: src/themes/a.ts -> src/quiz-server.ts']
+    },
+    {
+        name: 'a feature imports the composition configuration interface',
+        files: { 'src/users/a.ts': TYPE_ONLY('../quiz-server-configuration.interface'), 'src/quiz-server-configuration.interface.ts': 'export interface T {}\n' },
+        violations: ['error only-composition-imports-composition: src/users/a.ts -> src/quiz-server-configuration.interface.ts']
+    },
+    {
+        name: 'the composition files import every layer and each other',
+        files: {
+            'src/index.ts': VALUE('./quiz-server') + VALUE('./infrastructure/leaf').replace('copy', 'second') + VALUE('./themes/leaf').replace('copy', 'third'),
+            'src/seed.ts': VALUE('./common/leaf'),
+            'src/quiz-server.ts': VALUE('./questions/leaf'),
+            'src/infrastructure/leaf.ts': LEAF,
+            'src/themes/leaf.ts': LEAF,
+            'src/common/leaf.ts': LEAF,
+            'src/questions/leaf.ts': LEAF
+        },
+        violations: []
+    },
+    {
+        name: 'a feature imports infrastructure',
+        files: { 'src/themes/a.ts': VALUE('../infrastructure/leaf'), 'src/infrastructure/leaf.ts': LEAF },
+        violations: ['error feature-does-not-import-infrastructure: src/themes/a.ts -> src/infrastructure/leaf.ts']
+    },
+    {
+        name: 'a route of src/routes imports infrastructure',
+        files: { 'src/routes/health-route.ts': VALUE('../infrastructure/leaf'), 'src/infrastructure/leaf.ts': LEAF },
+        violations: ['error feature-does-not-import-infrastructure: src/routes/health-route.ts -> src/infrastructure/leaf.ts']
+    },
+    {
+        name: 'a feature imports common',
+        files: { 'src/themes/a.ts': VALUE('../common/leaf'), 'src/common/leaf.ts': LEAF },
+        violations: []
+    },
+    {
+        name: 'tests import the composition root and infrastructure (they wire real adapters)',
+        files: {
+            'src/themes/a.test.ts': VALUE('../quiz-server') + VALUE('../infrastructure/leaf').replace('copy', 'second'),
+            'src/quiz-server.ts': LEAF,
+            'src/infrastructure/leaf.ts': LEAF
+        },
+        violations: []
+    }
 ];
 
 describe('layer rules', () => {
