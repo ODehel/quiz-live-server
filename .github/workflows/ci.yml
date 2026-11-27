@@ -27,7 +27,7 @@ jobs:
         run: npm run knip
       - name: Duplicated production code
         run: npm run duplication:production
-      - name: Duplicated test code above the ratchet
+      - name: New duplicated test code
         run: npm run duplication:tests
       - name: Test with coverage
         run: npm run test:coverage

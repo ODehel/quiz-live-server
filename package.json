@@ -12,7 +12,8 @@
     "lint": "eslint src",
     "knip": "knip",
     "duplication:production": "jscpd --config .jscpd.production.json",
-    "duplication:tests": "jscpd --config .jscpd.tests.json"
+    "duplication:tests": "jscpd --config .jscpd.tests.json",
+    "duplication:tests:update-baseline": "jscpd --config .jscpd.tests.json --update-baseline"
   },
   "keywords": [],
   "author": "",

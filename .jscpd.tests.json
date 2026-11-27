@@ -1,6 +1,7 @@
 {
     "path": ["src"],
     "pattern": "**/{*.test.ts,test-support/**}",
-    "threshold": 18.37,
+    "baseline": ".jscpd.tests.baseline.json",
+    "failOnNewClones": 0,
     "failOnEmpty": true
 }
