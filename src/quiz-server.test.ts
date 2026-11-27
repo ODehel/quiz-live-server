@@ -1,17 +1,13 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuizServer } from "./quiz-server";
 import { ThemeRouteConfiguration } from "./themes/theme-route-configuration.interface";
 import { QuestionRouteConfiguration } from "./questions/question-route-configuration.interface";
 import { TokenRouteConfiguration } from "./authentication/token-route-configuration.interface";
 import { WsRouteConfiguration } from "./websocket/ws-route-configuration.interface";
 
-describe("US-001/CA-1 (decision #51) - The hub listens on every IPv4 interface, not on the loopback alone", () => {
+describe("The assembled hub", () => {
     let server: QuizServer;
-    afterEach(async () => {
-        await server.stop();
-        vi.restoreAllMocks();
-    });
-    it("asks for the address 0.0.0.0", async () => {
+    beforeEach(() => {
         vi.spyOn(console, "log").mockImplementation(() => { });
         const routeConfiguration = { middleware: async () => { } };
         server = new QuizServer(
@@ -21,8 +17,17 @@ describe("US-001/CA-1 (decision #51) - The hub listens on every IPv4 interface, 
             {} as WsRouteConfiguration,
             routeConfiguration as unknown as QuestionRouteConfiguration
         );
+    });
+    afterEach(async () => {
+        await server.stop();
+        vi.restoreAllMocks();
+    });
+    it("US-001/CA-1 (decision #51) asks for the address 0.0.0.0, not the loopback alone", async () => {
         const listen = vi.spyOn(server["app"], "listen");
         await server.start();
         expect(listen).toHaveBeenCalledWith(expect.objectContaining({ port: 0, host: "0.0.0.0" }));
+    });
+    it("US-003/CA-14 and CA-15 keeps its logger on, the authentication logs go through it", () => {
+        expect(server["app"].log.level).toBe("info");
     });
 });
