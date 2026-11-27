@@ -76,8 +76,9 @@ La sortie dit `fichier:ligne Statut Mutateur => remplacement`. Pour rejouer un f
 `npm run knip:production` (étape de CI juste après `npm run knip`, décision #111) échoue sur un export ou un fichier de production qu'aucun code de production n'atteint : un test qui l'importe ne le garde plus en vie. La sortie nomme l'export ou le fichier.
 - Remède : retirer `export` (le test passe par l'API publique), brancher le code ou le supprimer. Pas de test qui importe un détail interne pour le garder en vie.
 - Un script `npm run` ou un fichier lancé par `tsx` que le code n'importe pas se déclare dans `knip.production.jsonc` (entrée `!` avec sa raison). `admission-policy.ts` y est écarté jusqu'à US-009 (`DEBTS.md`).
-- Interdit : `ignoreExportsUsedInFile`, `ignoreIssues` ou `ignoreFiles` pour faire passer un constat, `--strict` retiré ou ajouté sans décision, `--production` ou `--config` retirés du script. `npm run knip` garde `--treat-config-hints-as-errors`.
-- `src/knip-production.test.ts` prouve que la garde mord et fige le script et l'étape de CI ; une option de `knip.production.jsonc` ajoutée, retirée ou changée s'y accompagne d'un cas.
+- Interdit : `ignoreExportsUsedInFile`, `ignoreDependencies`, `ignoreFiles` ou une exception de plus dans `ignoreIssues` pour faire passer un constat, `--strict` retiré ou ajouté sans décision, `--production` ou `--config` retirés du script. `npm run knip` garde `--treat-config-hints-as-errors`.
+- `knip.production.jsonc` ne tient que les clés `entry`, `project`, `ignoreBinaries` (`tsx`) et `ignoreIssues` (`admission-policy.ts`, type `files`) : un test les fige. Une clé ou une exception de plus est une décision de conception ; la liste et un cas changent avec elle.
+- `src/knip-production.test.ts` prouve que la garde mord et fige le script et l'étape de CI ; il exige une sortie vide de knip sur l'arbre propre (faux rouge possible à une montée de version de knip) ; une option de `knip.production.jsonc` ajoutée, retirée ou changée s'y accompagne d'un cas.
 
 ## Le réel fait foi
 Le handoff (`docs/sessions/`) est une hypothèse. On le confronte à l'état réel à chaque
