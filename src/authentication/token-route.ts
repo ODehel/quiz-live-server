@@ -70,7 +70,7 @@ export default function tokenRoute(app: FastifyInstance, options: TokenRouteConf
         const isNull = (name: string) => body[name] === null;
         if (request.validationError) {
             const violations = request.validationError.validation as SchemaViolation[];
-            if (violations.some(v => v.keyword === 'type' && v.instancePath === '')) {
+            if (violations.find(v => v.keyword === 'type' && v.instancePath === '') !== undefined) {
                 return sendValidationError(notAnObjectMessage);
             }
             const mistypedField = fields.find(({ name }) => violations.some(v =>
@@ -78,16 +78,15 @@ export default function tokenRoute(app: FastifyInstance, options: TokenRouteConf
             if (mistypedField) {
                 return sendValidationError(mistypedField.typeMessage);
             }
+            // Past the checks above, the only violation of a field is its minLength, and only a missing field has a missingProperty.
             const missingField = fields.find(({ name }) => violations.some(v =>
-                (v.keyword === 'required' && v.params.missingProperty === name)
+                v.params.missingProperty === name
                 || isNull(name)
-                || (v.keyword === 'minLength' && v.instancePath === `/${name}`)));
+                || v.instancePath === `/${name}`));
             if (missingField) {
                 return sendValidationError(missingField.requiredMessage);
             }
-            const unknownFields = violations
-                .filter(v => v.keyword === 'additionalProperties')
-                .map(v => v.params.additionalProperty);
+            const unknownFields = violations.map(v => v.params.additionalProperty);
             return reply.status(400).send({
                 status: 400,
                 error: 'UNKNOWN_FIELDS',
