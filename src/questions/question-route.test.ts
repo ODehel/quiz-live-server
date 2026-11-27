@@ -1065,6 +1065,21 @@ describe('US-005/CA-47 - The body of a question deletion is ignored', () => {
     });
 });
 
+describe('US-005/CA-47 (decision #107) - The body of a question deletion stays under the default limit of 1 MiB', () => {
+    const id = '019d92d2-e1f6-7d05-9803-3948dbc4c416';
+    const ONE_MIB = 1024 * 1024;
+
+    it.each([
+        ['1 MiB exactly', ONE_MIB, 204],
+        ['1 MiB and one byte', ONE_MIB + 1, 413]
+    ])('should answer %s with %s', async (_label, size, status) => {
+        const response = await app.inject({ method: 'DELETE', url: `/api/v1/questions/${id}`, headers: { 'content-type': 'application/json' }, body: 'a'.repeat(size) });
+
+        expect(response.statusCode).toBe(status);
+        expect(mockQuestionService.deleteQuestion).toHaveBeenCalledTimes(status === 204 ? 1 : 0);
+    });
+});
+
 describe('US-005/CA-26 - List a page of questions', () => {
     it('should ask the service for the requested page and limit as numbers and reply 200 with its pagination', async () => {
         const question = {

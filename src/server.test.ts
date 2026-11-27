@@ -694,6 +694,12 @@ describe('US-004/CA-29 - An unknown theme answers 404 on DELETE on the assembled
 		expect(response.statusCode).toBe(404)
 		expect(response.json()).toEqual(unknownThemeBody)
 	})
+	it.each(['themes', 'questions'])('US-004/CA-31 and US-005/CA-47 (decision #107): answers 413 FST_ERR_CTP_BODY_TOO_LARGE to a body of 1 MiB and one byte on /api/v1/%s/:id', async (resource) => {
+		await server.start()
+		const response = await server.inject({ method: 'DELETE', url: `/api/v1/${resource}/${unknownThemeId}`, headers: { 'content-type': 'application/json' }, payload: 'a'.repeat(1024 * 1024 + 1) })
+		expect(response.statusCode).toBe(413)
+		expect(response.json()).toEqual({ statusCode: 413, code: 'FST_ERR_CTP_BODY_TOO_LARGE', error: 'Payload Too Large', message: 'Request body is too large' })
+	})
 	afterEach(async () => {
 		await server.stop()
 		database.close()

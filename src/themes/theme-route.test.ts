@@ -964,6 +964,22 @@ describe("US-004/CA-28 - Delete route", () => {
     });
 });
 
+describe("US-004/CA-31 (decision #107) - The body of a DELETE stays under the default limit of 1 MiB", () => {
+    it.each([
+        ["1 MiB exactly", 1024 * 1024, 204],
+        ["1 MiB and one byte", 1024 * 1024 + 1, 413]
+    ])("should answer %s with %s", async (_label, size, status) => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/themes/019d92d2-e1f6-7d05-9803-3948dbc4c416',
+            headers: { 'content-type': 'text/plain' },
+            body: 'a'.repeat(size)
+        });
+        expect(response.statusCode).toBe(status);
+        expect(mockThemeService.deleteTheme).toHaveBeenCalledTimes(status === 204 ? 1 : 0);
+    });
+});
+
 describe("US-004/CA-31a - The content type of a DELETE is ignored whatever its value (decision #82)", () => {
     it.each([
         ['application/xml', { 'content-type': 'application/xml' }, '<ignored/>'],
