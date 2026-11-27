@@ -49,6 +49,18 @@ if (script.report !== null) {
 process.exit(script.exit);
 `;
 
+interface FakeMutant { mutatorName: string; status: string; replacement: string; line: number; statusReason?: string }
+
+function reportOf(mutants: Record<string, FakeMutant[]>): unknown {
+    const files = Object.fromEntries(Object.entries(mutants).map(([path, list]) => [path, {
+        language: 'typescript',
+        mutants: list.map(({ line, ...rest }, index) => ({ id: String(index), ...rest, location: { start: { line, column: 1 }, end: { line, column: 2 } } }))
+    }]));
+    return { schemaVersion: '1.0', files };
+}
+
+const KILLED: FakeMutant = { mutatorName: 'StringLiteral', status: 'Killed', replacement: '""', line: 1 };
+
 interface Branch { base: Record<string, string>; changes: Record<string, string | null>; report?: unknown; strykerExit?: number }
 
 function branchOf({ base, changes, report = null, strykerExit = 0 }: Branch): string {
@@ -91,5 +103,28 @@ describe('which files the branch changed', () => {
         const run = guard(repository, '--base', 'main');
         expect([run.status, strykerArguments(repository)]).toEqual([0, null]);
         expect(run.output).toContain('No production file changed');
+    });
+});
+
+describe('what the mutation tool is asked to mutate', () => {
+    it('is the production files the branch changed, and only them', () => {
+        const repository = branchOf({
+            base: { 'src/themes/a.ts': SOURCE, 'src/questions/b.ts': SOURCE, 'src/common/untouched.ts': SOURCE },
+            changes: { 'src/themes/a.ts': SOURCE + '// changed\n', 'src/questions/b.ts': SOURCE + '// changed\n', 'src/questions/b.test.ts': SOURCE },
+            report: reportOf({ 'src/themes/a.ts': [KILLED], 'src/questions/b.ts': [KILLED] })
+        });
+        const run = guard(repository, '--base', 'main');
+        expect([run.status, strykerArguments(repository)]).toEqual([0, ['run', '--mutate', 'src/questions/b.ts,src/themes/a.ts']]);
+        expect(run.output).toContain('No surviving mutant');
+    });
+
+    it('leaves out a production file the branch deleted', () => {
+        const repository = branchOf({
+            base: { 'src/themes/a.ts': SOURCE, 'src/themes/gone.ts': SOURCE },
+            changes: { 'src/themes/a.ts': SOURCE + '// changed\n', 'src/themes/gone.ts': null },
+            report: reportOf({ 'src/themes/a.ts': [KILLED] })
+        });
+        guard(repository, '--base', 'main');
+        expect(strykerArguments(repository)).toEqual(['run', '--mutate', 'src/themes/a.ts']);
     });
 });
