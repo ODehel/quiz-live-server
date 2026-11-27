@@ -42,19 +42,7 @@ describe("US-005 - SqliteQuestionRepository persists and retrieves a SPEED quest
         // Act
         const found = repository.getByTitle(speedQuestion.title);
         // Assert
-        expect(found).not.toBeUndefined();
-        expect(found?.id).toBe(speedQuestion.id);
-        expect(found?.type).toBe("SPEED");
-        expect(found?.theme_id).toBe(speedQuestion.theme_id);
-        expect(found?.title).toBe(speedQuestion.title);
-        expect(found?.correct_answer).toBe(speedQuestion.correct_answer);
-        expect(found?.level).toBe(speedQuestion.level);
-        expect(found?.time_limit).toBe(speedQuestion.time_limit);
-        expect(found?.points).toBe(speedQuestion.points);
-        expect(found?.image_path).toBe(speedQuestion.image_path);
-        expect(found?.audio_path).toBe(speedQuestion.audio_path);
-        expect(found?.created_at).toBe(speedQuestion.created_at);
-        expect(found?.last_updated_at).toBe(speedQuestion.last_updated_at);
+        expect(found).toMatchObject(speedQuestion);
     });
 });
 
