@@ -12,6 +12,8 @@ const ROOT = resolve(__dirname, '..');
 const SCRIPT = join(ROOT, 'scripts/duplication-guard.mjs');
 const CONFIGURATION = readFileSync(join(ROOT, '.jscpd.tests.json'), 'utf8');
 const BASELINE = readFileSync(join(ROOT, '.jscpd.tests.baseline.json'), 'utf8');
+// Built at run time: the guard reads this very file, and jscpd honours the marker even inside a string.
+const MARKER = ['jscpd', 'ignore-start'].join(':');
 
 const trees: string[] = [];
 
@@ -38,5 +40,13 @@ describe('a tree where no duplication check is switched off', () => {
     it('passes the guard', () => {
         const run = guard(treeOf({ 'src/themes/a.ts': 'export const value = 1\n' }));
         expect(run.status).toBe(0);
+    });
+});
+
+describe('a tree where a comment switches a duplication check off', () => {
+    it('fails the guard and names the file and the line', () => {
+        const run = guard(treeOf({ 'src/themes/a.ts': `export const value = 1\n// ${MARKER}\n` }));
+        expect(run.status).toBe(1);
+        expect(run.output).toContain(`${join('src', 'themes', 'a.ts')}:2 switches a duplication check off`);
     });
 });
