@@ -13,8 +13,8 @@ const SWITCH_OFF = /jscpd:ignore/;
 // (it has a baseline), the production check, which tolerates nothing, reports any block as a clone.
 const isTestFile = (path) => path.endsWith('.test.ts') || path.startsWith('test-support/') || path.includes('/test-support/');
 const CHECKS = [
-    { configuration: '.jscpd.tests.json', copied: ['.jscpd.tests.json', '.jscpd.tests.baseline.json'], files: ['first.test.ts', 'second.test.ts'], clone: '[NEW]', owns: isTestFile },
-    { configuration: '.jscpd.production.json', copied: ['.jscpd.production.json'], files: ['first.ts', 'second.ts'], clone: 'Clone found', owns: (path) => !isTestFile(path) }
+    { configuration: '.jscpd.tests.json', copied: ['.jscpd.tests.json', '.jscpd.tests.baseline.json'], files: ['first.test.ts', 'second.test.ts'], clone: '[NEW]', owns: isTestFile, allowed: ['path', 'pattern', 'baseline', 'failOnNewClones', 'failOnEmpty'] },
+    { configuration: '.jscpd.production.json', copied: ['.jscpd.production.json'], files: ['first.ts', 'second.ts'], clone: 'Clone found', owns: (path) => !isTestFile(path), allowed: ['path', 'ignore', 'exitCode', 'failOnEmpty'] }
 ];
 const SOURCE = /\.(ts|mjs)$/;
 const WITNESS = `export function total(values: number[]): number {
@@ -77,7 +77,13 @@ function countProblems({ configuration, owns }) {
     return analysed === expected ? [] : [`${configuration} analyses ${analysed} files of src, ${expected} expected`];
 }
 
-const problems = [...switchedOff('src'), ...CHECKS.flatMap(replayOnAWitness), ...CHECKS.flatMap(countProblems)];
+function keyProblems({ configuration, allowed }) {
+    return Object.keys(JSON.parse(readFileSync(configuration, 'utf8')))
+        .filter((key) => !allowed.includes(key))
+        .map((key) => `${configuration} holds the key '${key}', which the guard does not allow`);
+}
+
+const problems = [...switchedOff('src'), ...CHECKS.flatMap(replayOnAWitness), ...CHECKS.flatMap(countProblems), ...CHECKS.flatMap(keyProblems)];
 if (problems.length > 0) {
     console.error(problems.join('\n'));
     process.exit(1);
