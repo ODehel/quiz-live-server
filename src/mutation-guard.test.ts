@@ -130,6 +130,50 @@ describe('what the mutation tool is asked to mutate', () => {
         expect(run.output).toContain('No surviving mutant');
     });
 
+    it('includes a production file the branch added', () => {
+        const repository = branchOf({
+            base: { 'src/themes/a.ts': SOURCE },
+            changes: { 'src/themes/new.ts': SOURCE },
+            report: reportOf({ 'src/themes/new.ts': [KILLED] })
+        });
+        guard(repository, '--base', 'main');
+        expect(strykerArguments(repository)).toEqual(['run', '--mutate', 'src/themes/new.ts']);
+    });
+
+    it('includes a production file the branch renamed, under its new name', () => {
+        const repository = branchOf({
+            base: { 'src/themes/old.ts': SOURCE.repeat(5) },
+            changes: { 'src/themes/old.ts': null, 'src/themes/renamed.ts': SOURCE.repeat(5) },
+            report: reportOf({ 'src/themes/renamed.ts': [KILLED] })
+        });
+        guard(repository, '--base', 'main');
+        expect(strykerArguments(repository)).toEqual(['run', '--mutate', 'src/themes/renamed.ts']);
+    });
+
+    it('includes the files of every commit since the base, not only the last one', () => {
+        const repository = branchOf({
+            base: { 'src/themes/a.ts': SOURCE, 'src/themes/b.ts': SOURCE },
+            changes: { 'src/themes/a.ts': SOURCE + '// first\n' },
+            report: reportOf({ 'src/themes/a.ts': [KILLED], 'src/themes/b.ts': [KILLED] })
+        });
+        commit(repository, { 'src/themes/b.ts': SOURCE + '// second\n' });
+        guard(repository, '--base', 'main');
+        expect(strykerArguments(repository)).toEqual(['run', '--mutate', 'src/themes/a.ts,src/themes/b.ts']);
+    });
+
+    it('leaves out a file that only the base changed after the branch left it', () => {
+        const repository = branchOf({
+            base: { 'src/themes/a.ts': SOURCE, 'src/themes/moved-on.ts': SOURCE },
+            changes: { 'src/themes/a.ts': SOURCE + '// changed\n' },
+            report: reportOf({ 'src/themes/a.ts': [KILLED] })
+        });
+        git(repository, 'checkout', '-q', 'main');
+        commit(repository, { 'src/themes/moved-on.ts': SOURCE + '// changed on the base\n' });
+        git(repository, 'checkout', '-q', 'session');
+        guard(repository, '--base', 'main');
+        expect(strykerArguments(repository)).toEqual(['run', '--mutate', 'src/themes/a.ts']);
+    });
+
     it('leaves out a production file the branch deleted', () => {
         const repository = branchOf({
             base: { 'src/themes/a.ts': SOURCE, 'src/themes/gone.ts': SOURCE },
