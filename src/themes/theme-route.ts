@@ -1,10 +1,10 @@
 import { FastifyInstance, FastifyReply } from "fastify";
 import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
-import { ID_MISMATCH, INTERNAL_SERVER_ERROR, INVALID_BODY, INVALID_PAGINATION, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
+import { ID_MISMATCH, INTERNAL_SERVER_ERROR, INVALID_BODY, INVALID_UUID, THEME_ALREADY_EXISTS, THEME_HAS_QUESTIONS, UNKNOWN_FIELDS, VALIDATION_ERROR } from "../common/error-codes";
 import { NotFoundError } from "../common/not-found-error";
 import { ThemeHasQuestionsError } from "./theme-has-questions-error";
-import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
+import { readPaginationQuery } from "../common/read-pagination-query";
 import { rejectUnsupportedContentType } from "../common/reject-unsupported-content-type";
 import { ThemeRouteConfiguration } from "./theme-route-configuration.interface";
 
@@ -31,15 +31,13 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
     });
 
     app.get('/api/v1/themes', async (request, reply) => {
-        const { page = 1, limit = 20 } = request.query as { page?: string, limit?: string };
-
-        if (!isWrittenPaginationNumber(limit) || Number(limit) > 100 || !isWrittenPaginationNumber(page)) {
-            reply.status(400).send({ status: 400, error: INVALID_PAGINATION, message: 'Invalid pagination parameters.' });
+        const requested = readPaginationQuery(request.query as { page?: string, limit?: string }, reply);
+        if (requested === undefined) {
             return;
         }
 
         try {
-            const pagination = themeService.getAll(Number(page), Number(limit));
+            const pagination = themeService.getAll(requested.page, requested.limit);
             reply.status(200).send(pagination);
         } catch (error) {
             sendError(error, reply);
