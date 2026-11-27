@@ -15,6 +15,10 @@ export default tseslint.config(
     },
   },
   {
+    // Cyclomatic complexity of every function, production and tests alike. What it leaves through: DEBTS.md, "outillage".
+    rules: { complexity: ["error", { max: 10 }] }
+  },
+  {
     files: ["**/*.test.ts"],
     // False alarm on expect(mock.method): the spy is not called with a lost `this`. See DEBTS.md.
     rules: { "@typescript-eslint/unbound-method": "off" }
