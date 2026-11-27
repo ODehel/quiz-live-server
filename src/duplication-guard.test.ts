@@ -158,6 +158,11 @@ describe('a check that stops analysing files of src', () => {
         expect([run.status, run.output]).toEqual([1, expect.stringContaining(said)]);
     });
 
+    it('fails the guard on an empty file of src, which jscpd does not count', () => {
+        const run = guard(treeOf({ 'src/a.test.ts': LONE, 'src/empty.test.ts': '' }));
+        expect([run.status, run.output]).toEqual([1, expect.stringContaining('.jscpd.tests.json analyses 1 files of src, 2 expected')]);
+    });
+
     it('passes the guard when every file lies where its check expects it, at the root of src or deeper', () => {
         const files = ['src/a.test.ts', 'src/themes/b.test.ts', 'src/test-support/c.mjs', 'src/themes/test-support/d.ts', 'src/e.ts', 'src/themes/f.ts'];
         const run = guard(treeOf(Object.fromEntries(files.map((file) => [file, LONE]))));
@@ -189,9 +194,13 @@ describe('a configuration that holds a key the guard does not allow', () => {
 });
 
 describe('where the guard runs', () => {
-    it('is the npm script `duplication:guard`, next to the check of the tests whose command the witness replays', () => {
+    it('is the npm script `duplication:guard`, next to the two checks whose commands the witness replays, with no option on the command line', () => {
         const { scripts } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
-        expect([scripts['duplication:guard'], scripts['duplication:tests']]).toEqual(['node scripts/duplication-guard.mjs', 'jscpd --config .jscpd.tests.json']);
+        expect([scripts['duplication:guard'], scripts['duplication:tests'], scripts['duplication:production']]).toEqual([
+            'node scripts/duplication-guard.mjs',
+            'jscpd --config .jscpd.tests.json',
+            'jscpd --config .jscpd.production.json'
+        ]);
     });
 
     it('is a step of the CI that runs only that script, before both duplication checks', () => {
