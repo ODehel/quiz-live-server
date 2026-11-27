@@ -45,4 +45,15 @@ describe('the complexity of a function', () => {
         expect(run.status).toBe(1);
         expect(run.output).toContain("Function 'witness' has a complexity of 9. Maximum allowed is 8");
     });
+
+    it('lets a function of exactly 8 through', () => {
+        const run = lint({ 'src/witness.ts': functionOfComplexity(8) });
+        expect([run.status, run.output]).toEqual([0, '']);
+    });
+
+    it('fails the lint above 8 in a test file as well', () => {
+        const run = lint({ 'src/witness.test.ts': functionOfComplexity(9) });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("Function 'witness' has a complexity of 9. Maximum allowed is 8");
+    });
 });
