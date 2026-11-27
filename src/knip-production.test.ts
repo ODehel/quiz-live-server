@@ -153,6 +153,21 @@ describe('an entry of knip.jsonc that no file matches', () => {
     });
 });
 
+// The options that would hide a finding instead of fixing it are not in this list, so a case adds one only by a design decision (CLAUDE.md).
+describe('the options of knip.production.jsonc', () => {
+    it('hold only the keys the guard allows', () => {
+        expect(Object.keys(CONFIGURATION).sort()).toEqual(['$schema', 'entry', 'ignoreBinaries', 'ignoreIssues', 'project']);
+    });
+
+    it('set aside only the dormant admission policy, and only as an unused file', () => {
+        expect(CONFIGURATION.ignoreIssues).toEqual({ [DORMANT]: ['files'] });
+    });
+
+    it('know only `tsx` as a binary that production mode does not list', () => {
+        expect(CONFIGURATION.ignoreBinaries).toEqual(['tsx']);
+    });
+});
+
 describe('this repository', () => {
     it('has no production code that only its tests use: the production pass passes in its root', () => {
         const run = runScript('knip:production', ROOT);
