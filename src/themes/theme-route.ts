@@ -83,16 +83,8 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
                 return;
             }
 
-            if ('id' in body) {
-                const idFromBody: unknown = body.id;
-                if (typeof idFromBody !== 'string' || !uuidValidator.validate(idFromBody)) {
-                    reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
-                    return;
-                }
-                if (idFromBody !== idFromParams) {
-                    reply.status(400).send({ status: 400, error: ID_MISMATCH, message: 'The ID in the request body does not match the URL parameter.' });
-                    return;
-                }
+            if (rejectInvalidBodyId(body, idFromParams, reply)) {
+                return;
             }
 
             const name = readName(body, reply);
@@ -179,6 +171,22 @@ export default async function themeRoute(app: FastifyInstance, options: ThemeRou
             return undefined;
         }
         return name;
+    }
+
+    function rejectInvalidBodyId(body: object, idFromParams: string, reply: FastifyReply): boolean {
+        if (!('id' in body)) {
+            return false;
+        }
+        const idFromBody: unknown = body.id;
+        if (typeof idFromBody !== 'string' || !uuidValidator.validate(idFromBody)) {
+            reply.status(400).send({ status: 400, error: INVALID_UUID, message: 'The provided ID is not a valid UUID.' });
+            return true;
+        }
+        if (idFromBody !== idFromParams) {
+            reply.status(400).send({ status: 400, error: ID_MISMATCH, message: 'The ID in the request body does not match the URL parameter.' });
+            return true;
+        }
+        return false;
     }
 
     function rejectUnknownFields(body: object, allowedFields: string[], reply: FastifyReply): boolean {

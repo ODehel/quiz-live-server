@@ -50,8 +50,9 @@ Claude écrit un bloc PowerShell, Olivier le lance, la sortie va dans
 - `src/duplication-guard.test.ts` prouve ces refus ; une option de `.jscpd.tests.json` ou de `.jscpd.production.json` ajoutée, retirée ou changée s'y accompagne d'un cas.
 
 ## Complexité des fonctions
-`npm run lint` échoue sur toute fonction de complexité cyclomatique supérieure à 10, tests compris.
+`npm run lint` échoue sur toute fonction de complexité cyclomatique supérieure à 8 (seuil propre au hub), tests compris.
 Remède : extraire des fonctions nommées, sous tests verts. Pas de commentaire `eslint-disable` ni de seuil relevé.
+- `src/complexity-guard.test.ts` prouve que le seuil mord : une fonction de complexité 9 fait échouer le lint, une de 8 passe, en production comme en test. Un `max` changé ou une règle limitée aux fichiers hors test y rougit.
 
 ## Couches du hub
 `npm run layers` échoue sur tout import qui traverse une couche ; les couches et leurs règles sont dans `.dependency-cruiser.cjs`

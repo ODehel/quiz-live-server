@@ -148,17 +148,19 @@ export class DefaultQuestionService implements QuestionService {
     }
 
     private carriesTheStoredData(input: CreateQuestionInput, existing: Question, title: string, correctAnswer: string): boolean {
-        // No length comparison: validateChoices has already required exactly CHOICES_COUNT choices, as the stored question has.
-        const sameChoices = input.type !== "MCQ" || existing.type !== "MCQ"
-            || input.choices.every((choice, index) => choice.trim() === existing.choices[index]);
-
         return input.theme_id === existing.theme_id
             && title === existing.title
             && correctAnswer === existing.correct_answer
             && input.level === existing.level
             && input.time_limit === existing.time_limit
             && input.points === existing.points
-            && sameChoices;
+            && this.hasTheStoredChoices(input, existing);
+    }
+
+    private hasTheStoredChoices(input: CreateQuestionInput, existing: Question): boolean {
+        // No length comparison: validateChoices has already required exactly CHOICES_COUNT choices, as the stored question has.
+        return input.type !== "MCQ" || existing.type !== "MCQ"
+            || input.choices.every((choice, index) => choice.trim() === existing.choices[index]);
     }
 
     private rejectInvalidType(input: CreateQuestionInput): void {

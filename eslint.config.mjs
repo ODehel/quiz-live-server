@@ -16,7 +16,7 @@ export default tseslint.config(
   },
   {
     // Cyclomatic complexity of every function, production and tests alike. What it leaves through: DEBTS.md, "outillage".
-    rules: { complexity: ["error", { max: 10 }] }
+    rules: { complexity: ["error", { max: 8 }] }
   },
   {
     files: ["**/*.test.ts"],
