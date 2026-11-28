@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 // The SonarQube Cloud analysis (decision #114) is informative: what it reports must never be silenced from the repository.
 // A comment that tells Sonar to ignore a line, or an exclusion that hides code from its issues, its coverage or its duplication,
-// is to Sonar what `eslint-disable` and `jscpd:ignore` are to the guards of the repository. The one exclusion admitted
+// is to Sonar what the comments that switch lint or duplication checks off are to the guards of the repository. The one exclusion admitted
 // only separates the tests from the sources (they share `src`): it must name what `sonar.test.inclusions` names.
 
 const ROOT = resolve(__dirname, '..');
