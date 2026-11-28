@@ -86,8 +86,8 @@ La sortie dit `fichier:ligne Statut Mutateur => remplacement`. Pour rejouer un f
 Informative, hub seul (décisions #112, #114) : aucune étape de CI n'échoue à cause de Sonar. Config : `sonar-project.properties`.
 Deux étapes de `ci.yml` après `npm run test:coverage` ; elles se sautent sans `SONAR_TOKEN` (secret non posé, PR de fork) et ne partagent jamais le jeton.
 - Prérequis côté Sonar : le secret `SONAR_TOKEN` du dépôt, et l'analyse automatique du projet désactivée (sinon le scanner échoue).
-- `sonar.exclusions` ne fait que séparer les tests des sources (même valeur que `sonar.test.inclusions`) ; pas de `NOSONAR`, pas de `sonar.coverage.exclusions` ni `sonar.cpd.exclusions`, pas de `sonar.qualitygate.wait`.
-  Le remède à un constat reste un `refactor`. `src/sonar-guard.test.ts` prouve ces refus.
+- `sonar.exclusions` et `sonar.test.inclusions` ne font que séparer les tests des sources (valeur décidée, #114) ; pas de `NOSONAR`, ni d'autre exclusion, inclusion ou `sonar.issue.ignore.*`, ni de `sonar.qualitygate.wait`.
+  Le remède à un constat reste un `refactor`. `src/sonar-guard.test.ts` prouve le refus des clés et de la valeur ; `sonar.qualitygate.wait` n'y est gardé que par un cas sur le fichier réel.
 - Un constat Sonar ne se règle pas par une règle désactivée dans l'interface de Sonar sans décision (`docs/decisions/DECISIONS.md`).
 
 ## Le réel fait foi
