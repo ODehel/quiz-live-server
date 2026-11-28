@@ -98,21 +98,9 @@ export class SqliteQuestionRepository implements QuestionRepository {
     }
 
     private rowToQuestion(row: QuestionRow): Question {
-        const base = {
-            id: row.id,
-            theme_id: row.theme_id,
-            title: row.title,
-            correct_answer: row.correct_answer,
-            level: row.level,
-            time_limit: row.time_limit,
-            points: row.points,
-            image_path: row.image_path,
-            audio_path: row.audio_path,
-            created_at: row.created_at,
-            last_updated_at: row.last_updated_at
-        };
-        if (row.type === "MCQ")
-            return { ...base, type: "MCQ", choices: JSON.parse(row.choices!) as string[] };
+        const { type, choices, ...base } = row;
+        if (type === "MCQ")
+            return { ...base, type: "MCQ", choices: JSON.parse(choices!) as string[] };
 
         return { ...base, type: "SPEED" };
     }

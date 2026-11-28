@@ -1907,3 +1907,22 @@ Laissés ouverts volontairement, non décidés ici : (a) `GET /health` (US-020) 
 - **Sessions suivantes proposées, à valider par Olivier** : `chore(ci): analyse the pull requests with SonarQube Cloud` (informatif, hub seul, `SONAR_TOKEN` en secret du dépôt, `sonar-project.properties`, aucune étape qui échoue, aucun nouveau garde bloquant) ; puis, après les PR observées, une session qui rend la porte bloquante.
 - Condition de réouverture : la licence ou le plan OSS refusés pour ce dépôt ; un faux positif récurrent sans remède autre qu'une exclusion ; un service qui change de plan gratuit.
 - À challenger : (a) garder toutes les gardes maison plutôt que retirer `complexity` au profit de la complexité cognitive ; (b) SonarQube Cloud plutôt qu'un service concurrent, non comparé ; (c) l'informatif d'abord, sans seuil de sortie chiffré (le nombre de PR observées reste à fixer) ; (d) le hub seul.
+
+---
+
+## #113 — Un contrôle de duplication de la production qui ne voit plus une copie à un nom près fait échouer la CI
+
+*`chore(ci): fail the build on production code duplicated up to a name` — hors US.*
+
+**Contexte.** Dette nommée par #110 : jscpd ne voit que les copies exactes. Mesuré le 2026-11-28 (jscpd 5.4.3) avec `--ignore-identifiers` sur la production : 4 blocs dans 7 fichiers, code de sortie 1 (la clé `ignoreIdentifiers: true` du JSON a le même effet que l'option, vérifié sur l'arbre réel ; valeurs permises : `true`, `false`, `"blind"`, `"consistent"`, autre chose refusé comme configuration). Sur les tests : 254 blocs aujourd'hui, 336 avec l'option (+82).
+
+**Décision.** Proposée par l'agent, à valider par Olivier à la revue (pas tranchée avec lui).
+- **Refactor d'abord** : les 4 blocs se règlent sans changer un comportement (`readBoundedInteger` pour `PORT` et `MAX_REQUESTS_PER_MINUTE`, messages inchangés ; `paginate` pour les deux services ; `sendPage` pour les deux `GET` de liste, corps `400` identique ; déstructuration dans `rowToQuestion`). Filet : Stryker à 100 % sur les 7 fichiers avant le premier `refactor`, puis sur les fichiers touchés.
+- **Production seule** : `"ignoreIdentifiers": true` dans `.jscpd.production.json`. Pas dans `.jscpd.tests.json` : cela ferait échouer le contrôle des tests ou en régénérerait l'état avec 82 copies de plus.
+- **Garde** : `ignoreIdentifiers` entre dans `allowed` de la production (et d'elle seule) ; le témoin de la production est désormais une copie dont tous les identifiants sont renommés : une clé absente, mal orthographiée ou à `false` laisse passer le témoin (code 0) et fait échouer la garde. Le témoin des tests reste une copie exacte. `src/duplication-guard.test.ts` porte quatre cas (clé absente, mal orthographiée, `false`, de mauvais type).
+- **CI** : aucune étape ajoutée, `npm run duplication:production` couvre déjà ; le script npm reste sans option de ligne de commande.
+- **Écartées** : l'option sur les tests ; `"consistent"` (mêmes 4 blocs aujourd'hui ; `true` correspond à l'option de la ligne de commande) ; un `ignore` des clones trouvés.
+
+**Conséquences.** Aucun comportement du hub ne change. Dette réécrite : « Le contrôle de duplication ne voit que… » (seuils et littéraux restent ouverts) ; mise à jour : « Duplication des tests » (336 avec l'option) ; inchangées : valeurs des clés non vérifiées (étendue à `ignoreIdentifiers`), bloc copié entre production et tests.
+- Condition de réouverture : une version de jscpd qui change `ignoreIdentifiers` ou ses valeurs ; un faux positif sans remède autre qu'une exclusion.
+- À challenger : (a) `true` plutôt que `"consistent"` ; (b) témoin renommé seul pour la production ; (c) `readBoundedInteger` et `sendPage` extraits par la PR, deux sites chacun ; (d) l'option refusée aux tests.

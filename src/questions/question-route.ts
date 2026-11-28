@@ -8,7 +8,7 @@ import { ValidationError } from "./validation-error";
 import { ConflictError } from "./conflict-error";
 import { TypeChangeNotAllowedError } from "./type-change-not-allowed-error";
 import { UnknownFieldsError } from "./unknown-fields-error";
-import { isWrittenPaginationNumber } from "../common/is-written-pagination-number";
+import { sendPage } from "../common/send-page";
 import { NotFoundError } from "../common/not-found-error";
 import { sendErrorBody } from "../common/send-error-body";
 import { rejectUnsupportedContentType } from "../common/reject-unsupported-content-type";
@@ -99,19 +99,7 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
     });
 
     app.get('/api/v1/questions', async (request, reply) => {
-        const { page = 1, limit = 20 } = request.query as { page?: number, limit?: number };
-
-        if (!isWrittenPaginationNumber(limit) || limit > 100 || !isWrittenPaginationNumber(page)) {
-            sendInvalidPaginationParameters(reply);
-            return;
-        }
-
-        try {
-            const pagination = questionService.getAll(Number(page), Number(limit));
-            reply.status(200).send(pagination);
-        } catch (error) {
-            sendError(error, reply);
-        }
+        sendPage(request.query as { page?: string, limit?: string }, reply, questionService, sendError);
     });
 
     app.put('/api/v1/questions/:id', { onRequest: rejectUnsupportedContentType }, async (request, reply) => {
@@ -220,14 +208,6 @@ export default async function questionRoute(app: FastifyInstance, options: Quest
             status: 400,
             error: 'VALIDATION_ERROR',
             message: 'Question title must be a string.'
-        });
-    }
-
-    function sendInvalidPaginationParameters(reply: FastifyReply) {
-        sendErrorBody(reply, {
-            status: 400,
-            error: 'INVALID_PAGINATION',
-            message: 'Invalid pagination parameters.'
         });
     }
 

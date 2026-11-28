@@ -10,15 +10,6 @@ import { fileURLToPath } from 'node:url';
 
 const JSCPD = fileURLToPath(new URL('../node_modules/jscpd/run-jscpd.js', import.meta.url));
 const SWITCH_OFF = /jscpd:ignore/;
-// Each check is replayed on two identical files that its configuration must analyse: the tests check reports a new block as [NEW]
-// (it has a baseline), the production check, which tolerates nothing, reports any block as a clone. `owns` says which files of src
-// (path relative to src, separators `/`) the check must analyse; `allowed` lists its configuration keys, any other (a threshold,
-// a misspelling that jscpd accepts without effect) is refused.
-const isTestFile = (path) => path.endsWith('.test.ts') || path.startsWith('test-support/') || path.includes('/test-support/');
-const CHECKS = [
-    { configuration: '.jscpd.tests.json', copied: ['.jscpd.tests.json', '.jscpd.tests.baseline.json'], files: ['first.test.ts', 'second.test.ts'], clone: '[NEW]', owns: isTestFile, allowed: ['path', 'pattern', 'baseline', 'failOnNewClones', 'failOnEmpty'] },
-    { configuration: '.jscpd.production.json', copied: ['.jscpd.production.json'], files: ['first.ts', 'second.ts'], clone: 'Clone found', owns: (path) => !isTestFile(path), allowed: ['path', 'ignore', 'exitCode', 'failOnEmpty'] }
-];
 const SOURCE = /\.(ts|mjs)$/;
 const WITNESS = `export function total(values: number[]): number {
     let sum = 0;
@@ -32,6 +23,19 @@ const WITNESS = `export function total(values: number[]): number {
     return sum;
 }
 `;
+// The same witness with every identifier renamed: only a check that ignores identifiers reports it as a copy of WITNESS.
+const RENAMED_WITNESS = WITNESS.replace(/\btotal\b/g, 'aggregate').replace(/\bvalues\b/g, 'numbers').replace(/\bvalue\b/g, 'item').replace(/\bsum\b/g, 'result');
+
+// Each check is replayed on two files that its configuration must analyse: the tests check reports a new block as [NEW]
+// (it has a baseline), the production check, which tolerates nothing, reports any block as a clone. The tests check is replayed
+// on two identical files, the production check on two files that differ only by their identifiers (it must see a copy up to a
+// name, decision #113). `owns` says which files of src (path relative to src, separators `/`) the check must analyse;
+// `allowed` lists its configuration keys, any other (a threshold, a misspelling that jscpd accepts without effect) is refused.
+const isTestFile = (path) => path.endsWith('.test.ts') || path.startsWith('test-support/') || path.includes('/test-support/');
+const CHECKS = [
+    { configuration: '.jscpd.tests.json', copied: ['.jscpd.tests.json', '.jscpd.tests.baseline.json'], files: ['first.test.ts', 'second.test.ts'], contents: [WITNESS, WITNESS], clone: '[NEW]', owns: isTestFile, allowed: ['path', 'pattern', 'baseline', 'failOnNewClones', 'failOnEmpty'] },
+    { configuration: '.jscpd.production.json', copied: ['.jscpd.production.json'], files: ['first.ts', 'second.ts'], contents: [WITNESS, RENAMED_WITNESS], clone: 'Clone found', owns: (path) => !isTestFile(path), allowed: ['path', 'ignore', 'exitCode', 'ignoreIdentifiers', 'failOnEmpty'] }
+];
 
 function switchedOff(folder) {
     return readdirSync(folder, { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile()).flatMap((entry) => {
@@ -50,11 +54,11 @@ function inTemporaryFolder(prefix, use) {
     }
 }
 
-function replayOnAWitness({ configuration, copied, files, clone }) {
+function replayOnAWitness({ configuration, copied, files, contents, clone }) {
     return inTemporaryFolder('duplication-witness-', (folder) => {
         for (const file of copied) copyFileSync(file, join(folder, file));
         mkdirSync(join(folder, 'src'));
-        for (const name of files) writeFileSync(join(folder, 'src', name), WITNESS);
+        files.forEach((name, index) => writeFileSync(join(folder, 'src', name), contents[index]));
         const run = spawnSync(process.execPath, [JSCPD, '--config', configuration], { cwd: folder, encoding: 'utf8' });
         const output = run.stdout + run.stderr;
         return run.status === 1 && output.includes(clone) ? [] : [`${configuration} does not fail on a new duplicated block (jscpd exit ${run.status}):\n${output}`];
