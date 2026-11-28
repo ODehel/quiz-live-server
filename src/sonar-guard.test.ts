@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 // The SonarQube Cloud analysis (decision #114) is informative: what it reports must never be silenced from the repository.
 // A comment that tells Sonar to ignore a line, or an exclusion that hides code from its issues, its coverage or its duplication,
 // is to Sonar what the comments that switch lint or duplication checks off are to the guards of the repository. The one exclusion admitted
-// only separates the tests from the sources (they share `src`): it must name what `sonar.test.inclusions` names.
+// only separates the tests from the sources (they share `src`): it must be the decided value, on `sonar.exclusions` and `sonar.test.inclusions` alike.
 
 const ROOT = resolve(__dirname, '..');
 const read = (path: string) => readFileSync(join(ROOT, path), 'utf8');
@@ -22,11 +22,14 @@ function settingsOf(properties: string): Map<string, string> {
     return new Map(lines.map((line) => [line.slice(0, line.indexOf('=')).trim(), line.slice(line.indexOf('=') + 1).trim()]));
 }
 
-// The settings that hide code from Sonar: any exclusion for the coverage or the duplication, and a plain exclusion that is not the separation.
+// The settings that hide code from Sonar: the separation of the tests from the sources must be exactly the one decided,
+// and no other setting may include, exclude or ignore code.
+const HIDING_KEYS = ['sonar.coverage.exclusions', 'sonar.cpd.exclusions', 'sonar.test.exclusions', 'sonar.global.exclusions', 'sonar.inclusions'];
 function hidingSettings(properties: string): string[] {
     const settings = settingsOf(properties);
-    const separation = settings.get('sonar.exclusions') === settings.get('sonar.test.inclusions');
-    return ['sonar.exclusions', 'sonar.coverage.exclusions', 'sonar.cpd.exclusions'].filter((key) => settings.has(key) && (key !== 'sonar.exclusions' || !separation));
+    const separation = ['sonar.exclusions', 'sonar.test.inclusions'].filter((key) => settings.has(key) && settings.get(key) !== SEPARATION);
+    const hiding = [...settings.keys()].filter((key) => HIDING_KEYS.includes(key) || key.startsWith('sonar.issue.ignore.'));
+    return [...separation, ...hiding];
 }
 
 // `file:line` of every line that carries the marker.
