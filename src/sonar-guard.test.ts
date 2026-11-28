@@ -53,3 +53,45 @@ describe('what silences Sonar', () => {
         expect(hidingSettings('# the tests are not sources\nsonar.test.inclusions=**/*.test.ts\nsonar.exclusions=**/*.test.ts')).toEqual([]);
     });
 });
+
+describe('the analysis of this repository', () => {
+    const properties = () => settingsOf(read('sonar-project.properties'));
+
+    it('hides nothing from Sonar and does not wait for its quality gate', () => {
+        expect([hidingSettings(read('sonar-project.properties')), properties().has('sonar.qualitygate.wait')]).toEqual([[], false]);
+    });
+
+    it('reads the coverage report that Vitest writes', () => {
+        expect([properties().get('sonar.javascript.lcov.reportPaths'), read('vitest.config.ts')]).toEqual(['coverage/lcov.info', expect.stringContaining("'lcov'")]);
+    });
+});
+
+describe('where the analysis runs', () => {
+    const steps = () => read('.github/workflows/ci.yml').split(/\n\s*- name:/).map((step) => step.split('\n').map((line) => line.trim()).filter((line) => line !== ''));
+    const positionOf = (line: string) => steps().findIndex((lines) => lines.includes(line));
+    const SECRET = 'SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}';
+
+    it('is a step after the tests with coverage, whose failure fails nothing, skipped for a fork', () => {
+        const position = positionOf('uses: SonarSource/sonarqube-scan-action@v7');
+        expect(steps()[position]).toEqual([
+            'Analyse with SonarQube Cloud',
+            "if: steps.sonar-token.outputs.present == 'true' && github.event.pull_request.head.repo.fork != true",
+            'continue-on-error: true',
+            'uses: SonarSource/sonarqube-scan-action@v7',
+            'env:',
+            SECRET
+        ]);
+        expect(position).toBeGreaterThan(positionOf('run: npm run test:coverage'));
+    });
+
+    it('is skipped without a token, which the step before it reports without failing', () => {
+        const check = steps()[positionOf('id: sonar-token')] ?? [];
+        expect(check.slice(0, 4)).toEqual(['SonarQube Cloud token available', 'id: sonar-token', 'env:', SECRET]);
+        expect(check.join('\n')).not.toMatch(/exit [1-9]/);
+        expect(positionOf('id: sonar-token')).toBe(positionOf('uses: SonarSource/sonarqube-scan-action@v7') - 1);
+    });
+
+    it('hands the token to those two steps only', () => {
+        expect(read('.github/workflows/ci.yml').match(/secrets\./g) ?? []).toHaveLength(2);
+    });
+});
