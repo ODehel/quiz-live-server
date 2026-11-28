@@ -82,6 +82,14 @@ La sortie dit `fichier:ligne Statut Mutateur => remplacement`. Pour rejouer un f
 - `knip.production.jsonc` ne tient que les clés `entry`, `project`, `ignoreBinaries` (`tsx`) et `ignoreIssues` (`admission-policy.ts`, type `files`) : un test les fige. Une clé ou une exception de plus est une décision de conception ; la liste et un cas changent avec elle.
 - `src/knip-production.test.ts` prouve que la garde mord et fige le script et l'étape de CI ; il exige une sortie vide de knip sur l'arbre propre (faux rouge possible à une montée de version de knip) ; une option de `knip.production.jsonc` ajoutée, retirée ou changée s'y accompagne d'un cas.
 
+## Analyse SonarQube Cloud
+Informative, hub seul (décisions #112, #114) : aucune étape de CI n'échoue à cause de Sonar. Config : `sonar-project.properties`.
+Deux étapes de `ci.yml` après `npm run test:coverage` ; elles se sautent sans `SONAR_TOKEN` (secret non posé, PR de fork) et ne partagent jamais le jeton.
+- Prérequis côté Sonar : le secret `SONAR_TOKEN` du dépôt, et l'analyse automatique du projet désactivée (sinon le scanner échoue).
+- `sonar.exclusions` ne fait que séparer les tests des sources (même valeur que `sonar.test.inclusions`) ; pas de `NOSONAR`, pas de `sonar.coverage.exclusions` ni `sonar.cpd.exclusions`, pas de `sonar.qualitygate.wait`.
+  Le remède à un constat reste un `refactor`. `src/sonar-guard.test.ts` prouve ces refus.
+- Un constat Sonar ne se règle pas par une règle désactivée dans l'interface de Sonar sans décision (`docs/decisions/DECISIONS.md`).
+
 ## Le réel fait foi
 Le handoff (`docs/sessions/`) est une hypothèse. On le confronte à l'état réel à chaque
 ouverture ; en cas d'écart, le réel gagne.
