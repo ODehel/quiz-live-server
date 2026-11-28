@@ -182,6 +182,13 @@ const WITH_OTHER_KEYS: [string, string, string, string, string][] = [
     ['a key that jscpd does not know, which it accepts', '.jscpd.tests.json', 'failOnEmpt', configured({ failOnEmpt: true }), PRODUCTION]
 ];
 
+describe('the tests configuration, which does not ignore identifiers', () => {
+    it('fails the guard when `.jscpd.tests.json` holds ignoreIdentifiers: the key is allowed for the production check only', () => {
+        const run = guard(treeOf({ 'src/themes/a.ts': LONE }, configured({ ignoreIdentifiers: true })));
+        expect([run.status, run.output]).toEqual([1, expect.stringContaining(".jscpd.tests.json holds the key 'ignoreIdentifiers', which the guard does not allow")]);
+    });
+});
+
 describe('a configuration that jscpd rejects', () => {
     it('fails the guard with the output of jscpd, since it wrote no report to count', () => {
         const run = guard(treeOf({ 'src/themes/a.test.ts': LONE }, configured({ failOnNewClones: '0' })));
