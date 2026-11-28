@@ -43,3 +43,19 @@ jobs:
         run: npm run mutation:changed -- --base "$BASE_REF"
       - name: Test with coverage
         run: npm run test:coverage
+      - name: SonarQube Cloud token available
+        id: sonar-token
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::SONAR_TOKEN is empty (pull request from a fork, or secret not set yet): the SonarQube Cloud analysis is skipped."
+          fi
+      - name: Analyse with SonarQube Cloud
+        if: steps.sonar-token.outputs.present == 'true' && github.event.pull_request.head.repo.fork != true
+        continue-on-error: true
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
