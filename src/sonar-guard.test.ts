@@ -12,6 +12,9 @@ const read = (path: string) => readFileSync(join(ROOT, path), 'utf8');
 // Built at run time: this file is in `src`, where the guard looks for the marker.
 const MARKER_NAME = ['NO', 'SONAR'].join('');
 const MARKER = new RegExp(MARKER_NAME, 'i');
+// The one pair of settings that separates the tests from the sources, as decided (#114).
+const SEPARATION = '**/*.test.ts,src/test-support/**';
+const SEPARATION_LINES = [`sonar.test.inclusions=${SEPARATION}`, `sonar.exclusions=${SEPARATION}`];
 
 // The `key=value` lines of a properties file, without comments and blank lines.
 function settingsOf(properties: string): Map<string, string> {
@@ -45,12 +48,23 @@ describe('what silences Sonar', () => {
         expect(silencingLines(sourcesOf('src'))).toEqual([]);
     });
 
-    it.each(['sonar.exclusions=src/**/*.ts', 'sonar.coverage.exclusions=src/index.ts', 'sonar.cpd.exclusions=src/index.ts'])('is refused in the properties: %s', (setting) => {
-        expect(hidingSettings(`sonar.test.inclusions=**/*.test.ts\n${setting}`)).toEqual([setting.split('=')[0]]);
+    it.each([
+        'sonar.exclusions=src/**',
+        'sonar.test.inclusions=src/**',
+        'sonar.coverage.exclusions=src/index.ts',
+        'sonar.cpd.exclusions=src/index.ts',
+        'sonar.test.exclusions=src/index.ts',
+        'sonar.global.exclusions=src/index.ts',
+        'sonar.inclusions=src/index.ts',
+        'sonar.issue.ignore.multicriteria=e1'
+    ])('is refused in the properties: %s', (setting) => {
+        const [key] = setting.split('=');
+        const others = SEPARATION_LINES.filter((line) => !line.startsWith(`${key}=`));
+        expect(hidingSettings([...others, setting].join('\n'))).toEqual([key]);
     });
 
-    it('lets through the exclusion that only separates the tests from the sources', () => {
-        expect(hidingSettings('# the tests are not sources\nsonar.test.inclusions=**/*.test.ts\nsonar.exclusions=**/*.test.ts')).toEqual([]);
+    it('lets through the one pair of settings that only separates the tests from the sources', () => {
+        expect(hidingSettings(`# the tests are not sources\n${SEPARATION_LINES.join('\n')}`)).toEqual([]);
     });
 });
 
